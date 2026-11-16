@@ -67,11 +67,16 @@ main{max-width:1100px;margin:0 auto;padding:18px max(4vw,16px) 60px}
 .p0{background:color-mix(in srgb,var(--coral) 16%,transparent);color:var(--coral)}
 .glass{width:44px;height:44px}
 .cat{margin-top:22px}
-.cat h2{font-size:24px;margin-bottom:8px}
-.ing{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.cat h2{font-size:24px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.cat h2 .top{color:var(--ink);font-family:Manrope,sans-serif;font-size:14px;font-weight:600;border:1px solid var(--line);background:var(--card);border-radius:999px;min-height:40px;padding:4px 12px}
+.cat{scroll-margin-top:12px}
+.ing{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
 .ing span small{color:var(--soft);font-size:13px;margin-left:6px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:12px;overflow:hidden}
-.seg button{min-width:52px;min-height:44px;border:0;background:var(--bg);font-size:13px;font-weight:600;padding:0 8px}
+.istar{min-width:40px;min-height:44px;border:0;background:none;font-size:22px;color:var(--soft);opacity:.45;padding:0}
+.istar[aria-pressed=true]{opacity:1}
+.istar[aria-pressed=true]{color:var(--lemon)}
+.seg button{min-width:48px;min-height:44px;border:0;background:var(--bg);font-size:13px;font-weight:600;padding:0 8px}
 .seg button+button{border-left:1px solid var(--line)}
 .seg button[aria-pressed=true].h2{background:var(--ok);color:#fff}
 .seg button[aria-pressed=true].h1{background:var(--half);color:#1a0a10}
@@ -165,6 +170,11 @@ dialog::backdrop{background:rgba(20,5,10,.55)}
 <section class="view" id="v-bar">
   <img class="hero" data-pic="P3" alt="An open drinks cupboard with bottles, jars and a fruit bowl" hidden>
   <p class="sum">Tap <b>Have</b>, <b>Little</b> (only use it if you must) or <b>None</b>. Your choices stay on this phone.</p>
+  <h2 style="font-size:20px;margin-top:6px" id="bar-top">Jump to</h2>
+  <div class="row" id="catjump" style="margin-top:6px"></div>
+  <h2 style="font-size:20px;margin-top:14px">Show</h2>
+  <div class="row" id="barshow" style="margin-top:6px"></div>
+  <input class="search" id="barq" type="search" placeholder="Find an ingredient" autocomplete="off" enterkeyhint="search" style="margin-top:10px;width:100%">
   <div id="barcats"></div>
   <div class="cat"><h2>Add an ingredient</h2>
     <div class="row"><input class="search" id="newing" placeholder="e.g. Chambord" autocomplete="off" enterkeyhint="done">
@@ -220,7 +230,7 @@ if (PICS.P1) { const c = document.getElementById("cover"); c.src = PICS.P1; c.hi
 document.querySelectorAll("[data-pic]").forEach(i => { const u = PICS[i.dataset.pic]; if (u) { i.src = u; i.hidden = false; } else i.remove(); });
 const P = {}; DATA.pantry.forEach(p => P[p.id] = p);
 const KEY = "jordansbar.v1";
-let S = {bar:{}, fav:{}, extra:[], mine:[], rate:{}, notes:{}};
+let S = {bar:{}, fav:{}, extra:[], mine:[], rate:{}, notes:{}, favIng:{}};
 let canSave = true;
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch (e) { canSave = false; }
 S.extra.forEach(p => { P[p.id] = p; });
@@ -319,22 +329,41 @@ document.getElementById("list").addEventListener("click", e => { const b = e.tar
 /* ---------- bar view ---------- */
 const CATS = ["Spirits","Liqueurs","Wine & vermouth","Mixers","Juices","Syrups","Bitters","Fresh","Store cupboard"];
 function used(id) { return all().filter(d => (d.need||[]).some(a => a.split("|").includes(id))).length; }
+let bshow = "all", bq = "";
+const SHOW = [["all","All"],["fav","★ Favourites"],["2","Have"],["1","Little"],["0","None"],["-1","Not set"]];
 function renderBar() {
+  const allP = Object.values(P);
+  const cnt = k => k === "all" ? allP.length : k === "fav" ? allP.filter(p => S.favIng[p.id]).length : allP.filter(p => String(lvl(p.id)) === k).length;
+  window.__barcnt = cnt;
+  document.getElementById("barshow").innerHTML = SHOW.map(([k,l]) => `<button class="chip" data-show="${k}" aria-pressed="${bshow===k}">${l} (${cnt(k)})</button>`).join("");
+  const keep = p => (bshow === "all" || (bshow === "fav" ? !!S.favIng[p.id] : String(lvl(p.id)) === bshow)) && (!bq || p.name.toLowerCase().includes(bq));
+  const favs = allP.filter(p => S.favIng[p.id] && keep(p)).sort((a,b) => a.name.localeCompare(b.name));
+  document.getElementById("catjump").innerHTML = (favs.length ? `<button class="chip" data-jump="Favourites">★ Favourites (${favs.length})</button>` : "") + CATS.map(c => { const n = allP.filter(p => p.cat === c && keep(p)).length; return n ? `<button class="chip" data-jump="${c}">${c} (${n})</button>` : ""; }).join("") || '<span class="meta">Nothing matches.</span>';
   const html = CATS.map(c => {
-    const items = Object.values(P).filter(p => p.cat === c).sort((a,b) => a.name.localeCompare(b.name));
+    const items = allP.filter(p => p.cat === c && keep(p)).sort((a,b) => (!!S.favIng[b.id] - !!S.favIng[a.id]) || a.name.localeCompare(b.name));
     if (!items.length) return "";
-    return `<div class="cat"><h2>${c}</h2>${items.map(p => { const v = lvl(p.id), u = used(p.id);
-      return `<div class="ing"><span>${esc(p.name)}<small>${u} drink${u===1?"":"s"}</small></span><span class="seg" data-i="${p.id}">
+    return `<div class="cat" id="cat-${c.replace(/[^A-Za-z]/g,"")}"><h2>${c}<button class="top" data-totop="1">Back to top</button></h2>${items.map(p => { const v = lvl(p.id), u = used(p.id);
+      return `<div class="ing"><button class="istar" data-star="${p.id}" aria-pressed="${!!S.favIng[p.id]}" aria-label="Favourite ${esc(p.name)}">★</button><span>${esc(p.name)}<small>${u} drink${u===1?"":"s"}</small></span><span class="seg" data-i="${p.id}">
       <button class="h2" data-l="2" aria-pressed="${v===2}">Have</button><button class="h1" data-l="1" aria-pressed="${v===1}">Little</button><button class="h0" data-l="0" aria-pressed="${v===0}">None</button></span></div>`; }).join("")}</div>`;
   }).join("");
-  document.getElementById("barcats").innerHTML = html;
+  const row = p => { const v = lvl(p.id), u = used(p.id); return `<div class="ing"><button class="istar" data-star="${p.id}" aria-pressed="${!!S.favIng[p.id]}" aria-label="Favourite ${esc(p.name)}">★</button><span>${esc(p.name)}<small>${u} drink${u===1?"":"s"}</small></span><span class="seg" data-i="${p.id}">
+      <button class="h2" data-l="2" aria-pressed="${v===2}">Have</button><button class="h1" data-l="1" aria-pressed="${v===1}">Little</button><button class="h0" data-l="0" aria-pressed="${v===0}">None</button></span></div>`; };
+  const favHtml = favs.length && bshow !== "fav" ? `<div class="cat" id="cat-Favourites"><h2>★ Favourites<button class="top" data-totop="1">Back to top</button></h2>${favs.map(row).join("")}</div>` : "";
+  document.getElementById("barcats").innerHTML = favHtml + html;
   document.getElementById("newcat").innerHTML = CATS.map(c => `<option>${c}</option>`).join("");
 }
+document.getElementById("barshow").addEventListener("click", e => { const b = e.target.closest("[data-show]"); if (b) { bshow = b.dataset.show; renderBar(); } });
+document.getElementById("catjump").addEventListener("click", e => { const b = e.target.closest("[data-jump]"); if (b) { const t = document.getElementById("cat-" + b.dataset.jump.replace(/[^A-Za-z]/g,"")); if (t) t.scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"}); } });
+document.getElementById("barq").addEventListener("input", e => { bq = e.target.value.trim().toLowerCase(); renderBar(); });
 document.getElementById("barcats").addEventListener("click", e => {
+  if (e.target.closest("[data-totop]")) { document.getElementById("v-bar").scrollIntoView(); return; }
+  const st = e.target.closest("[data-star]");
+  if (st) { const id = st.dataset.star; if (S.favIng[id]) delete S.favIng[id]; else S.favIng[id] = true; save(); renderBar(); return; }
   const b = e.target.closest("[data-l]"); if (!b) return;
   const id = b.parentElement.dataset.i, l = +b.dataset.l;
   if (S.bar[id] === l) delete S.bar[id]; else S.bar[id] = l;
-  save(); b.parentElement.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(+x.dataset.l === S.bar[id])));
+  save(); document.querySelectorAll(`.seg[data-i="${id}"]`).forEach(sg => sg.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(+x.dataset.l === S.bar[id]))));
+  if (window.__barcnt) document.querySelectorAll("#barshow [data-show]").forEach(c => { const k = c.dataset.show, l = SHOW.find(x => x[0] === k)[1]; c.textContent = `${l} (${window.__barcnt(k)})`; });
 });
 document.getElementById("addingbtn").addEventListener("click", () => {
   const n = document.getElementById("newing").value.trim(); if (!n) return;
@@ -353,7 +382,7 @@ document.getElementById("dorest").addEventListener("click", () => {
   try { const t = document.getElementById("rtext").value.trim().replace(/^JORDANSBAR:/, "");
     const o = JSON.parse(decodeURIComponent(escape(atob(t))));
     if (!o || typeof o.bar !== "object") throw 0;
-    S = Object.assign({bar:{}, fav:{}, extra:[], mine:[], rate:{}, notes:{}}, o); S.extra.forEach(p => P[p.id] = p); save(); renderAll(); bmsg("Restored.");
+    S = Object.assign({bar:{}, fav:{}, extra:[], mine:[], rate:{}, notes:{}, favIng:{}}, o); S.extra.forEach(p => P[p.id] = p); save(); renderAll(); bmsg("Restored.");
   } catch (e) { bmsg("That doesn't look like a Jordan's Bar backup. Nothing was changed."); }
 });
 
