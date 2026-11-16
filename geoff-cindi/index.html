@@ -26,6 +26,7 @@ h1{font-weight:normal;font-size:clamp(24px,4.8vw,40px);margin:4px 0 2px;text-sha
 .controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin:6px 0 4px}
 .controls button,.controls select{min-height:44px;min-width:44px;padding:0 14px;font:16px Georgia,serif;color:var(--ink);background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25);border-radius:22px;touch-action:manipulation;cursor:pointer}
 .controls button[aria-pressed="true"]{background:rgba(var(--glow),.28);border-color:var(--gold)}
+.controls #goToday{background:rgba(var(--glow),.42);border-color:var(--gold);color:#fff}
 .controls label{font-size:15px;color:var(--ink2)}
 .lights{position:relative;z-index:2;width:100%;height:34px;margin:4px auto 0;max-width:1180px;display:none}
 body.xmas .lights{display:block}
@@ -84,6 +85,12 @@ body.xmas .lights{display:block}
 .bay.knock .knocker{animation:knock .7s ease-in-out}
 @keyframes knock{0%,100%{transform:scaleY(1)}20%{transform:scaleY(.45)}35%{transform:scaleY(1)}55%{transform:scaleY(.45)}70%{transform:scaleY(1)}}
 .today .knocker{animation:idleKnock 6s ease-in-out infinite}
+/* today's door wears a warm halo (Guy, 16 Nov) */
+.bay.today{z-index:2}
+.bay.today::after{content:"";position:absolute;inset:2% 1% 3%;border-radius:10px;pointer-events:none;box-shadow:0 0 14px 5px rgba(255,196,96,.75),0 0 34px 12px rgba(255,170,60,.35);animation:halo 2.6s ease-in-out infinite}
+.bay.today.flash::after{animation:haloFlash .45s ease-in-out 3}
+@keyframes halo{0%,100%{opacity:.65}50%{opacity:1}}
+@keyframes haloFlash{0%,100%{opacity:.6}50%{opacity:1;box-shadow:0 0 22px 10px rgba(255,214,120,.95),0 0 50px 20px rgba(255,170,60,.5)}}
 @keyframes idleKnock{0%,88%,100%{transform:scaleY(1)}92%{transform:scaleY(.8)}96%{transform:scaleY(1)}}
 .wreath{transform-origin:50% 0%;animation:sway 5s ease-in-out infinite}
 @keyframes sway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
@@ -203,6 +210,7 @@ dialog::backdrop{background:rgba(5,5,10,.72)}
   <p class="sub" id="subtitle"></p>
   <div class="controls">
     <span id="months" style="display:contents"></span>
+    <button id="goToday" class="go">Today's door</button>
     <button id="snd" aria-pressed="true">Sound on</button>
     <span id="demo" style="display:contents"><label for="day">Pretend today is</label>
     <select id="day"></select></span>
@@ -917,6 +925,13 @@ document.getElementById("snd").onclick=e=>{soundOn=!soundOn;e.currentTarget.setA
 if(!allow("effects","sound")){const b=document.getElementById("snd");b.remove()}
 if(!CFG.demoControls) document.getElementById("demo").remove();
 document.getElementById("title").textContent=CFG.title||"Advent";
+/* "Today's door": switch to today's month if needed, scroll it into view and make it glow */
+{const gt=document.getElementById("goToday");
+ const homeMonth=()=>{if(CFG.demoControls)return month;const k=new Date().getMonth()+1;return MONTHS[k]&&MONTHS[k].year===new Date().getFullYear()?k:null};
+ const upd=()=>{gt.style.display=homeMonth()?"":"none"};
+ gt.onclick=()=>{const hm=homeMonth();if(!hm)return;if(hm!==month)setMonth(hm);const t=document.querySelector(".bay.today");if(!t)return;
+   t.scrollIntoView({behavior:RM.matches?"auto":"smooth",block:"center"});t.classList.remove("flash");void t.offsetWidth;t.classList.add("flash");setTimeout(()=>t.classList.remove("flash"),1500)};
+ upd();}
 lights();
 const q=new URLSearchParams(location.search);
 if(CFG.demoControls&&q.get("month")&&MONTHS[+q.get("month")]) month=+q.get("month");
