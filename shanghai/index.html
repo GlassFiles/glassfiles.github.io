@@ -1,0 +1,1996 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#0d4a2f">
+<title>Shanghai</title>
+<meta property="og:title" content="Shanghai">
+<meta property="og:description" content="The family card game: play the computer, with an odds coach.">
+<meta property="og:image" content="https://glassfiles.github.io/shanghai/og-image.jpg">
+<meta property="og:url" content="https://glassfiles.github.io/shanghai/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="favicon.png">
+
+<style>
+:root{--felt:#0d4a2f;--felt2:#0a3b25;--ink:#f4f1e8;--gold:#f2c14e;--red:#c62828;--blk:#1b1b1b;--card:#fffdf7;--sel:#ffd54f;--ok:#7bd88f;--warn:#ffb74d;
+  --pad-t:env(safe-area-inset-top,0px);--pad-b:env(safe-area-inset-bottom,0px);--pad-l:env(safe-area-inset-left,0px);--pad-r:env(safe-area-inset-right,0px)}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--felt2);color:var(--ink);font:16px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+button{font:inherit;touch-action:manipulation;cursor:pointer}
+input,select,textarea{font-size:16px;font-family:inherit}
+#app{max-width:960px;margin:0 auto;min-height:100svh;min-height:100dvh;display:flex;flex-direction:column;background:radial-gradient(ellipse at 50% 30%,#13603d,var(--felt) 70%);
+  padding:calc(6px + var(--pad-t)) calc(8px + var(--pad-r)) calc(6px + var(--pad-b)) calc(8px + var(--pad-l))}
+#app.playing{height:100svh;height:100dvh}
+.btn{min-height:44px;min-width:44px;padding:8px 14px;border-radius:10px;border:0;background:#f4f1e8;color:#14301f;font-weight:600}
+.btn.primary{background:var(--gold);color:#3a2a00}
+.btn.ghost{background:rgba(255,255,255,.12);color:var(--ink)}
+.btn:disabled{opacity:.4;cursor:default}
+@media (hover:hover){.btn:not(:disabled):hover{filter:brightness(1.07)}}
+h1{font-size:28px;margin:6px 0 2px;letter-spacing:.5px}
+h2{font-size:19px;margin:14px 0 6px}
+.muted{opacity:.8;font-size:14px}
+/* setup */
+.setup{padding:4px 2px 24px}
+.field{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0}
+.field label{min-width:140px}
+.field select,.field input[type=text],.field input[type=number]{min-height:44px;border-radius:8px;border:0;padding:6px 10px;background:#fffdf7;color:#14301f;max-width:100%}
+.field input[type=number]{width:90px}
+.check{display:flex;align-items:center;gap:10px;min-height:44px}
+.check input{flex:0 0 24px;width:24px;height:24px}
+details{background:rgba(0,0,0,.18);border-radius:10px;padding:4px 10px;margin:12px 0}
+summary{min-height:44px;display:flex;align-items:center;font-weight:600;cursor:pointer}
+textarea{width:100%;min-height:180px;border-radius:8px;border:0;padding:8px;background:#fffdf7;color:#14301f;font-family:ui-monospace,Menlo,monospace}
+.note{background:rgba(255,183,77,.18);border-left:4px solid var(--warn);padding:8px 10px;border-radius:6px;margin:10px 0;font-size:15px}
+.err{background:rgba(198,40,40,.25);border-left:4px solid #ff6b6b;padding:8px 10px;border-radius:6px;margin:10px 0;font-size:15px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+/* game */
+.top{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.top .title{flex:1;min-width:0}
+.top .title b{font-size:17px}
+.top .contract{font-size:14px;opacity:.9}
+.seats{display:flex;flex-wrap:nowrap;gap:6px;margin:6px 0;overflow-x:auto;scrollbar-width:none;flex:0 0 auto}
+.seats::-webkit-scrollbar{display:none}
+.seat{flex:0 0 auto;background:rgba(0,0,0,.25);border-radius:10px;padding:3px 8px;font-size:12px;line-height:1.3;border:2px solid transparent}
+.seat.turn{border-color:var(--gold)}
+.seat .nm{font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:110px}
+.seat .lv{font-weight:400;opacity:.75}
+.badge{display:inline-block;padding:0 6px;border-radius:6px;font-size:12px;font-weight:700;background:var(--ok);color:#0b2;color:#08321a}
+.table{flex:1;min-height:100px;overflow-y:auto;-webkit-overflow-scrolling:touch;background:rgba(0,0,0,.12);border-radius:12px;padding:8px}
+.piles{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.pile{display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;color:var(--ink);padding:2px;border-radius:10px}
+.pile:disabled{cursor:default}
+.pile.live .card{box-shadow:0 0 0 3px var(--gold)}
+.back{width:48px;height:68px;border-radius:7px;background:repeating-linear-gradient(45deg,#7a1f2b 0 6px,#952838 6px 12px);border:3px solid #fffdf7}
+.msg{margin:4px 0 6px;font-size:15px;min-height:20px}
+.log{font-size:13px;opacity:.85;margin:4px 0 8px}
+.melds .owner{font-size:13px;opacity:.85;margin:8px 0 2px}
+.meld{display:inline-flex;align-items:flex-end;gap:2px;padding:4px 6px;margin:2px 6px 2px 0;border-radius:8px;background:rgba(0,0,0,.18);border:2px solid transparent;min-height:52px;vertical-align:top}
+.meld.can{border-color:var(--gold);background:rgba(242,193,78,.18);cursor:pointer}
+/* cards */
+.card{position:relative;width:48px;height:68px;border-radius:7px;background:var(--card);color:var(--blk);border:1px solid #bbb;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0;user-select:none;-webkit-user-select:none;flex:0 0 auto}
+.card .r{font-weight:800;font-size:20px;line-height:1}
+.card .s{font-size:22px;line-height:1}
+.card.red{color:var(--red)}
+.card.jk{background:linear-gradient(160deg,#fff7d6,#ffe08a);color:#6a3d00}
+.card.jk .r{font-size:13px;letter-spacing:.5px}
+.card .w{position:absolute;top:1px;right:3px;font-size:10px;font-weight:700;color:#6a3d00}
+.card.mini{width:30px;height:44px;border-radius:5px}
+.card.mini .r{font-size:14px}.card.mini .s{font-size:14px}
+.card.mini.jk .r{font-size:10px}
+.card .as{position:absolute;bottom:1px;font-size:9px;font-weight:700;color:#6a3d00}
+.hand .card{width:46px;height:66px;margin:0}
+.hand .card.sel{transform:translateY(-8px);box-shadow:0 0 0 3px var(--sel)}
+.hand .card.new{box-shadow:0 0 0 3px #81d4fa}
+.handpanel{flex:0 0 auto;background:rgba(0,0,0,.28);border-radius:12px;padding:6px 8px 6px;margin-top:6px}
+.actions{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:2px}
+.actions .btn{padding:8px 10px;font-size:15px}
+.hand{display:flex;flex-wrap:wrap;gap:6px;padding-top:8px;max-height:37svh;max-height:37dvh;overflow-y:auto}
+.prompt{background:rgba(242,193,78,.2);border:2px solid var(--gold);border-radius:10px;padding:8px;margin-bottom:8px}
+table.sc{border-collapse:collapse;width:100%;font-size:14px}
+table.sc th,table.sc td{border-bottom:1px solid rgba(255,255,255,.15);padding:6px 4px;text-align:left}
+table.sc td.n{text-align:right}
+.left{display:flex;flex-wrap:wrap;gap:2px}
+.oval{position:relative;height:250px;margin:10px 2px 8px}
+.oval.n7,.oval.n8{height:300px}
+.oval.n7 .seat,.oval.n8 .seat{width:70px}
+.oval.n8 .said{display:none}
+.oval .seat .st{white-space:nowrap}
+.oval.n7 .seat .st,.oval.n8 .seat .st{font-size:10px}
+.oval .felt{position:absolute;inset:16px 22px 22px;border-radius:50%;background:radial-gradient(ellipse at 50% 40%,#1c7a4c,#0f5534 70%);box-shadow:inset 0 0 0 6px #6b3f1f,inset 0 0 0 9px #8a5a2b,0 6px 18px rgba(0,0,0,.35)}
+.oval .seat{position:absolute;transform:translate(-50%,-50%);width:78px;background:rgba(10,30,20,.82);border-radius:10px;padding:3px 5px;font-size:11px;line-height:1.25;text-align:center;border:2px solid transparent;border-top:3px solid var(--c);z-index:4}
+.oval .seat.turn{border-color:var(--gold);box-shadow:0 0 0 2px rgba(242,193,78,.4)}
+.oval .seat.you{width:auto;min-width:110px}
+.oval .seat .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px}
+.oval .seat .lv{opacity:.7;font-size:10px}
+.oval .fan{display:flex;justify-content:center;align-items:center;height:16px;margin:1px 0}
+.oval .fan i{display:block;width:9px;height:14px;margin-left:-4px;border-radius:2px;background:repeating-linear-gradient(45deg,#7a1f2b 0 2px,#952838 2px 4px);border:1px solid #fffdf7}
+.oval .fan span{margin-left:4px;font-weight:700;font-size:12px}
+.oval .said{margin-top:2px;font-size:10px;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oval .centre{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:10px;z-index:1}
+.oval .badge{font-size:10px;padding:0 4px}
+.pile.tip .card,.pile.tip .back{box-shadow:0 0 0 3px #81d4fa}
+.coach{background:rgba(129,212,250,.14);border-left:4px solid #81d4fa;border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:14px}
+.coach ul{margin:4px 0 0;padding-left:18px}.coach li{margin:2px 0}
+.tipline{font-size:14px;color:#81d4fa;margin-top:4px}
+.hand .card.tip{outline:3px dashed #81d4fa;outline-offset:1px}
+.hand .card{touch-action:none}
+.hand .card.dragging{opacity:.35}
+.hand .card.drop-before{box-shadow:-5px 0 0 0 var(--gold)}
+.hand .card.drop-after{box-shadow:5px 0 0 0 var(--gold)}
+.card.ghost{position:fixed;z-index:20;pointer-events:none;transform:rotate(-4deg);box-shadow:0 8px 20px rgba(0,0,0,.45)}
+.meld{border-left:4px solid var(--c)}
+.handpanel{position:relative}
+.ordermenu{position:absolute;right:8px;bottom:calc(100% - 4px);z-index:30;display:flex;flex-direction:column;gap:6px;background:#0a2b1b;border:1px solid rgba(255,255,255,.25);border-radius:12px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.ordermenu .btn{text-align:left}
+.hand.lanes{display:block}
+.lane{display:flex;flex-wrap:wrap;gap:4px 8px;padding:0 0 4px 6px;border-left:3px solid rgba(255,255,255,.2);margin-bottom:3px}
+.hand.lanes .card{width:44px;height:62px}
+.lane.sets{border-left-color:var(--gold)}.lane.runs{border-left-color:#81d4fa}
+.grp .gl{font-size:11px;opacity:.85;margin:0 0 1px 2px;white-space:nowrap}
+.grp .gc{display:flex;gap:3px}
+.grp.piece .gl,.grp.pair .gl{opacity:.65}
+.gap{display:inline-block;width:10px}
+@media (min-width:600px){.hand.lanes{display:grid;grid-template-columns:1fr 1fr;column-gap:10px}.lane.spare{grid-column:1 / -1}}
+.oval.has-melds{height:370px}
+.oval.has-melds.n6{height:420px}
+.oval.has-melds.n7,.oval.has-melds.n8{height:470px}
+.zone{position:absolute;transform:translate(-50%,0);display:flex;flex-wrap:wrap;justify-content:center;gap:3px;max-width:112px;z-index:3;padding:2px;border-radius:7px;cursor:pointer}
+.zone.open{outline:2px solid var(--c)}
+.zone.mine{transform:translate(-50%,-100%);max-width:230px}
+.oval.has-melds .centre{top:56%;z-index:5}
+.mm{display:flex;align-items:center;padding:3px 4px;border-radius:5px;background:rgba(0,0,0,.28);border-bottom:2px solid var(--c);border-top:2px solid transparent;border-left:2px solid transparent;border-right:2px solid transparent}
+.mm.can{border-color:var(--gold);background:rgba(242,193,78,.35);min-height:44px;min-width:44px}
+.mc{display:flex;flex-direction:column;align-items:center;justify-content:center;width:18px;height:27px;margin-left:-6px;background:var(--card);color:#1b1b1b;border:1px solid #999;border-radius:3px;font-size:9px;line-height:1.05;box-shadow:-1px 0 1px rgba(0,0,0,.25)}
+.mc:first-child{margin-left:0}
+.mc b{font-size:10px}
+.mc.red{color:var(--red)}
+.mc.jk{background:#ffe08a;color:#6a3d00;font-size:12px}
+.zoomed{background:rgba(0,0,0,.2);border-radius:10px;padding:4px 8px 8px;margin-bottom:6px}
+@media (min-width:600px){.oval.has-melds{height:420px}.zone{max-width:150px}.mc{width:22px;height:32px;font-size:11px}.mc b{font-size:12px}}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+@media (min-width:600px){.oval{height:300px}.oval .seat{width:96px;font-size:12px}}
+#dbg{position:fixed;left:4px;bottom:4px;background:#000c;color:#0f0;font:11px monospace;padding:4px;z-index:9;pointer-events:none}
+@media (min-width:600px){.hand .card{width:54px;height:76px}.hand .card .r{font-size:22px}.hand .card .s{font-size:24px}}
+@media (prefers-reduced-motion:reduce){.hand .card.sel{transform:none}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* Shanghai rules engine — FNF-20, stage 1.
+ * Works in a browser (window.Shanghai) and in node (require).
+ * Every rule that families play differently is an option in the config (see DEFAULTS and PRESETS).
+ * Cards: {id, suit 0-3 (C D H S) or 4 for a joker, rank 1-13 (1 = ace) or 0 for a joker}.
+ * Run positions: 1..14, where 1 = ace low and 14 = ace high.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.Shanghai = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  var SUITS = ['C', 'D', 'H', 'S', 'J'];
+  var RANKS = ['?', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+
+  // ---------- configuration ----------
+  var DEFAULTS = {
+    name: 'Custom',
+    players: 4,
+    decks: 2,
+    jokers: 4,
+    twosWild: false,
+    aceMode: 'both',            // 'low' (A-2-3), 'high' (Q-K-A), 'both' (either end, never round the corner)
+    wildLimit: { mode: 'fewerThanNaturals', fixed: 1, bySize: { 3: 1, 4: 1, 5: 2, 7: 3, 10: 4 } },
+    // modes: 'any' (at least one natural), 'fewerThanNaturals', 'fixed' (at most `fixed` per meld), 'bySize'
+    initialMeldRules: false,    // no two sets of one rank, no two touching same-suit runs, in the first meld
+    layOffSameTurn: true,       // may lay off in the same turn you go down
+    mustDiscardToGoOut: true,   // the last card must be a discard (outside no-discard rounds)
+    buyPenalty: 1,              // extra cards from the stock with each buy
+    buyAfterDown: false,        // may a player who has gone down still buy?
+    jokerSwap: true,            // a player who is down may swap the natural card for a joker in a run
+    scoring: { low: 5, high: 10, ace: 15, joker: 50, wildTwo: 20, lowMax: 9 }, // low = 2..lowMax, high = above lowMax to K
+    rounds: null,               // filled from a preset if absent
+    stockOut: 'reshuffle',      // when the stock runs out: 'reshuffle' the dead discards, or 'end' the round (nobody out)
+    maxReshuffles: 2,           // after this many reshuffles the round ends with nobody out
+    maxTurnsPerRound: 600       // safety stop
+  };
+
+  function S(n) { return { t: 'set', n: n || 3 }; }
+  function R(n) { return { t: 'run', n: n || 4 }; }
+
+  var PRESETS = {
+    classic7: {
+      name: 'Classic 7 rounds',
+      decks: 2, jokers: 4, aceMode: 'both',
+      wildLimit: { mode: 'fewerThanNaturals' },
+      rounds: [
+        { contract: [S(), S()], deal: 10, buys: 3 },
+        { contract: [S(), R()], deal: 10, buys: 3 },
+        { contract: [R(), R()], deal: 10, buys: 3 },
+        { contract: [S(), S(), S()], deal: 12, buys: 3 },
+        { contract: [S(), S(), R()], deal: 12, buys: 3 },
+        { contract: [S(), R(), R()], deal: 12, buys: 3 },
+        { contract: [R(), R(), R()], deal: 12, buys: 3, noDiscardOut: true }
+      ]
+    },
+    pagat7: {
+      name: 'Pagat 7 rounds',
+      decks: 2, jokers: 4, aceMode: 'high',
+      wildLimit: { mode: 'fixed', fixed: 1 },
+      initialMeldRules: true,
+      scoring: { low: 5, high: 10, ace: 20, joker: 50, wildTwo: 20, lowMax: 7 },
+      rounds: [
+        { contract: [S(), S()], deal: 11, buys: 3 },
+        { contract: [S(), R()], deal: 11, buys: 3 },
+        { contract: [R(), R()], deal: 11, buys: 3 },
+        { contract: [S(), S(), S()], deal: 11, buys: 3 },
+        { contract: [S(), S(), R()], deal: 11, buys: 3 },
+        { contract: [S(), R(), R()], deal: 11, buys: 3 },
+        { contract: [R(), R(), R()], deal: 11, buys: 3, noDiscardOut: true, allAtOnce: true }
+      ]
+    },
+    ten: {
+      name: 'Shanghai 10 rounds',
+      decks: 2, jokers: 4, aceMode: 'both',
+      wildLimit: { mode: 'bySize', bySize: { 3: 1, 4: 1, 5: 2, 7: 3, 10: 4 } },
+      scoring: { low: 5, high: 10, ace: 15, joker: 50, wildTwo: 20, lowMax: 9 },
+      rounds: [
+        { contract: [S(), S()], deal: 11, buys: 3 },
+        { contract: [S(), R()], deal: 11, buys: 3 },
+        { contract: [R(), R()], deal: 11, buys: 3 },
+        { contract: [S(), S(), S()], deal: 11, buys: 3 },
+        { contract: [S(), R(7)], deal: 11, buys: 3 },
+        { contract: [S(), S(), R(5)], deal: 11, buys: 3 },
+        { contract: [R(), R(), R()], deal: 11, buys: 3 },
+        { contract: [S(), R(10)], deal: 11, buys: 3 },
+        { contract: [S(), S(), S(), R(5)], deal: 11, buys: 4 },
+        { contract: [R(5), R(5), R(5)], deal: 11, buys: 4 }
+      ]
+    }
+  };
+
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function makeConfig(presetName, overrides) {
+    var cfg = clone(DEFAULTS);
+    var p = presetName ? PRESETS[presetName] : null;
+    if (presetName && !p) throw new Error('unknown preset ' + presetName);
+    function merge(dst, src) {
+      Object.keys(src || {}).forEach(function (k) {
+        var v = src[k];
+        if (v && typeof v === 'object' && !Array.isArray(v) && dst[k] && typeof dst[k] === 'object' && !Array.isArray(dst[k])) merge(dst[k], v);
+        else dst[k] = clone(v);
+      });
+    }
+    if (p) merge(cfg, p);
+    merge(cfg, overrides || {});
+    if (!cfg.rounds) cfg.rounds = clone(PRESETS.classic7.rounds);
+    validateConfig(cfg);
+    return cfg;
+  }
+
+  function validateConfig(cfg) {
+    var errs = [];
+    if (!(cfg.players >= 2 && cfg.players <= 8)) errs.push('players must be 2 to 8');
+    if (!(cfg.decks >= 1 && cfg.decks <= 4)) errs.push('decks must be 1 to 4');
+    if (!(cfg.jokers >= 0 && cfg.jokers <= 8)) errs.push('jokers must be 0 to 8');
+    if (['low', 'high', 'both'].indexOf(cfg.aceMode) < 0) errs.push('aceMode must be low, high or both');
+    if (['reshuffle', 'end'].indexOf(cfg.stockOut) < 0) errs.push('stockOut must be reshuffle or end');
+    if (!cfg.rounds.length) errs.push('at least one round');
+    var total = cfg.decks * 52 + cfg.jokers;
+    cfg.rounds.forEach(function (r, i) {
+      if (!r.contract || !r.contract.length) errs.push('round ' + (i + 1) + ' has no contract');
+      (r.contract || []).forEach(function (c) {
+        if (c.t !== 'set' && c.t !== 'run') errs.push('round ' + (i + 1) + ': contract parts are sets or runs');
+        if (c.t === 'set' && !(c.n >= 3)) errs.push('round ' + (i + 1) + ': a set needs at least 3');
+        if (c.t === 'run' && !(c.n >= 3 && c.n <= 14)) errs.push('round ' + (i + 1) + ': a run needs 3 to 14');
+      });
+      if (!(r.deal >= 3)) errs.push('round ' + (i + 1) + ': deal at least 3 cards');
+      if (r.deal * cfg.players + 1 > total) errs.push('round ' + (i + 1) + ': not enough cards to deal ' + r.deal + ' each to ' + cfg.players);
+    });
+    if (errs.length) throw new Error('Config: ' + errs.join('; '));
+  }
+
+  // ---------- random numbers (seeded, so a deal can be replayed for everyone) ----------
+  function rng(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function shuffle(arr, rand) {
+    for (var i = arr.length - 1; i > 0; i--) { var j = Math.floor(rand() * (i + 1)); var t = arr[i]; arr[i] = arr[j]; arr[j] = t; }
+    return arr;
+  }
+
+  // ---------- cards ----------
+  function buildDeck(cfg) {
+    var cards = [], id = 0;
+    for (var d = 0; d < cfg.decks; d++)
+      for (var s = 0; s < 4; s++)
+        for (var r = 1; r <= 13; r++) cards.push({ id: id++, suit: s, rank: r });
+    for (var j = 0; j < cfg.jokers; j++) cards.push({ id: id++, suit: 4, rank: 0 });
+    return cards;
+  }
+  function isWild(c, cfg) { return c.suit === 4 || (cfg.twosWild && c.rank === 2); }
+  function cardName(c) { return c.suit === 4 ? 'Jkr' : RANKS[c.rank] + SUITS[c.suit]; }
+  function cardPoints(c, cfg) {
+    var sc = cfg.scoring;
+    if (c.suit === 4) return sc.joker;
+    if (cfg.twosWild && c.rank === 2) return sc.wildTwo;
+    if (c.rank === 1) return sc.ace;
+    if (c.rank <= sc.lowMax) return sc.low;
+    return sc.high;
+  }
+  function posRange(cfg) { return cfg.aceMode === 'low' ? [1, 13] : cfg.aceMode === 'high' ? [2, 14] : [1, 14]; }
+  function rankAtPos(p) { return p === 14 ? 1 : p; }
+
+  function maxWilds(size, cfg) {
+    var wl = cfg.wildLimit, m = wl.mode;
+    if (m === 'any') return size - 1;
+    if (m === 'fewerThanNaturals') return Math.floor((size - 1) / 2);
+    if (m === 'fixed') return Math.min(wl.fixed, size - 1);
+    if (m === 'bySize') {
+      var best = 0;
+      Object.keys(wl.bySize).map(Number).sort(function (a, b) { return a - b; }).forEach(function (k) { if (size >= k) best = wl.bySize[k]; });
+      return Math.min(best, size - 1);
+    }
+    throw new Error('wildLimit.mode ' + m);
+  }
+
+  // ---------- melds ----------
+  // A meld on the table: {id, owner, t:'set'|'run', rank (set) | suit,start (run), cards:[card] in slot order}
+  function meldWilds(m, cfg) { return m.cards.filter(function (c) { return isWild(c, cfg); }).length; }
+
+  function validMeld(m, cfg, minSize) {
+    var n = m.cards.length, w = meldWilds(m, cfg);
+    if (n < (minSize || 3)) return 'too short';
+    if (w > maxWilds(n, cfg)) return 'too many wild cards';
+    if (n - w < 1) return 'needs a natural card';
+    if (m.t === 'set') {
+      for (var i = 0; i < n; i++) { var c = m.cards[i]; if (!isWild(c, cfg) && c.rank !== m.rank) return 'set ranks differ'; }
+      return null;
+    }
+    var pr = posRange(cfg);
+    if (m.start < pr[0] || m.start + n - 1 > pr[1]) return 'run off the end';
+    for (var k = 0; k < n; k++) {
+      var cc = m.cards[k];
+      if (isWild(cc, cfg)) continue;
+      if (cc.suit !== m.suit || cc.rank !== rankAtPos(m.start + k)) return 'run out of order';
+    }
+    return null;
+  }
+
+  // Natural-card counts: key = suit*16 + rank -> array of cards
+  function indexHand(hand, cfg) {
+    var idx = {}, wilds = [];
+    hand.forEach(function (c) {
+      if (isWild(c, cfg)) { wilds.push(c); return; }
+      var k = c.suit * 16 + c.rank;
+      (idx[k] = idx[k] || []).push(c);
+    });
+    return { idx: idx, wilds: wilds };
+  }
+
+  // Candidate groups for one contract part, from what the hand holds.
+  // Each: {t, rank|suit,start, keys:[natural keys wanted], have: count present (ignoring conflicts)}
+  function candidates(part, idx, cfg, includeEmpty) {
+    var out = [];
+    if (part.t === 'set') {
+      for (var r = 1; r <= 13; r++) {
+        var cnt = 0, keys = [];
+        for (var s = 0; s < 4; s++) { var a = idx[s * 16 + r]; if (a) { for (var q = 0; q < a.length; q++) keys.push(s * 16 + r); } }
+        cnt = keys.length;
+        if (!cnt) continue;
+        keys = keys.slice(0, part.n);
+        out.push({ t: 'set', rank: r, keys: keys, missing: part.n - keys.length });
+      }
+    } else {
+      var pr = posRange(cfg);
+      for (var su = 0; su < 4; su++) {
+        for (var st = pr[0]; st + part.n - 1 <= pr[1]; st++) {
+          var ks = [], miss = 0;
+          for (var p = st; p < st + part.n; p++) {
+            var key = su * 16 + rankAtPos(p);
+            if (idx[key]) ks.push(key); else { ks.push(-1); miss++; }
+          }
+          if (miss === part.n) continue;
+          out.push({ t: 'run', suit: su, start: st, keys: ks, missing: miss });
+        }
+      }
+    }
+    if (includeEmpty) out.push({ t: part.t, empty: true, keys: [], missing: part.n });
+    out.sort(function (a, b) { return a.missing - b.missing; });
+    return out;
+  }
+
+  function initialRulesOk(chosen) {
+    for (var i = 0; i < chosen.length; i++) for (var j = i + 1; j < chosen.length; j++) {
+      var a = chosen[i], b = chosen[j];
+      if (a.t === 'set' && b.t === 'set' && a.rank === b.rank && !a.empty) return false;
+      if (a.t === 'run' && b.t === 'run' && a.suit === b.suit && !a.empty && !b.empty) {
+        var aEnd = a.start + a.len - 1, bEnd = b.start + b.len - 1;
+        if (!(aEnd + 1 < b.start || bEnd + 1 < a.start)) return false; // touching or overlapping
+      }
+    }
+    return true;
+  }
+
+  // Distance: the fewest more cards needed (after using wild cards) to meet the contract. Heuristic, for players and the coach.
+  function contractDistance(hand, contract, cfg, opts) {
+    var ih = indexHand(hand, cfg), idx = ih.idx, W = ih.wilds.length;
+    var parts = contract.slice().sort(function (a, b) { return b.n - a.n; });
+    var cands = parts.map(function (p) { return candidates(p, idx, cfg, true); });
+    var caps = parts.map(function (p) { return maxWilds(p.n, cfg); });
+    var capAll = caps.reduce(function (s, c) { return s + c; }, 0);
+    var avail = {}; Object.keys(idx).forEach(function (k) { avail[k] = idx[k].length; });
+    var best = Infinity, K = (opts && opts.K) || 6, miss = [];
+    var minRest = []; // lower bound of cards missing for parts i..end
+    for (var i = parts.length; i >= 0; i--) minRest[i] = i === parts.length ? 0 : minRest[i + 1] + (cands[i].length ? cands[i][0].missing : parts[i].n);
+    // Wild cards fill gaps, but each meld takes only as many as its own limit allows (16 Nov 2026: a joker
+    // short-count used to hide a missing natural card, e.g. 7S 8S + two jokers is not a legal run of 4).
+    (function dfs(i, acc) {
+      if (acc + minRest[i] - Math.min(W, capAll) >= best) return;
+      if (i === parts.length) {
+        var fill = 0; for (var q = 0; q < miss.length; q++) fill += Math.min(caps[q], miss[q]);
+        var v = acc - Math.min(W, fill);
+        if (v < best) best = v;
+        return;
+      }
+      var list = cands[i], tried = 0;
+      for (var c = 0; c < list.length && tried < K; c++) {
+        var cd = list[c];
+        if (acc + cd.missing + minRest[i + 1] - Math.min(W, capAll) >= best) break;
+        var used = [], extra = 0;
+        for (var u = 0; u < cd.keys.length; u++) {
+          var k = cd.keys[u]; if (k < 0) continue;
+          if (avail[k] > 0) { avail[k]--; used.push(k); } else extra++;
+        }
+        tried++;
+        miss.push(cd.missing + extra);
+        dfs(i + 1, acc + cd.missing + extra);
+        miss.pop();
+        for (var v2 = 0; v2 < used.length; v2++) avail[used[v2]]++;
+      }
+    })(0, 0);
+    return Math.max(0, best);
+  }
+
+  // Exact: find melds from `hand` that meet `contract`. Returns [{t, rank|suit,start, cards}] or null.
+  function findContract(hand, contract, cfg) {
+    var ih = indexHand(hand, cfg), idx = ih.idx;
+    var order = contract.map(function (p, i) { return { p: p, i: i }; }).sort(function (a, b) { return b.p.n - a.p.n; });
+    var cands = order.map(function (o) { return candidates(o.p, idx, cfg, false); });
+    var avail = {}; Object.keys(idx).forEach(function (k) { avail[k] = idx[k].slice(); });
+    var wildsLeft = ih.wilds.slice();
+    var chosen = [], result = null, nodes = 0;
+    (function dfs(d) {
+      if (result || nodes++ > 200000) return;
+      if (d === order.length) {
+        if (cfg.initialMeldRules && !initialRulesOk(chosen)) return;
+        result = chosen.map(function (c) { return { t: c.t, rank: c.rank, suit: c.suit, start: c.start, cards: c.cards.slice() }; });
+        return;
+      }
+      var part = order[d].p, list = cands[d];
+      for (var ci = 0; ci < list.length && !result; ci++) {
+        var cd = list[ci], cards = [], taken = [], need = 0;
+        for (var u = 0; u < cd.keys.length; u++) {
+          var k = cd.keys[u];
+          if (k >= 0 && avail[k].length) { var cc = avail[k].pop(); taken.push([k, cc]); cards.push(cc); }
+          else { cards.push(null); need++; }
+        }
+        var size = part.n;
+        if (cd.t === 'set') { while (cards.length < size) { cards.push(null); need++; } }
+        var naturals = size - need;
+        if (naturals >= 1 && need <= wildsLeft.length && need <= maxWilds(size, cfg)) {
+          var usedW = [];
+          for (var x = 0; x < cards.length; x++) if (!cards[x]) { var w = wildsLeft.pop(); usedW.push(w); cards[x] = w; }
+          chosen.push({ t: cd.t, rank: cd.rank, suit: cd.suit, start: cd.start, len: size, cards: cards });
+          dfs(d + 1);
+          chosen.pop();
+          for (var y = usedW.length - 1; y >= 0; y--) wildsLeft.push(usedW[y]);
+        }
+        for (var z = taken.length - 1; z >= 0; z--) avail[taken[z][0]].push(taken[z][1]);
+      }
+    })(0);
+    return result;
+  }
+
+  // Where can `card` go on meld m? Returns list of {meld, end:'low'|'high'|null}.
+  function layOffSpots(card, m, cfg) {
+    var spots = [], n = m.cards.length, wild = isWild(card, cfg);
+    if (wild && meldWilds(m, cfg) + 1 > maxWilds(n + 1, cfg)) return spots;
+    if (m.t === 'set') {
+      if (wild || card.rank === m.rank) spots.push({ meld: m.id, end: null });
+      return spots;
+    }
+    var pr = posRange(cfg), lo = m.start - 1, hi = m.start + n;
+    if (lo >= pr[0] && (wild || (card.suit === m.suit && card.rank === rankAtPos(lo)))) spots.push({ meld: m.id, end: 'low' });
+    if (hi <= pr[1] && (wild || (card.suit === m.suit && card.rank === rankAtPos(hi)))) spots.push({ meld: m.id, end: 'high' });
+    return spots;
+  }
+
+  // A natural card that can take a joker's place in a run: [{meld, slot}]
+  function swapSpots(card, m, cfg) {
+    if (!cfg.jokerSwap || m.t !== 'run' || isWild(card, cfg)) return [];
+    var out = [];
+    for (var k = 0; k < m.cards.length; k++) {
+      var c = m.cards[k];
+      if (isWild(c, cfg) && card.suit === m.suit && card.rank === rankAtPos(m.start + k)) out.push({ meld: m.id, slot: k });
+    }
+    return out;
+  }
+
+  // ---------- game state ----------
+  function newGame(cfg, seed, names) {
+    var st = {
+      cfg: cfg, seed: seed >>> 0, round: -1,
+      players: [], scores: [], history: [], log: [],
+      phase: 'idle', over: false
+    };
+    for (var i = 0; i < cfg.players; i++) {
+      st.players.push({ name: (names && names[i]) || ('Player ' + (i + 1)), hand: [], down: false, buysLeft: 0 });
+      st.scores.push(0);
+    }
+    return st;
+  }
+
+  function startRound(st) {
+    var cfg = st.cfg;
+    st.round++;
+    if (st.round >= cfg.rounds.length) { st.over = true; st.phase = 'gameOver'; return st; }
+    var rd = cfg.rounds[st.round];
+    st.rand = rng((st.seed * 1000003 + st.round * 7919) >>> 0);
+    var deck = shuffle(buildDeck(cfg), st.rand);
+    st.dealer = st.round % cfg.players;
+    st.players.forEach(function (p) { p.hand = []; p.down = false; p.buysLeft = rd.buys == null ? 3 : rd.buys; p.picked = []; });
+    for (var c = 0; c < rd.deal; c++) for (var i = 1; i <= cfg.players; i++) st.players[(st.dealer + i) % cfg.players].hand.push(deck.pop());
+    st.stock = deck;
+    st.top = st.stock.pop();     // the face-up card
+    st.dead = [];                // discards no longer takeable (they go back in when the stock runs out)
+    st.melds = []; st.meldSeq = 0;
+    st.turn = (st.dealer + 1) % cfg.players;
+    st.phase = 'draw';
+    st.turnsThisRound = 0;
+    st.wentDownThisTurn = false;
+    st.outPlayer = null;
+    st.reshuffles = 0;
+    st.roundLog = [];
+    return st;
+  }
+
+  function current(st) { return st.players[st.turn]; }
+  function roundInfo(st) { return st.cfg.rounds[st.round]; }
+
+  function drawStock(st) {
+    if (!st.stock.length) {
+      if (!st.dead.length || st.cfg.stockOut === 'end' || st.reshuffles >= st.cfg.maxReshuffles) return null;
+      st.stock = shuffle(st.dead, st.rand); st.dead = []; st.reshuffles++;
+    }
+    return st.stock.pop();
+  }
+
+  function err(msg) { var e = new Error(msg); e.illegal = true; throw e; }
+  function takeFromHand(p, id) {
+    for (var i = 0; i < p.hand.length; i++) if (p.hand[i].id === id) return p.hand.splice(i, 1)[0];
+    err('card not in hand');
+  }
+  function findMeld(st, id) { for (var i = 0; i < st.melds.length; i++) if (st.melds[i].id === id) return st.melds[i]; err('no such meld'); }
+
+  // Who may buy the face-up card if the current player draws from the stock, in priority order.
+  function buyers(st) {
+    var out = [], cfg = st.cfg;
+    if (!st.top) return out;
+    for (var k = 1; k < cfg.players; k++) {
+      var i = (st.turn + k) % cfg.players, p = st.players[i];
+      if (p.buysLeft > 0 && (cfg.buyAfterDown || !p.down)) out.push(i);
+    }
+    return out;
+  }
+
+  // ---------- actions ----------
+  // draw: {type:'draw', from:'discard'} or {type:'draw', from:'stock', buyer: playerIndex|null}
+  //   (the table asks the buyers in order before the stock draw; the caller passes who said yes, or null)
+  // goDown: {type:'goDown', melds:[{t, rank|suit,start, cardIds:[...] in slot order}], layoffs:[...]}
+  // layOff: {type:'layOff', cardId, meld, end}
+  // swap:   {type:'swap', cardId, meld, slot}
+  // discard:{type:'discard', cardId}
+  function apply(st, a) {
+    var cfg = st.cfg, p = current(st), rd = roundInfo(st);
+    if (st.phase === 'roundOver' || st.phase === 'gameOver') err('round is over');
+    if (a.type === 'draw') {
+      if (st.phase !== 'draw') err('not the draw phase');
+      if (a.from === 'discard') {
+        if (!st.top) err('no face-up card');
+        var tk = st.top; p.hand.push(tk); p.picked.push(tk); st.top = null;
+        st.roundLog.push({ t: 'take', p: st.turn, c: tk.id });
+      } else {
+        if (a.buyer != null && st.top) {
+          var b = st.players[a.buyer];
+          if (buyers(st).indexOf(a.buyer) < 0) err('that player may not buy');
+          var bc = st.top; b.hand.push(bc); b.picked.push(bc); st.top = null; b.buysLeft--;
+          for (var q = 0; q < cfg.buyPenalty; q++) { var pc = drawStock(st); if (pc) b.hand.push(pc); }
+          st.roundLog.push({ t: 'buy', p: a.buyer, c: bc.id, n: cfg.buyPenalty });
+        }
+        if (st.top) { st.dead.push(st.top); st.top = null; }
+        var c = drawStock(st);
+        if (!c) { endRound(st, null); return st; }
+        p.hand.push(c);
+        st.roundLog.push({ t: 'stock', p: st.turn });
+      }
+      st.phase = 'play';
+      return st;
+    }
+    if (st.phase !== 'play') err('not the play phase');
+    if (a.type === 'goDown') {
+      if (p.down) err('already down');
+      var built = [], ids = {};
+      a.melds.forEach(function (md) {
+        var cards = md.cardIds.map(function (id) {
+          if (ids[id]) err('card used twice'); ids[id] = 1;
+          var f = p.hand.filter(function (c) { return c.id === id; })[0]; if (!f) err('card not in hand'); return f;
+        });
+        built.push({ t: md.t, rank: md.rank, suit: md.suit, start: md.start, cards: cards });
+      });
+      // match melds to contract parts
+      var parts = rd.contract.slice();
+      if (built.length !== parts.length) err('contract needs ' + parts.length + ' melds');
+      var used = parts.map(function () { return false; });
+      var ok = (function match(i) {
+        if (i === built.length) return true;
+        for (var j = 0; j < parts.length; j++) {
+          if (used[j] || parts[j].t !== built[i].t || built[i].cards.length < parts[j].n) continue;
+          if (validMeld(built[i], cfg, parts[j].n)) continue;
+          used[j] = true; if (match(i + 1)) return true; used[j] = false;
+        }
+        return false;
+      })(0);
+      if (!ok) err('melds do not meet the contract');
+      if (cfg.initialMeldRules && !initialRulesOk(built.map(function (m) { return { t: m.t, rank: m.rank, suit: m.suit, start: m.start, len: m.cards.length }; }))) err('first-meld rules broken');
+      var remaining = p.hand.length - Object.keys(ids).length;
+      if (!rd.noDiscardOut && cfg.mustDiscardToGoOut && remaining === 0) err('keep a card to discard');
+      // commit
+      Object.keys(ids).forEach(function (id) { takeFromHand(p, +id); });
+      built.forEach(function (m) { m.id = ++st.meldSeq; m.owner = st.turn; st.melds.push(m); });
+      p.down = true; st.wentDownThisTurn = true;
+      st.roundLog.push({ t: 'down', p: st.turn });
+      st._batch = true;
+      try { (a.layoffs || []).forEach(function (lo) { if (st.phase === 'play') apply(st, lo); }); } finally { st._batch = false; }
+      if (st.phase === 'play' && rd.noDiscardOut && p.hand.length === 1) err('this round you go out without discarding');
+      if (rd.allAtOnce && p.hand.length) err('this round you must go down and out in one go'); // caller should use tryApply
+      if (!p.hand.length) endRound(st, st.turn);
+      return st;
+    }
+    if (a.type === 'layOffs') {
+      if (!a.list || !a.list.length) err('nothing to lay off');
+      st._batch = true;
+      try { a.list.forEach(function (lo) { if (st.phase === 'play') apply(st, lo); }); } finally { st._batch = false; }
+      if (st.phase === 'play' && p.hand.length === 1 && rd.noDiscardOut) err('this round you go out without discarding');
+      return st;
+    }
+    if (a.type === 'layOff' || a.type === 'swap') {
+      if (!p.down) err('go down first');
+      if (st.wentDownThisTurn && !cfg.layOffSameTurn) err('lay off from your next turn');
+      var card = p.hand.filter(function (c) { return c.id === a.cardId; })[0]; if (!card) err('card not in hand');
+      var m = findMeld(st, a.meld);
+      if (a.type === 'swap') {
+        if (!swapSpots(card, m, cfg).some(function (s) { return s.slot === a.slot; })) err('cannot swap there');
+        takeFromHand(p, card.id);
+        var jk = m.cards[a.slot]; m.cards[a.slot] = card; p.hand.push(jk);
+        st.roundLog.push({ t: 'swap', p: st.turn, c: card.id, j: jk.id, m: m.id });
+        return st;
+      }
+      var spots = layOffSpots(card, m, cfg).filter(function (s) { return s.end === (m.t === 'set' ? null : a.end); });
+      if (!spots.length) err('does not fit there');
+      if (p.hand.length === 1 && !rd.noDiscardOut && cfg.mustDiscardToGoOut) err('keep a card to discard');
+      if (p.hand.length === 2 && rd.noDiscardOut && !st._batch) err('this round you go out without discarding: lay off your last two cards together');
+      takeFromHand(p, card.id);
+      if (m.t === 'set') m.cards.push(card);
+      else if (a.end === 'low') { m.cards.unshift(card); m.start--; }
+      else m.cards.push(card);
+      st.roundLog.push({ t: 'layoff', p: st.turn, c: card.id, m: m.id });
+      if (!p.hand.length) endRound(st, st.turn);
+      return st;
+    }
+    if (a.type === 'discard') {
+      var dc = takeFromHand(p, a.cardId);
+      if (!p.hand.length && rd.noDiscardOut) { p.hand.push(dc); err('this round you go out without discarding'); }
+      st.top = dc;
+      st.roundLog.push({ t: 'discard', p: st.turn, c: dc.id });
+      if (!p.hand.length) { endRound(st, st.turn); return st; }
+      st.turn = (st.turn + 1) % cfg.players;
+      st.phase = 'draw'; st.wentDownThisTurn = false;
+      if (++st.turnsThisRound >= cfg.maxTurnsPerRound) endRound(st, null);
+      return st;
+    }
+    err('unknown action ' + a.type);
+  }
+
+  // Apply on a copy first; only commit if legal. Returns {ok, error}.
+  function tryApply(st, a) {
+    var snap = snapshot(st);
+    try { apply(st, a); return { ok: true }; }
+    catch (e) { if (!e.illegal) throw e; restore(st, snap); return { ok: false, error: e.message }; }
+  }
+  function snapshot(st) {
+    var r = st.rand; st.rand = null;
+    var s = JSON.stringify(st); st.rand = r;
+    return { json: s, rand: r };
+  }
+  function restore(st, snap) {
+    var o = JSON.parse(snap.json);
+    Object.keys(st).forEach(function (k) { delete st[k]; });
+    Object.keys(o).forEach(function (k) { st[k] = o[k]; });
+    st.rand = snap.rand;
+  }
+
+  function endRound(st, outPlayer) {
+    var cfg = st.cfg, res = { round: st.round, out: outPlayer, points: [] };
+    st.players.forEach(function (p, i) {
+      var pts = p.hand.reduce(function (s, c) { return s + cardPoints(c, cfg); }, 0);
+      st.scores[i] += pts; res.points.push(pts);
+    });
+    res.turns = st.turnsThisRound; res.reshuffles = st.reshuffles;
+    st.history.push(res);
+    st.outPlayer = outPlayer;
+    st.phase = 'roundOver';
+  }
+
+  function allCards(st) {
+    var out = [];
+    st.players.forEach(function (p) { out.push.apply(out, p.hand); });
+    out.push.apply(out, st.stock); out.push.apply(out, st.dead);
+    if (st.top) out.push(st.top);
+    st.melds.forEach(function (m) { out.push.apply(out, m.cards); });
+    return out;
+  }
+
+  return {
+    DEFAULTS: DEFAULTS, PRESETS: PRESETS, makeConfig: makeConfig, validateConfig: validateConfig,
+    rng: rng, shuffle: shuffle, buildDeck: buildDeck, isWild: isWild, cardName: cardName, cardPoints: cardPoints,
+    posRange: posRange, rankAtPos: rankAtPos, maxWilds: maxWilds, validMeld: validMeld,
+    indexHand: indexHand, candidates: candidates, contractDistance: contractDistance, findContract: findContract,
+    layOffSpots: layOffSpots, swapSpots: swapSpots,
+    newGame: newGame, startRound: startRound, apply: apply, tryApply: tryApply, buyers: buyers,
+    current: current, roundInfo: roundInfo, allCards: allCards
+  };
+});
+
+</script>
+<script>
+/* Shanghai computer players — FNF-20, stage 1. Levels: easy, medium, hard.
+ * They use only what a player at the table could know: their own hand, the face-up card,
+ * the melds on the table, and what other players have picked up or bought.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./engine.js'));
+  else root.ShanghaiBots = factory(root.Shanghai);
+})(typeof self !== 'undefined' ? self : this, function (S) {
+  'use strict';
+
+  var LEVELS = {
+    easy:   { takeChance: 0.6, buy: false, mistake: 0.35, safety: 0, dumpWeight: 0.2 },
+    medium: { takeChance: 1, buy: true, mistake: 0.05, safety: 0, dumpWeight: 0.6, buyMaxExtra: 4 },
+    hard:   { takeChance: 1, buy: true, mistake: 0, safety: 1, dumpWeight: 1, buyMaxExtra: 6 }
+  };
+
+  function without(hand, id) { return hand.filter(function (c) { return c.id !== id; }); }
+
+  // How much a natural card helps toward the contract's kind of melds.
+  function usefulness(card, hand, contract, cfg) {
+    if (S.isWild(card, cfg)) return 100;
+    var hasSet = contract.some(function (p) { return p.t === 'set'; });
+    var hasRun = contract.some(function (p) { return p.t === 'run'; });
+    var u = 0;
+    hand.forEach(function (c) {
+      if (c.id === card.id || S.isWild(c, cfg)) return;
+      if (hasSet && c.rank === card.rank) u += 2;
+      if (hasRun && c.suit === card.suit) {
+        var d = Math.abs(c.rank - card.rank);
+        if (card.rank === 1 || c.rank === 1) d = Math.min(d, Math.abs((c.rank === 1 ? 14 : c.rank) - (card.rank === 1 ? 14 : card.rank)));
+        if (d === 1) u += 1.5; else if (d === 2) u += 1; else if (d === 0) u += 0; // a duplicate does not help a run
+      }
+    });
+    return u;
+  }
+
+  function anyoneElseDown(st, pi) { return st.players.some(function (p, i) { return i !== pi && p.down; }); }
+
+  // Does this card fit any meld on the table (so it is safe to keep, or giving it away helps others)?
+  function fitsTable(card, st) {
+    return st.melds.some(function (m) { return S.layOffSpots(card, m, st.cfg).length > 0; });
+  }
+
+  // Cards the next players have shown interest in (picked up or bought).
+  function wantedByNext(card, st, pi) {
+    var cfg = st.cfg, risk = 0;
+    for (var k = 1; k < cfg.players; k++) {
+      var p = st.players[(pi + k) % cfg.players], w = k === 1 ? 1 : 0.4;
+      if (p.down) continue;
+      p.picked.forEach(function (c) {
+        if (S.isWild(c, cfg)) return;
+        if (c.rank === card.rank) risk += 1 * w;
+        if (c.suit === card.suit && Math.abs(c.rank - card.rank) <= 2) risk += 0.7 * w;
+      });
+    }
+    return risk;
+  }
+
+  function Bot(level, seed) {
+    this.level = level; this.p = LEVELS[level]; this.rand = S.rng(seed || 1);
+  }
+
+  Bot.prototype.dist = function (hand, st) { return S.contractDistance(hand, S.roundInfo(st).contract, st.cfg); };
+
+  Bot.prototype.chooseDraw = function (st, pi) {
+    var cfg = st.cfg, me = st.players[pi], top = st.top;
+    if (!top) return 'stock';
+    if (me.down) {
+      if (S.isWild(top, cfg)) return 'discard';
+      return fitsTable(top, st) ? 'discard' : 'stock';
+    }
+    if (S.isWild(top, cfg)) return 'discard';
+    var before = this.dist(me.hand, st), after = this.dist(me.hand.concat([top]), st);
+    if (after < before && this.rand() < this.p.takeChance) return 'discard';
+    return 'stock';
+  };
+
+  Bot.prototype.wantsBuy = function (st, pi) {
+    if (!this.p.buy) return false;
+    var cfg = st.cfg, me = st.players[pi], top = st.top, rd = S.roundInfo(st);
+    if (!top || me.down) return false;
+    if (rd.allAtOnce) return false; // every extra card must be placed to go out: buying only hurts
+    if (me.hand.length >= rd.deal + this.p.buyMaxExtra) return false;
+    if (S.isWild(top, cfg)) return true;
+    var before = this.dist(me.hand, st), after = this.dist(me.hand.concat([top]), st);
+    if (after >= before) return false;
+    if (this.level === 'hard' && anyoneElseDown(st, pi) && before > 2) return false; // too late to chase
+    return true;
+  };
+
+  // After drawing: go down if possible, lay off, swap, then discard.
+  Bot.prototype.play = function (st, pi) {
+    var cfg = st.cfg, me = st.players[pi], rd = S.roundInfo(st);
+    if (!me.down) this.tryGoDown(st, pi);
+    if (st.phase !== 'play') return;
+    if (me.down && (!st.wentDownThisTurn || cfg.layOffSameTurn)) this.layOffAll(st, pi);
+    if (st.phase !== 'play') return;
+    var card = this.pickDiscard(st, pi);
+    var r = S.tryApply(st, { type: 'discard', cardId: card.id });
+    if (!r.ok) {
+      // no-discard round and only one card left: nothing legal but to hold — discard is required to pass the turn, so
+      // keep two cards by design (pickDiscard never empties the hand in such rounds). Fallback: discard any other card.
+      throw new Error('bot discard refused: ' + r.error);
+    }
+  };
+
+  Bot.prototype.tryGoDown = function (st, pi) {
+    var cfg = st.cfg, me = st.players[pi], rd = S.roundInfo(st);
+    var found = S.findContract(me.hand, rd.contract, cfg);
+    if (!found) return false;
+    var melds = found.map(function (m) { return { t: m.t, rank: m.rank, suit: m.suit, start: m.start, cardIds: m.cards.map(function (c) { return c.id; }) }; });
+    if (rd.allAtOnce) {
+      // must empty the hand: plan lay-offs onto the new melds and the table
+      var plan = planAllOut(st, pi, found, true);
+      if (!plan) return false;
+      return S.tryApply(st, { type: 'goDown', melds: melds, layoffs: plan }).ok;
+    }
+    // keep a card to discard
+    var left = me.hand.length - melds.reduce(function (s, m) { return s + m.cardIds.length; }, 0);
+    if (left < 1 && cfg.mustDiscardToGoOut && !rd.noDiscardOut) return false;
+    return S.tryApply(st, { type: 'goDown', melds: melds }).ok;
+  };
+
+  // Lay off every card that fits, keeping one to discard when the rules need it.
+  Bot.prototype.layOffAll = function (st, pi) {
+    var cfg = st.cfg, me = st.players[pi], rd = S.roundInfo(st), changed = true;
+    var keepOne = cfg.mustDiscardToGoOut && !rd.noDiscardOut;
+    if (rd.noDiscardOut) {
+      var full = planAllOut(st, pi, [], false);
+      if (full && full.length) { if (S.tryApply(st, { type: 'layOffs', list: full }).ok) return; }
+    }
+    while (changed && st.phase === 'play') {
+      changed = false;
+      if (cfg.jokerSwap) {
+        for (var i = 0; i < me.hand.length && !changed; i++) for (var m = 0; m < st.melds.length && !changed; m++) {
+          var sp = S.swapSpots(me.hand[i], st.melds[m], cfg);
+          if (sp.length && S.tryApply(st, { type: 'swap', cardId: me.hand[i].id, meld: sp[0].meld, slot: sp[0].slot }).ok) changed = true;
+        }
+      }
+      for (var h = 0; h < me.hand.length && !changed; h++) {
+        if (keepOne && me.hand.length <= 1) break;
+        if (rd.noDiscardOut && me.hand.length <= 2) break;
+        var c = me.hand[h];
+        for (var k = 0; k < st.melds.length && !changed; k++) {
+          var spots = S.layOffSpots(c, st.melds[k], cfg);
+          if (!spots.length) continue;
+          if (S.tryApply(st, { type: 'layOff', cardId: c.id, meld: spots[0].meld, end: spots[0].end }).ok) changed = true;
+        }
+      }
+    }
+  };
+
+  Bot.prototype.pickDiscard = function (st, pi) {
+    var cfg = st.cfg, me = st.players[pi], rd = S.roundInfo(st), self = this;
+    var contract = rd.contract;
+    var naturals = me.hand.filter(function (c) { return !S.isWild(c, cfg); });
+    var pool = naturals.length ? naturals : me.hand.slice();
+    if (rd.noDiscardOut && me.hand.length === 1) return me.hand[0]; // will be refused; engine guards
+    var danger = anyoneElseDown(st, pi) ? 1 : 0.3;
+    var best = null, bestScore = Infinity, seen = {};
+    var scored = [];
+    pool.forEach(function (c) {
+      var key = c.suit * 16 + c.rank; if (seen[key]) return; seen[key] = 1;
+      var score;
+      if (me.down) {
+        score = -S.cardPoints(c, cfg) * 10 + (fitsTable(c, st) ? 500 : 0);
+      } else {
+        var d = self.dist(without(me.hand, c.id), st);
+        score = d * 1000 + usefulness(c, me.hand, contract, cfg) * 60 - S.cardPoints(c, cfg) * self.p.dumpWeight * danger * 4;
+      }
+      if (self.p.safety) score += wantedByNext(c, st, pi) * 80 + (fitsTable(c, st) ? 150 : 0);
+      scored.push({ c: c, s: score });
+      if (score < bestScore) { bestScore = score; best = c; }
+    });
+    if (self.p.mistake && self.rand() < self.p.mistake && scored.length > 1) {
+      scored.sort(function (a, b) { return a.s - b.s; });
+      return scored[1 + Math.floor(self.rand() * Math.min(2, scored.length - 1))].c;
+    }
+    return best;
+  };
+
+  // For a go-down-and-out round: lay-offs that empty the hand after the contract melds, or null.
+  function planAllOut(st, pi, found, goingDown) {
+    var cfg = st.cfg, me = st.players[pi];
+    var used = {}; found.forEach(function (m) { m.cards.forEach(function (c) { used[c.id] = 1; }); });
+    var rest = me.hand.filter(function (c) { return !used[c.id]; });
+    if (!rest.length) return [];
+    // simulate melds: the new ones get ids after the table's
+    var sim = st.melds.map(function (m) { return { id: m.id, t: m.t, rank: m.rank, suit: m.suit, start: m.start, cards: m.cards.slice() }; });
+    var nextId = st.meldSeq;
+    found.forEach(function (m) { sim.push({ id: ++nextId, t: m.t, rank: m.rank, suit: m.suit, start: m.start, cards: m.cards.slice() }); });
+    var plan = [], progress = true;
+    if (goingDown && !cfg.layOffSameTurn) return null;
+    while (rest.length && progress) {
+      progress = false;
+      for (var i = 0; i < rest.length && !progress; i++) for (var k = 0; k < sim.length && !progress; k++) {
+        var sp = S.layOffSpots(rest[i], sim[k], cfg);
+        if (!sp.length) continue;
+        var m = sim[k], c = rest[i];
+        if (m.t === 'set') m.cards.push(c); else if (sp[0].end === 'low') { m.cards.unshift(c); m.start--; } else m.cards.push(c);
+        plan.push({ type: 'layOff', cardId: c.id, meld: m.id, end: sp[0].end });
+        rest.splice(i, 1); progress = true;
+      }
+    }
+    return rest.length ? null : plan;
+  }
+
+  // ---------- running a whole game with computer players ----------
+  // seats: array of Bot (or a human controller with the same three methods)
+  function playRound(st, seats, check) {
+    S.startRound(st);
+    if (st.phase === 'gameOver') return;
+    while (st.phase !== 'roundOver') {
+      var pi = st.turn, bot = seats[pi];
+      if (st.phase === 'draw') {
+        var from = bot.chooseDraw(st, pi), buyer = null;
+        if (from === 'stock') {
+          var bs = S.buyers(st);
+          for (var b = 0; b < bs.length; b++) if (seats[bs[b]].wantsBuy(st, bs[b])) { buyer = bs[b]; break; }
+        }
+        S.apply(st, { type: 'draw', from: from, buyer: buyer });
+        if (check) check(st);
+        continue;
+      }
+      bot.play(st, pi);
+      if (check) check(st);
+    }
+  }
+
+  function playGame(st, seats, check) {
+    while (!st.over) {
+      playRound(st, seats, check);
+      if (st.round >= st.cfg.rounds.length - 1) { st.over = true; st.phase = 'gameOver'; }
+    }
+    return st;
+  }
+
+  return { LEVELS: LEVELS, Bot: Bot, playRound: playRound, playGame: playGame, usefulness: usefulness, planAllOut: planAllOut };
+});
+
+</script>
+<script>
+/* Shanghai odds coach — FNF-20, stage 3.
+ * Advice for one player from what that player can know: their own hand, the table, the face-up card,
+ * every discard so far, and the cards others picked up or bought (still in their hands).
+ * Every figure is worked out here; nothing is a guess. The odds treat the unseen cards as shuffled at random,
+ * which is exact for the pile and an estimate once other players are choosing what to keep.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./engine.js'), require('./bots.js'));
+  else root.ShanghaiCoach = factory(root.Shanghai, root.ShanghaiBots);
+})(typeof self !== 'undefined' ? self : this, function (S, B) {
+  'use strict';
+  var SUITCH = ['♣', '♦', '♥', '♠'], RK = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+  function name(c) { return c.suit === 4 ? 'joker' : RK[c.rank] + SUITCH[c.suit]; }
+  function pct(x) { var v = Math.round(x * 100); return (v === 0 && x > 0 ? '<1' : v === 100 && x < 1 ? '>99' : String(v)) + '%'; }
+  function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+
+  // What this player has not seen, and what they know others hold.
+  function knowledge(st, pi) {
+    var seen = {}, known = [];
+    st.players[pi].hand.forEach(function (c) { seen[c.id] = 1; });
+    st.melds.forEach(function (m) { m.cards.forEach(function (c) { seen[c.id] = 1; }); });
+    if (st.top) seen[st.top.id] = 1;
+    st.dead.forEach(function (c) { seen[c.id] = 1; });
+    st.players.forEach(function (p, i) {
+      if (i === pi) return;
+      var inHand = {}; p.hand.forEach(function (c) { inHand[c.id] = 1; });
+      (p.picked || []).forEach(function (c) { if (inHand[c.id] && !seen[c.id]) { seen[c.id] = 1; known.push({ p: i, c: c }); } });
+    });
+    var unseen = S.allCards(st).filter(function (c) { return !seen[c.id]; });
+    return { unseen: unseen, known: known };
+  }
+
+  function dist(hand, st) { return S.contractDistance(hand, S.roundInfo(st).contract, st.cfg); }
+
+  // Cards that would help: before going down, those that bring the contract closer; once down, those that lay off.
+  function outs(st, pi, kn) {
+    var cfg = st.cfg, me = st.players[pi], groups = {}, list = [], total = 0;
+    kn = kn || knowledge(st, pi);
+    kn.unseen.forEach(function (c) {
+      var k = S.isWild(c, cfg) ? (c.suit === 4 ? 'J' : 'W' + c.suit * 16 + c.rank) : c.suit * 16 + c.rank;
+      (groups[k] = groups[k] || []).push(c);
+    });
+    var base = me.down ? null : dist(me.hand, st);
+    Object.keys(groups).forEach(function (k) {
+      var c = groups[k][0], helps;
+      if (me.down) helps = st.melds.some(function (m) { return S.layOffSpots(c, m, cfg).length > 0; });
+      else helps = dist(me.hand.concat([c]), st) < base;
+      if (helps) { list.push({ card: c, label: name(c), left: groups[k].length }); total += groups[k].length; }
+    });
+    list.sort(function (a, b) { return b.left - a.left || (a.card.suit - b.card.suit) || (a.card.rank - b.card.rank); });
+    return { base: base, list: list, total: total, unseen: kn.unseen.length };
+  }
+
+  // Chance that at least one of the next n cards from a well-shuffled set of N holds one of `good` helpers.
+  function pWithin(good, N, n) {
+    if (good <= 0 || N <= 0) return 0;
+    var miss = 1;
+    for (var i = 0; i < n && i < N; i++) miss *= (N - good - i) / (N - i);
+    return 1 - Math.max(0, miss);
+  }
+
+  // Simulation: draw from the unseen cards only (no face-up pick-ups, no buys), keep the best hand, and count
+  // how often the contract is complete after 1, 2 and 3 draws. Seeded, so the same position gives the same figure.
+  function readyChance(st, pi, draws, trials, kn) {
+    draws = draws || 3; trials = trials || 160;
+    var me = st.players[pi], rd = S.roundInfo(st), cfg = st.cfg;
+    kn = kn || knowledge(st, pi);
+    if (me.down) return null;
+    if (dist(me.hand, st) === 0) return { byDraw: [1, 1, 1].slice(0, draws), trials: 0, already: true };
+    var pool = kn.unseen, rand = S.rng(st.seed ^ (st.turnsThisRound * 977) ^ (pi * 131)), hits = [];
+    for (var d = 0; d < draws; d++) hits.push(0);
+    for (var t = 0; t < trials; t++) {
+      var hand = me.hand.slice(), deck = pool.slice(), done = false;
+      for (var dr = 0; dr < draws; dr++) {
+        var j = Math.floor(rand() * deck.length), card = deck[j]; deck[j] = deck[deck.length - 1]; deck.pop();
+        hand.push(card);
+        if (S.contractDistance(hand, rd.contract, cfg) === 0) { done = true; }
+        if (done) { for (var q = dr; q < draws; q++) hits[q]++; break; }
+        // throw the card whose loss hurts least (same rule as the coach's own advice, simplified)
+        var best = null, bestD = Infinity, seenK = {};
+        for (var h = 0; h < hand.length; h++) {
+          var c = hand[h]; if (S.isWild(c, cfg)) continue;
+          var key = c.suit * 16 + c.rank; if (seenK[key]) continue; seenK[key] = 1;
+          var rest = hand.slice(0, h).concat(hand.slice(h + 1));
+          var dd = S.contractDistance(rest, rd.contract, cfg) * 100 - S.cardPoints(c, cfg) / 10;
+          if (dd < bestD) { bestD = dd; best = h; }
+        }
+        if (best != null) hand.splice(best, 1);
+      }
+    }
+    return { byDraw: hits.map(function (h) { return h / trials; }), trials: trials };
+  }
+
+  // The card the coach would throw, and why.
+  function discardAdvice(st, pi) {
+    var cfg = st.cfg, me = st.players[pi], rd = S.roundInfo(st);
+    if (!me.hand.length) return null;
+    var bot = new B.Bot('hard', 1); bot.p = Object.assign({}, bot.p, { mistake: 0 });
+    var c = bot.pickDiscard(st, pi);
+    if (!c) return null;
+    var why = [];
+    if (me.down) {
+      var fits = st.melds.some(function (m) { return S.layOffSpots(c, m, cfg).length > 0; });
+      why.push(fits ? 'nothing else is safe to throw' : 'it fits nowhere on the table');
+    } else {
+      var d0 = dist(me.hand, st), d1 = dist(me.hand.filter(function (x) { return x.id !== c.id; }), st);
+      why.push(d1 > d0 ? 'every card helps a little; this one least' : 'you are just as close to ' + contractShort(rd.contract) + ' without it');
+      var u = B.usefulness(c, me.hand, rd.contract, cfg);
+      if (u === 0) why.push('it has no partner in your hand');
+    }
+    var pts = S.cardPoints(c, cfg);
+    if (pts >= 10) why.push('it would cost you ' + pts + ' points if someone goes out');
+    var warn = danger(st, pi, c);
+    return { card: c, label: name(c), why: why, warn: warn };
+  }
+
+  // Would this discard help the next players? (from what they have picked up)
+  function danger(st, pi, c) {
+    var cfg = st.cfg, out = [];
+    for (var k = 1; k < cfg.players; k++) {
+      var i = (pi + k) % cfg.players, p = st.players[i];
+      if (p.down) {
+        if (k === 1 && st.melds.some(function (m) { return S.layOffSpots(c, m, cfg).length > 0; })) out.push(p.name + ' (next) could lay it off');
+        continue;
+      }
+      var inHand = {}; p.hand.forEach(function (x) { inHand[x.id] = 1; });
+      (p.picked || []).forEach(function (x) {
+        if (!inHand[x.id] || S.isWild(x, cfg)) return;
+        if (x.rank === c.rank) out.push(p.name + ' picked up a ' + RK[x.rank] + ' earlier');
+        else if (x.suit === c.suit && Math.abs(x.rank - c.rank) <= 2) out.push(p.name + ' picked up the ' + name(x) + ' earlier');
+      });
+      if (out.length) break;
+    }
+    return out.length ? out[0] : null;
+  }
+
+  function contractShort(ct) {
+    var s = ct.filter(function (p) { return p.t === 'set'; }).length, r = ct.length - s, bits = [];
+    if (s) bits.push(plural(s, 'set')); if (r) bits.push(plural(r, 'run'));
+    return 'your ' + bits.join(' and ');
+  }
+
+  function threat(st, pi) {
+    var cfg = st.cfg, me = st.players[pi], lines = [];
+    var mine = me.hand.reduce(function (s, c) { return s + S.cardPoints(c, cfg); }, 0);
+    var close = st.players.map(function (p, i) { return { p: p, i: i }; }).filter(function (o) { return o.i !== pi && o.p.down && o.p.hand.length <= 3; });
+    if (close.length) {
+      var o = close.sort(function (a, b) { return a.p.hand.length - b.p.hand.length; })[0];
+      lines.push(o.p.name + ' is down with ' + plural(o.p.hand.length, 'card') + ' and could go out soon. Your hand would cost you ' + mine + ' points now.');
+    }
+    return lines;
+  }
+
+  function outsLine(o, compact) {
+    if (!o.total) return 'No unseen card helps you directly right now.';
+    var shown = o.list.slice(0, compact ? 5 : 8).map(function (x) { return x.label + (x.left > 1 ? ' ×' + x.left : ''); }).join(', ');
+    var more = o.list.length > (compact ? 5 : 8) ? ' and more' : '';
+    return o.total + ' of the ' + o.unseen + ' cards you have not seen would help (' + shown + more + '). From the pile: ' + pct(o.total / o.unseen) + ' next draw, ' + pct(pWithin(o.total, o.unseen, 3)) + ' within your next 3.';
+  }
+
+  // ---------- advice for each decision ----------
+  // Returns {head, lines:[...], pick: 'discard'|'stock'|true|false|cardId, outs}
+  function adviseDraw(st, pi) {
+    var cfg = st.cfg, me = st.players[pi], top = st.top, kn = knowledge(st, pi), o = outs(st, pi, kn), lines = [], head, pick;
+    if (!top) return { head: 'Draw from the pile: there is no face-up card.', lines: [outsLine(o)], pick: 'stock', outs: o };
+    if (me.down) {
+      var fits = st.melds.some(function (m) { return S.layOffSpots(top, m, cfg).length > 0; });
+      if (fits) { head = 'Take the ' + name(top) + ': it lays off straight away.'; pick = 'discard'; }
+      else { head = 'Draw from the pile: the ' + name(top) + ' fits nowhere on the table.'; pick = 'stock'; }
+      lines.push(outsLine(o));
+    } else {
+      var d1 = dist(me.hand.concat([top]), st);
+      if (S.isWild(top, cfg)) { head = 'Take the ' + name(top) + ': a wild card fits any set or run.'; pick = 'discard'; lines.push('Remember it costs ' + S.cardPoints(top, cfg) + ' points if you are caught holding it.'); }
+      else if (d1 < o.base) { head = 'Take the ' + name(top) + ': it brings you from ' + plural(o.base, 'card') + ' short to ' + (d1 === 0 ? 'ready to go down' : d1 + ' short') + '.'; pick = 'discard'; }
+      else { head = 'Draw from the pile: the ' + name(top) + ' does not bring you closer.'; pick = 'stock'; }
+      lines.push('You are ' + (o.base === 0 ? 'ready to go down.' : plural(o.base, 'card') + ' short of ' + contractShort(S.roundInfo(st).contract) + '.'));
+      lines.push(outsLine(o));
+      if (pick === 'discard' && !S.isWild(top, cfg)) lines.push('Taking it shows everyone what you are collecting.');
+    }
+    return { head: head, lines: lines.concat(threat(st, pi)), pick: pick, outs: o };
+  }
+
+  function adviseBuy(st, pi) {
+    var cfg = st.cfg, me = st.players[pi], top = st.top, rd = S.roundInfo(st);
+    var d0 = dist(me.hand, st), d1 = dist(me.hand.concat([top]), st), lines = [], head, pick;
+    var cost = cfg.buyPenalty, risk = 0;
+    if (S.isWild(top, cfg)) { head = 'Buy it: a wild card is worth the extra card' + (cost === 1 ? '' : 's') + '.'; pick = true; }
+    else if (d1 < d0) { head = 'Buy it: the ' + name(top) + ' takes you from ' + d0 + ' short to ' + (d1 === 0 ? 'ready' : d1 + ' short') + '.'; pick = true; }
+    else { head = 'Let it go: the ' + name(top) + ' does not bring you closer.'; pick = false; }
+    if (rd.allAtOnce && pick) { head = 'Careful: this round every card must fit when you go out, and a buy adds ' + plural(1 + cost, 'card') + '.'; pick = false; }
+    lines.push('A buy gives you ' + plural(1 + cost, 'card') + ' (' + (cost ? 'the ' + name(top) + ' and ' + plural(cost, 'from the pile') : 'just the card') + ') and leaves ' + plural(me.buysLeft - 1, 'buy') + '.');
+    var anyDown = st.players.some(function (p, i) { return i !== pi && p.down; });
+    if (anyDown) lines.push('Someone is already down: extra cards in your hand are more likely to count against you.');
+    return { head: head, lines: lines.concat(threat(st, pi)), pick: pick };
+  }
+
+  function advisePlay(st, pi) {
+    var cfg = st.cfg, me = st.players[pi], rd = S.roundInfo(st), lines = [], head, kn = knowledge(st, pi);
+    var dz = null, layable = [], pickIds = [];
+    if (!me.down) {
+      var f = S.findContract(me.hand, rd.contract, cfg);
+      if (f) {
+        head = 'You can go down now: tap Go down.';
+        if (rd.allAtOnce) head = 'You have the contract; this round every card must also fit before you go down.';
+        lines.push('Going down early is usually right: you can then lay off, and your hand shrinks before someone else goes out.');
+      } else {
+        var o = outs(st, pi, kn), rc = o.base >= 2 ? readyChance(st, pi, 3, 160, kn) : null;
+        head = 'You are ' + plural(o.base, 'card') + ' short of ' + contractShort(rd.contract) + '.';
+        lines.push(outsLine(o, true));
+        if (rc && !rc.already && o.base >= 2) lines.push('Drawing from the pile only, your chance to be ready: ' + rc.byDraw.map(function (p, i) { return pct(p) + ' after ' + (i + 1); }).join(', ') + ' (' + rc.trials + ' simulated deals).');
+      }
+    } else {
+      me.hand.forEach(function (c) {
+        st.melds.forEach(function (m) { if ((S.layOffSpots(c, m, cfg).length || S.swapSpots(c, m, cfg).length) && layable.indexOf(c) < 0) layable.push(c); });
+      });
+      if (layable.length) head = 'Lay off: ' + layable.map(name).join(', ') + ' fit' + (layable.length === 1 ? 's' : '') + ' on the table.';
+      else head = 'Nothing in your hand fits the table yet.';
+      pickIds = layable.map(function (c) { return c.id; });
+    }
+    var dA = discardAdvice(st, pi);
+    if (dA && !(rd.noDiscardOut && me.hand.length <= 1)) {
+      lines.push('Throw the ' + dA.label + ': ' + dA.why.join('; ') + '.');
+      if (dA.warn) lines.push('Watch out: ' + dA.warn + '.');
+    }
+    return { head: head, lines: lines.concat(threat(st, pi)), discardId: dA ? dA.card.id : null, layIds: pickIds };
+  }
+
+
+  // ---------- arranging a hand into sets and runs ----------
+  // Returns {sets:[group], runs:[group], spare:[group]}; group = {label, cards:[...], kind}.
+  // Cards a contract part can use go where the best plan for this round's contract puts them (the same search the
+  // coach uses); spare pairs and run pieces follow; what is left, then wild cards, go to spare. Every card once.
+  function arrange(hand, contract, cfg) {
+    var ih = S.indexHand(hand, cfg), idx = ih.idx;
+    var parts = contract.slice().sort(function (a, b) { return b.n - a.n; });
+    var cands = parts.map(function (p) { return S.candidates(p, idx, cfg, true); });
+    var avail = {}; Object.keys(idx).forEach(function (k) { avail[k] = idx[k].length; });
+    var best = Infinity, bestPick = null, pick = [];
+    (function dfs(i, acc) {
+      if (acc >= best) return;
+      if (i === parts.length) { best = acc; bestPick = pick.slice(); return; }
+      var list = cands[i];
+      for (var c = 0, tried = 0; c < list.length && tried < 6; c++, tried++) {
+        var cd = list[c]; if (acc + cd.missing >= best) break;
+        var used = [], extra = 0;
+        cd.keys.forEach(function (k) { if (k < 0) return; if (avail[k] > 0) { avail[k]--; used.push(k); } else extra++; });
+        pick.push({ cd: cd, part: parts[i], missing: cd.missing + extra });
+        dfs(i + 1, acc + cd.missing + extra);
+        pick.pop(); used.forEach(function (k) { avail[k]++; });
+      }
+    })(0, 0);
+    var pool = {}; Object.keys(idx).forEach(function (k) { pool[k] = idx[k].slice(); });
+    function take(k) { return pool[k] && pool[k].length ? pool[k].pop() : null; }
+    var pr = S.posRange(cfg), sets = [], runs = [], spare = [];
+    function posOf(c) { return c.rank === 1 ? (cfg.aceMode === 'high' ? 14 : 1) : c.rank; }
+    function runLabel(su, lo, hi) { return SUITCH[su] + ' ' + RK[S.rankAtPos(lo)] + '–' + RK[S.rankAtPos(hi)]; }
+    function shortText(m) { return m <= 0 ? 'ready' : m + ' short'; }
+    (bestPick || []).forEach(function (pk) {
+      var cd = pk.cd, cards = [];
+      if (cd.empty) return;
+      if (cd.t === 'set') {
+        var k; while (true) { var got = null; for (var su = 0; su < 4 && !got; su++) { k = su * 16 + cd.rank; got = take(k); } if (!got) break; cards.push(got); }
+        if (!cards.length) return;
+        sets.push({ kind: 'set', label: RK[cd.rank] + 's · ' + shortText(pk.part.n - cards.length), cards: cards });
+      } else {
+        var lo = cd.start, hi = cd.start + pk.part.n - 1, slots = {};
+        for (var p = lo; p <= hi; p++) { var c1 = take(cd.suit * 16 + S.rankAtPos(p)); if (c1) slots[p] = c1; }
+        var ps0 = Object.keys(slots).map(Number);
+        if (!ps0.length) return;
+        // extend only from the outermost cards actually held, so no new gap is made
+        var a0 = Math.min.apply(null, ps0), b0 = Math.max.apply(null, ps0);
+        while (a0 - 1 >= pr[0] && pool[cd.suit * 16 + S.rankAtPos(a0 - 1)] && pool[cd.suit * 16 + S.rankAtPos(a0 - 1)].length) { a0--; slots[a0] = take(cd.suit * 16 + S.rankAtPos(a0)); }
+        while (b0 + 1 <= pr[1] && pool[cd.suit * 16 + S.rankAtPos(b0 + 1)] && pool[cd.suit * 16 + S.rankAtPos(b0 + 1)].length) { b0++; slots[b0] = take(cd.suit * 16 + S.rankAtPos(b0)); }
+        var ps = Object.keys(slots).map(Number).sort(function (a, b) { return a - b; });
+        var missing = pk.missing;   // the gaps in the best window for this part, as the search counted them
+        runs.push({ kind: 'run', label: runLabel(cd.suit, ps[0], ps[ps.length - 1]) + ' · ' + shortText(missing), cards: ps.map(function (q) { return slots[q]; }) });
+      }
+    });
+    // spare pieces: pairs and run pieces among what is left, the contract's kind first
+    var setsFirst = contract.filter(function (p) { return p.t === 'set'; }).length >= contract.filter(function (p) { return p.t === 'run'; }).length;
+    function sparePairs() {
+      for (var r = 1; r <= 13; r++) {
+        var ks = [0, 1, 2, 3].map(function (su) { return su * 16 + r; }), n = ks.reduce(function (t, k) { return t + (pool[k] ? pool[k].length : 0); }, 0);
+        if (n < 2) continue;
+        var cs = []; ks.forEach(function (k) { while (pool[k] && pool[k].length) cs.push(pool[k].pop()); });
+        sets.push({ kind: 'pair', label: RK[r] + 's ×' + cs.length, cards: cs });
+      }
+    }
+    function spareRuns() {
+      for (var su = 0; su < 4; su++) {
+        var ps = [];
+        for (var p = pr[0]; p <= pr[1]; p++) { var k = su * 16 + S.rankAtPos(p); if (pool[k] && pool[k].length && ps.indexOf(p) < 0 && !(p === 14 && ps.indexOf(1) >= 0) ) ps.push(p); }
+        var i = 0;
+        while (i < ps.length) {
+          var j = i; while (j + 1 < ps.length && ps[j + 1] - ps[j] <= 2) j++;   // one gap allowed: a joker can fill it
+          if (j > i) {
+            var cs = []; for (var q = i; q <= j; q++) { var c2 = take(su * 16 + S.rankAtPos(ps[q])); if (c2) cs.push(c2); }
+            if (cs.length >= 2) runs.push({ kind: 'piece', label: runLabel(su, ps[i], ps[j]), cards: cs });
+          }
+          i = j + 1;
+        }
+      }
+    }
+    var hasSet = contract.some(function (p) { return p.t === 'set'; }), hasRun = contract.some(function (p) { return p.t === 'run'; });
+    if (setsFirst) { if (hasSet) sparePairs(); if (hasRun) spareRuns(); } else { if (hasRun) spareRuns(); if (hasSet) sparePairs(); }
+    var rest = []; Object.keys(pool).forEach(function (k) { rest = rest.concat(pool[k]); });
+    rest.sort(function (a, b) { return posOf(a) - posOf(b) || a.suit - b.suit; });
+    if (rest.length) spare.push({ kind: 'spare', label: 'Spare', cards: rest });
+    if (ih.wilds.length) spare.push({ kind: 'wild', label: (ih.wilds.length === 1 ? 'Wild' : 'Wild ×' + ih.wilds.length), cards: ih.wilds.slice() });
+    return { sets: sets, runs: runs, spare: spare };
+  }
+
+  return { arrange: arrange, knowledge: knowledge, outs: outs, pWithin: pWithin, readyChance: readyChance, discardAdvice: discardAdvice,
+    adviseDraw: adviseDraw, adviseBuy: adviseBuy, advisePlay: advisePlay, pct: pct };
+});
+
+</script>
+<script>
+(function(){
+'use strict';
+var S=window.Shanghai,B=window.ShanghaiBots,C=window.ShanghaiCoach;
+var Q=new URLSearchParams(location.search);
+var AUTO=Q.get('autoplay')==='1', FAST=Q.get('fast')==='1'||AUTO;
+var KEY='shanghai.v1.';
+function store(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v));}catch(e){}}
+function load(k){try{var s=localStorage.getItem(KEY+k);return s?JSON.parse(s):null;}catch(e){return null;}}
+function drop(k){try{localStorage.removeItem(KEY+k);}catch(e){}}
+var $app=document.getElementById('app');
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+var SUITCH=['♣','♦','♥','♠'],RK=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+var BOTNAMES=['Ada','Bert','Cleo','Dev','Effie','Fred','Gus'];
+var LEVEL_LABEL={easy:'easy',medium:'medium',hard:'hard'};
+
+// ---------- card drawing ----------
+function cardHTML(c,cfg,opts){
+  opts=opts||{};
+  var mini=opts.mini?' mini':'';
+  var cls='card'+mini+(opts.sel?' sel':'')+(opts.isNew?' new':'')+(opts.tip?' tip':'');
+  var tag=opts.button?'button':'div', attrs=opts.button?' type="button" data-id="'+c.id+'"':'';
+  var label;
+  if(c.suit===4){
+    label=' aria-label="Joker'+(opts.as?', standing for '+opts.as:'')+'"';
+    return '<'+tag+attrs+label+' class="'+cls+' jk">'+(opts.mini?'':'<span class="r">JOKER</span>')+'<span class="s">★</span>'+(opts.as?'<span class="as">'+esc(opts.as)+'</span>':'')+'</'+tag+'>';
+  }
+  var red=(c.suit===1||c.suit===2)?' red':'';
+  var wild=S.isWild(c,cfg);
+  label=' aria-label="'+RK[c.rank]+' of '+['clubs','diamonds','hearts','spades'][c.suit]+(wild?', wild':'')+'"';
+  return '<'+tag+attrs+label+' class="'+cls+red+(wild?' jk':'')+'"><span class="r">'+RK[c.rank]+'</span><span class="s">'+SUITCH[c.suit]+'</span>'+(wild?'<span class="w">WILD</span>':'')+(opts.as&&wild?'<span class="as">'+esc(opts.as)+'</span>':'')+'</'+tag+'>';
+}
+function cardText(c){return c.suit===4?'joker':RK[c.rank]+SUITCH[c.suit];}
+function partText(p){return p.t==='set'?('set of '+p.n):('run of '+p.n);}
+function contractText(ct){
+  var groups={};ct.forEach(function(p){var k=partText(p);groups[k]=(groups[k]||0)+1;});
+  return Object.keys(groups).map(function(k){var n=groups[k];return n===1?'1 '+k:n+' '+k.replace('set of','sets of').replace('run of','runs of');}).join(' + ');
+}
+
+// ---------- rules text <-> rounds ----------
+function roundsToText(rounds){
+  return rounds.map(function(r){
+    var t=r.contract.map(function(p){return (p.t==='set'?'S':'R')+((p.t==='set'&&p.n===3)||(p.t==='run'&&p.n===4)?'':p.n);}).join(' ');
+    var f=[];if(r.noDiscardOut)f.push('nodiscard');if(r.allAtOnce)f.push('allatonce');
+    return t+' | '+r.deal+' | '+(r.buys==null?3:r.buys)+(f.length?' | '+f.join(' '):'');
+  }).join('\n');
+}
+function textToRounds(txt){
+  var out=[],errs=[];
+  txt.split('\n').map(function(l){return l.trim();}).filter(Boolean).forEach(function(line,i){
+    var parts=line.split('|').map(function(x){return x.trim();});
+    var ct=[];
+    (parts[0]||'').split(/[\s,+]+/).filter(Boolean).forEach(function(tok){
+      var m=/^([SsRr])(\d*)$/.exec(tok);
+      if(!m){errs.push('Line '+(i+1)+': "'+tok+'" is not S, R, S4, R7 …');return;}
+      var t=m[1].toUpperCase()==='S'?'set':'run';
+      ct.push({t:t,n:m[2]?+m[2]:(t==='set'?3:4)});
+    });
+    var deal=+(parts[1]||10),buys=parts[2]===undefined||parts[2]===''?3:+parts[2];
+    var flags=(parts[3]||'').toLowerCase();
+    if(!(deal>0))errs.push('Line '+(i+1)+': cards dealt must be a number');
+    if(!(buys>=0))errs.push('Line '+(i+1)+': buys must be a number');
+    out.push({contract:ct,deal:deal,buys:buys,noDiscardOut:/nodiscard/.test(flags)||/allatonce/.test(flags),allAtOnce:/allatonce/.test(flags)});
+  });
+  if(!out.length)errs.push('Add at least one round');
+  return {rounds:out,errs:errs};
+}
+
+// ---------- setup ----------
+var DEFAULT_SETUP={name:'You',bots:3,level:'medium',preset:'classic7',speed:'normal',seed:'',buyAsk:'helps',coach:'tap',goDownMode:'able'};
+function presetFields(name){
+  var c=S.makeConfig(name);
+  return {decks:c.decks,jokers:c.jokers,twosWild:c.twosWild,aceMode:c.aceMode,wildMode:c.wildLimit.mode==='fixed'?'fixed'+c.wildLimit.fixed:c.wildLimit.mode,
+    initialMeldRules:c.initialMeldRules,layOffSameTurn:c.layOffSameTurn,mustDiscardToGoOut:c.mustDiscardToGoOut,buyPenalty:c.buyPenalty,buyAfterDown:c.buyAfterDown,
+    jokerSwap:c.jokerSwap,stockOut:c.stockOut==='end'?'end':'reshuffle'+c.maxReshuffles,
+    ptLow:c.scoring.low,ptHigh:c.scoring.high,ptAce:c.scoring.ace,ptJoker:c.scoring.joker,lowMax:c.scoring.lowMax,rounds:roundsToText(c.rounds)};
+}
+function fieldsToConfig(su,f){
+  var tr=textToRounds(f.rounds);
+  if(tr.errs.length)return {errs:tr.errs};
+  var wl={mode:f.wildMode,fixed:1,bySize:{3:1,4:1,5:2,7:3,10:4}};
+  if(/^fixed/.test(f.wildMode)){wl.mode='fixed';wl.fixed=+f.wildMode.slice(5);}
+  var so=f.stockOut==='end'?{stockOut:'end',maxReshuffles:0}:{stockOut:'reshuffle',maxReshuffles:+f.stockOut.slice(9)};
+  var o={players:1+(+su.bots),decks:+f.decks,jokers:+f.jokers,twosWild:!!f.twosWild,aceMode:f.aceMode,wildLimit:wl,initialMeldRules:!!f.initialMeldRules,
+    layOffSameTurn:!!f.layOffSameTurn,mustDiscardToGoOut:!!f.mustDiscardToGoOut,buyPenalty:+f.buyPenalty,buyAfterDown:!!f.buyAfterDown,jokerSwap:!!f.jokerSwap,
+    stockOut:so.stockOut,maxReshuffles:so.maxReshuffles,
+    scoring:{low:+f.ptLow,high:+f.ptHigh,ace:+f.ptAce,joker:+f.ptJoker,wildTwo:20,lowMax:+f.lowMax},rounds:tr.rounds,
+    name:S.PRESETS[su.preset]?S.PRESETS[su.preset].name:'Custom'};
+  try{return {cfg:S.makeConfig(null,o)};}catch(e){return {errs:[String(e.message).replace(/^Config: /,'')]};}
+}
+function sel(name,val,opts){return '<select id="'+name+'" name="'+name+'">'+opts.map(function(o){return '<option value="'+esc(o[0])+'"'+(String(o[0])===String(val)?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>';}
+function num(name,val,min,max){return '<input type="number" inputmode="numeric" id="'+name+'" value="'+esc(val)+'" min="'+min+'" max="'+max+'">';}
+function chk(name,val,label){return '<label class="check"><input type="checkbox" id="'+name+'"'+(val?' checked':'')+'> '+esc(label)+'</label>';}
+
+function renderSetup(){
+  $app.className='';
+  var su=Object.assign({},DEFAULT_SETUP,load('setup')||{});
+  var f=Object.assign(presetFields(su.preset),load('fields')||{});
+  var saved=load('game');
+  var h='<div class="setup"><h1>Shanghai</h1><div class="muted">The family card game. You against the computer.</div>';
+  if(saved&&saved.st&&!saved.st.over)h+='<div class="prompt"><b>A game is in progress</b> (round '+(saved.st.round+1)+' of '+saved.st.cfg.rounds.length+').<div class="row" style="margin-top:8px"><button class="btn primary" id="cont">Carry on</button><button class="btn ghost" id="abandon">Start again</button></div></div>';
+  h+='<div class="field"><label for="name">Your name</label><input type="text" id="name" value="'+esc(su.name)+'" maxlength="16" autocomplete="off" enterkeyhint="done"></div>';
+  h+='<div class="field"><label for="bots">Computer players</label>'+sel('bots',su.bots,[1,2,3,4,5,6,7].map(function(n){return [n,n];}))+'</div>';
+  h+='<div class="field"><label for="level">How good</label>'+sel('level',su.level,[['easy','Easy'],['medium','Medium'],['hard','Hard'],['mixed','A mix']])+'</div>';
+  h+='<div class="field"><label for="preset">Rules</label>'+sel('preset',su.preset,Object.keys(S.PRESETS).map(function(k){return [k,S.PRESETS[k].name];}))+'</div>';
+  h+='<details id="more"><summary>Change the rules</summary>';
+  h+='<div class="field"><label for="decks">Decks</label>'+num('decks',f.decks,1,4)+'</div>';
+  h+='<div class="field"><label for="jokers">Jokers</label>'+num('jokers',f.jokers,0,8)+'</div>';
+  h+=chk('twosWild',f.twosWild,'2s are wild too');
+  h+='<div class="field"><label for="aceMode">Aces in runs</label>'+sel('aceMode',f.aceMode,[['both','High or low (not round the corner)'],['low','Low only (A-2-3)'],['high','High only (Q-K-A)']])+'</div>';
+  h+='<div class="field"><label for="wildMode">Jokers per meld</label>'+sel('wildMode',f.wildMode,[['fewerThanNaturals','Fewer than the real cards'],['fixed1','At most 1'],['fixed2','At most 2'],['bySize','By size (1 in 3–4, 2 in 5, 3 in 7, 4 in 10)'],['any','Any (at least 1 real card)']])+'</div>';
+  h+=chk('initialMeldRules',f.initialMeldRules,'First meld: no two sets of one rank, no touching runs of one suit');
+  h+=chk('layOffSameTurn',f.layOffSameTurn,'May lay off in the turn you go down');
+  h+=chk('mustDiscardToGoOut',f.mustDiscardToGoOut,'Your last card must be a discard');
+  h+=chk('jokerSwap',f.jokerSwap,'Swap a real card for a joker in a run (once you are down)');
+  h+='<div class="field"><label for="buyPenalty">Penalty cards per buy</label>'+num('buyPenalty',f.buyPenalty,0,3)+'</div>';
+  h+=chk('buyAfterDown',f.buyAfterDown,'May still buy after going down');
+  h+='<div class="field"><label for="stockOut">When the pile runs out</label>'+sel('stockOut',f.stockOut,[['reshuffle2','Reshuffle discards (twice at most)'],['reshuffle1','Reshuffle once'],['reshuffle5','Reshuffle up to 5 times'],['end','Round ends, nobody out']])+'</div>';
+  h+='<h2>Points left in hand</h2>';
+  h+='<div class="field"><label for="lowMax">Low cards are 2 to</label>'+num('lowMax',f.lowMax,2,12)+'</div>';
+  h+='<div class="field"><label for="ptLow">Each low card</label>'+num('ptLow',f.ptLow,0,100)+'</div>';
+  h+='<div class="field"><label for="ptHigh">Higher cards to K</label>'+num('ptHigh',f.ptHigh,0,100)+'</div>';
+  h+='<div class="field"><label for="ptAce">Ace</label>'+num('ptAce',f.ptAce,0,100)+'</div>';
+  h+='<div class="field"><label for="ptJoker">Joker</label>'+num('ptJoker',f.ptJoker,0,200)+'</div>';
+  h+='<h2>Rounds</h2><div class="muted">One round per line: contract | cards dealt | buys | extras. S = set of 3, R = run of 4, S4 or R7 for longer. Extras: <i>nodiscard</i> (go out without a discard), <i>allatonce</i> (go down and out in one go).</div>';
+  h+='<textarea id="rounds" autocapitalize="off" autocorrect="off" spellcheck="false">'+esc(f.rounds)+'</textarea>';
+  h+='</details>';
+  h+='<div class="field"><label for="coach">Coach (advice and odds)</label>'+sel('coach',su.coach,[['tap','A Hint button when I want it'],['always','Always on'],['off','Off']])+'</div>';
+  h+='<div class="field"><label for="goDownMode">Go down button</label>'+sel('goDownMode',su.goDownMode,[['able','Only lights up when I can go down'],['always','Always on (tells me how far off I am)']])+'</div>';
+  h+='<div class="field"><label for="buyAsk">Offer me a buy</label>'+sel('buyAsk',su.buyAsk,[['helps','Only when the card would help me'],['always','Every time I may buy'],['never','Never']])+'</div>';
+  h+='<div class="field"><label for="speed">Computer speed</label>'+sel('speed',su.speed,[['slow','Slow'],['normal','Normal'],['fast','Fast']])+'</div>';
+  h+='<div class="field"><label for="seed">Deal number</label><input type="text" inputmode="numeric" id="seed" value="'+esc(su.seed)+'" placeholder="random" autocomplete="off" enterkeyhint="done" style="width:140px"><span class="muted">Same number, same cards: play a deal again.</span></div>';
+  h+='<div id="warn"></div><div class="row"><button class="btn primary" id="start">Deal</button></div></div>';
+  $app.innerHTML=h;
+  var ids=['decks','jokers','twosWild','aceMode','wildMode','initialMeldRules','layOffSameTurn','mustDiscardToGoOut','buyPenalty','buyAfterDown','jokerSwap','stockOut','ptLow','ptHigh','ptAce','ptJoker','lowMax','rounds'];
+  function readSu(){return {name:(document.getElementById('name').value||'You').trim().slice(0,16)||'You',bots:+document.getElementById('bots').value,level:document.getElementById('level').value,
+    preset:document.getElementById('preset').value,speed:document.getElementById('speed').value,buyAsk:document.getElementById('buyAsk').value,coach:document.getElementById('coach').value,goDownMode:document.getElementById('goDownMode').value,seed:document.getElementById('seed').value.replace(/\D/g,'').slice(0,9)};}
+  function readF(){var o={};ids.forEach(function(id){var el=document.getElementById(id);o[id]=el.type==='checkbox'?el.checked:el.value;});return o;}
+  function check(){
+    var su2=readSu(),f2=readF(),r=fieldsToConfig(su2,f2),w='';
+    if(r.errs)w+='<div class="err">'+r.errs.map(esc).join('<br>')+'</div>';
+    if(+f2.decks===1&&+f2.jokers===0&&!f2.twosWild)w+='<div class="note">With one deck and no jokers, rounds can stall: once the spare cards of each set are used up, nobody can lay off. In testing (2 players) about 1 round in 4 ended with nobody out.</div>';
+    document.getElementById('warn').innerHTML=w;
+    document.getElementById('start').disabled=!!r.errs;
+    return r;
+  }
+  document.getElementById('preset').addEventListener('change',function(){
+    var pf=presetFields(this.value);ids.forEach(function(id){var el=document.getElementById(id);if(el.type==='checkbox')el.checked=!!pf[id];else el.value=pf[id];});drop('fields');check();
+  });
+  $app.addEventListener('input',check);$app.addEventListener('change',check);
+  check();
+  document.getElementById('start').addEventListener('click',function(){
+    var su2=readSu(),f2=readF(),r=check();if(r.errs)return;
+    store('setup',su2);store('fields',f2);
+    var seed=su2.seed?(+su2.seed):Math.floor(Math.random()*1e9);
+    newGame(r.cfg,seed,su2);
+  });
+  var c=document.getElementById('cont');if(c)c.addEventListener('click',function(){resumeGame(saved);});
+  var a=document.getElementById('abandon');if(a)a.addEventListener('click',function(){drop('game');renderSetup();});
+}
+
+// ---------- game ----------
+var G=null;   // {st, seats:[Bot|null], levels:[], human:0, speed, sel:{}, sort, msg, log:[], waiting, showScores, lastDrawn}
+function delay(){return FAST?0:({slow:1200,normal:650,fast:250}[G.speed]||650);}
+function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+function newGame(cfg,seed,su){
+  var names=[su.name],levels=[null];
+  for(var i=0;i<su.bots;i++){var L=su.level==='mixed'?['easy','medium','hard'][i%3]:su.level;names.push(BOTNAMES[i]);levels.push(L);}
+  var st=S.newGame(cfg,seed,names);
+  G={st:st,levels:levels,human:0,speed:su.speed,buyAsk:su.buyAsk||'helps',coach:su.coach||'tap',goDownMode:su.goDownMode||'able',sel:{},sort:'suit',dir:1,breaks:[],menu:false,order:[],last:[],msg:'',log:[],showScores:false,lastDrawn:null};
+  makeSeats();
+  S.startRound(st);
+  save();loop();
+}
+function makeSeats(){
+  G.seats=G.levels.map(function(L,i){return L?new B.Bot(L,(G.st.seed+i*7919+G.st.round*31+(G.st.turnsThisRound||0))>>>0):null;});
+  if(AUTO)G.seats[0]=new B.Bot('medium',99);
+}
+function save(){var r=G.st.rand;G.st.rand=null;store('game',{st:G.st,levels:G.levels,speed:G.speed,sort:G.sort,dir:G.dir,breaks:G.breaks,order:G.order,buyAsk:G.buyAsk,coach:G.coach,goDownMode:G.goDownMode});G.st.rand=r;}
+function resumeGame(saved){
+  var st=saved.st;st.rand=S.rng((st.seed^((st.turnsThisRound+1)*2654435761)^(st.round*40503))>>>0);
+  G={st:st,levels:saved.levels,human:0,speed:saved.speed||'normal',buyAsk:saved.buyAsk||'helps',coach:saved.coach||'tap',goDownMode:saved.goDownMode||'able',sel:{},sort:saved.sort||'suit',dir:saved.dir||1,breaks:saved.breaks||[],menu:false,order:saved.order||[],last:[],msg:'Welcome back.',log:[],showScores:false,lastDrawn:null};
+  makeSeats();loop();
+}
+function nameOf(i){return i===G.human?G.st.players[i].name:G.st.players[i].name;}
+function cardById(id){var all=S.allCards(G.st);for(var i=0;i<all.length;i++)if(all[i].id===id)return all[i];return null;}
+function noteLog(from){
+  var st=G.st,L=st.roundLog;
+  for(var i=from;i<L.length;i++){
+    var e=L[i],who=e.p===G.human?'You':st.players[e.p].name,c=e.c!=null?cardById(e.c):null,cn=c?cardText(c):'';
+    var t='';
+    if(e.t==='take')t=who+' took the '+cn+'.';
+    else if(e.t==='buy')t=who+' bought the '+cn+(e.n?' (+'+e.n+' from the pile)':'')+'.';
+    else if(e.t==='stock')t=e.p===G.human?'':who+' drew from the pile.';
+    else if(e.t==='down')t=who+(e.p===G.human?' went down!':' went down.');
+    else if(e.t==='layoff')t=who+' laid off the '+cn+'.';
+    else if(e.t==='swap')t=who+' swapped the '+cn+' for a joker.';
+    else if(e.t==='discard')t=who+' threw the '+cn+'.';
+    if(t)G.log.push(t);
+    var sh={take:'took '+cn,buy:'bought '+cn,stock:'drew',down:'went down',layoff:'laid off '+cn,swap:'won a joker',discard:'threw '+cn}[e.t];
+    if(sh){G.last=G.last||[];G.last[e.p]=sh;}
+  }
+  if(G.log.length>4)G.log=G.log.slice(-4);
+}
+
+var waiter=null;
+var TRACE=window.__trace=[];function tr(x){TRACE.push(x);if(TRACE.length>60)TRACE.shift();}
+function waitFor(kind){tr('wait '+kind);return new Promise(function(res){waiter={kind:kind,res:res};render();});}
+function resolve(v){var w=waiter;waiter=null;tr('resolve '+(w?w.kind:'none')+' '+(new Error().stack.split('\n')[2]||'').trim());if(w)w.res(v);}
+
+async function loop(){
+  var st=G.st,owner=G;
+  function gone(){return G!==owner;}
+  $app.className='playing';
+  while(true){
+    if(st.phase==='gameOver'||st.over){drop('game');render();return;}
+    if(st.phase==='roundOver'){
+      save();render();
+      if(AUTO){await sleep(0);}else await waitFor('next');
+      if(gone())return;
+      if(st.round>=st.cfg.rounds.length-1){st.over=true;st.phase='gameOver';drop('game');render();return;}
+      G.log=[];G.last=[];G.sel={};G.msg='';G.order=[];G.breaks=[];S.startRound(st);makeSeats();save();continue;
+    }
+    var pi=st.turn,me=st.players[pi],bot=G.seats[pi],mark=st.roundLog.length;
+    if(st.phase==='draw'){
+      var from,buyer=null;
+      if(bot){if(pi!==G.human)await sleep(delay());if(gone())return;from=bot.chooseDraw(st,pi);}
+      else{G.msg='Your turn: take the face-up card or draw from the pile.';from=await waitFor('draw');if(gone())return;}
+      if(from==='stock'&&st.top){
+        var bs=S.buyers(st);
+        for(var b=0;b<bs.length;b++){
+          var who=bs[b];
+          if(G.seats[who]){if(G.seats[who].wantsBuy(st,who)){buyer=who;break;}}
+          else if(humanMayWantBuy()){var yes=await waitFor('buy');if(gone())return;if(yes){buyer=who;break;}}
+        }
+      }
+      var handBefore=me.hand.map(function(c){return c.id;});
+      S.apply(st,{type:'draw',from:from,buyer:buyer});
+      if(pi===G.human){var nw=me.hand.filter(function(c){return handBefore.indexOf(c.id)<0;});G.lastDrawn=nw.length?nw[nw.length-1].id:null;G.msg='';}
+      noteLog(mark);save();render();
+      continue;
+    }
+    // play phase
+    if(bot){
+      if(pi!==G.human)await sleep(delay());
+      if(gone())return;
+      bot.play(st,pi);noteLog(mark);save();render();
+    }else{
+      G.msg=G.msg||(me.down?'Lay off what you can, then throw a card.':'Go down if you can, then throw a card.');
+      await waitFor('play');
+      if(gone())return;
+      G.lastDrawn=null;
+    }
+  }
+}
+
+function humanMayWantBuy(){
+  if(G.buyAsk==='never')return false;
+  if(G.buyAsk==='always')return true;
+  var st=G.st,me=st.players[G.human],rd=S.roundInfo(st);
+  if(S.isWild(st.top,st.cfg))return true;
+  var withIt=me.hand.concat([st.top]);
+  if(S.contractDistance(withIt,rd.contract,st.cfg)<S.contractDistance(me.hand,rd.contract,st.cfg))return true;
+  // belt and braces: the card that completes the contract is always offered
+  return !!S.findContract(withIt,rd.contract,st.cfg)&&!S.findContract(me.hand,rd.contract,st.cfg);
+}
+// Why this buy is offered, in a few words (shown on the prompt whether or not the coach is on).
+function buyReason(){
+  var st=G.st,me=st.players[G.human],rd=S.roundInfo(st),cfg=st.cfg,top=st.top;
+  if(S.isWild(top,cfg))return 'A wild card fits any set or run.';
+  var withIt=me.hand.concat([top]);
+  if(S.findContract(withIt,rd.contract,cfg)&&!S.findContract(me.hand,rd.contract,cfg))return 'With it you could go down.';
+  var d0=S.contractDistance(me.hand,rd.contract,cfg),d1=S.contractDistance(withIt,rd.contract,cfg);
+  if(d1<d0)return 'It takes you from '+d0+' short to '+d1+' short.';
+  return 'It does not bring you closer to '+contractText(rd.contract)+'.';
+}
+// ---------- human actions ----------
+function humanAct(action,okMsg){
+  var mark=G.st.roundLog.length;
+  var r=S.tryApply(G.st,action);
+  if(!r.ok){G.msg=friendly(r.error);render();return false;}
+  G.sel={};G.msg=okMsg||'';noteLog(mark);save();
+  if(G.st.phase!=='play'&&waiter&&waiter.kind==='play'){resolve();render();}
+  else render();
+  return true;
+}
+function friendly(e){
+  var map={'keep a card to discard':'Keep one card to throw at the end of your turn.','go down first':'Go down with your contract before laying off.',
+    'lay off from your next turn':'With these rules you lay off from your next turn.','this round you go out without discarding':'This round you go out without throwing a card: lay off your last cards together (try "Lay off all").',
+    'this round you must go down and out in one go':'This round you must go down and out in one go: every card must fit.'};
+  for(var k in map)if(e.indexOf(k)===0)return map[k];
+  return e.charAt(0).toUpperCase()+e.slice(1)+'.';
+}
+function selectedCards(){var me=G.st.players[G.human];return me.hand.filter(function(c){return G.sel[c.id];});}
+function goDown(){
+  var st=G.st,me=st.players[G.human],rd=S.roundInfo(st),cfg=st.cfg;
+  var chosen=selectedCards(),pool=chosen.length>=3?chosen:me.hand;
+  var found=S.findContract(pool,rd.contract,cfg);
+  if(!found&&pool!==me.hand)found=S.findContract(me.hand,rd.contract,cfg);
+  if(!found){var d=S.contractDistance(me.hand,rd.contract,cfg);G.msg='Not yet: you are about '+d+' card'+(d===1?'':'s')+' short of '+contractText(rd.contract)+'.';render();return;}
+  var melds=found.map(function(m){return {t:m.t,rank:m.rank,suit:m.suit,start:m.start,cardIds:m.cards.map(function(c){return c.id;})};});
+  if(rd.allAtOnce){
+    var plan=B.planAllOut(st,G.human,found,true);
+    if(!plan){G.msg='You have the contract, but this round every card must fit as you go down. Not yet.';render();return;}
+    humanAct({type:'goDown',melds:melds,layoffs:plan},'');return;
+  }
+  humanAct({type:'goDown',melds:melds},'You went down! Lay off anything that fits, then throw a card.');
+}
+function layOffAll(){
+  var st=G.st,mark=st.roundLog.length,helper=new B.Bot('medium',1);
+  helper.layOffAll(st,G.human);
+  if(st.roundLog.length===mark){G.msg='Nothing more fits on the table.';render();return;}
+  G.sel={};G.msg='';noteLog(mark);save();
+  if(st.phase!=='play'&&waiter&&waiter.kind==='play')resolve();else render();
+}
+function tapMeld(mid){
+  var st=G.st,cfg=st.cfg,cs=selectedCards();
+  if(cs.length!==1){G.msg='Pick one card from your hand first, then tap where it goes.';render();return;}
+  var c=cs[0],m=st.melds.filter(function(x){return x.id===mid;})[0];
+  var sw=S.swapSpots(c,m,cfg);
+  if(sw.length){humanAct({type:'swap',cardId:c.id,meld:mid,slot:sw[0].slot},'You won a joker!');return;}
+  var sp=S.layOffSpots(c,m,cfg);
+  if(!sp.length){G.msg='The '+cardText(c)+' does not fit there.';render();return;}
+  var spot=sp.filter(function(s){return s.end==='high';})[0]||sp[0];
+  humanAct({type:'layOff',cardId:c.id,meld:mid,end:spot.end},'');
+}
+function discard(){
+  var cs=selectedCards();
+  if(cs.length!==1){G.msg='Pick exactly one card to throw.';render();return;}
+  humanAct({type:'discard',cardId:cs[0].id},'');
+}
+
+// ---------- drawing the table ----------
+var SEATCOL=['#ffffff','#ef9a9a','#90caf9','#a5d6a7','#ce93d8','#ffcc80','#80deea','#f48fb1'];
+function sortHand(hand,cfg){
+  var hiAce=cfg.aceMode==='high',dir=G.dir||1;
+  function rv(c){return c.rank===1&&hiAce?14:c.rank;}
+  var nat=hand.filter(function(c){return !S.isWild(c,cfg);}),wild=hand.filter(function(c){return S.isWild(c,cfg);});
+  nat.sort(function(a,b){
+    if(G.sort==='suit')return dir*(a.suit-b.suit||rv(a)-rv(b));
+    return dir*(rv(a)-rv(b)||a.suit-b.suit);
+  });
+  return nat.concat(wild);   // wild cards always on the right
+}
+// Sets & runs: three lanes of labelled groups (see coach.js arrange); reversing flips the group order.
+function lanes(){
+  var st=G.st,me=st.players[G.human],a=C.arrange(me.hand,S.roundInfo(st).contract,st.cfg);
+  if((G.dir||1)<0){a.sets.reverse();a.runs.reverse();a.sets.forEach(function(g){g.cards.reverse();});a.runs.forEach(function(g){g.cards.reverse();});}
+  return a;
+}
+// The hand in the order shown: sorted, grouped, or the player's own order (new cards go on the right).
+function orderedHand(){
+  var st=G.st,me=st.players[G.human];
+  if(G.sort==='lanes'){var a=lanes(),out=[];['sets','runs','spare'].forEach(function(k){a[k].forEach(function(g){out=out.concat(g.cards);});});return out;}
+  if(G.sort!=='mine')return sortHand(me.hand,st.cfg);
+  var pos={};(G.order||[]).forEach(function(id,i){pos[id]=i;});
+  var known=me.hand.filter(function(c){return pos[c.id]!=null;}).sort(function(a,b){return pos[a.id]-pos[b.id];});
+  return known.concat(me.hand.filter(function(c){return pos[c.id]==null;}));
+}
+function orderLabel(){
+  var d=(G.dir||1)>0;
+  return {suit:d?'Suit ♣→♠':'Suit ♠→♣',rank:d?'Low→high':'High→low',lanes:'Sets/runs',mine:'Mine'}[G.sort]||'Order';
+}
+function chooseOrder(mode){
+  var shown=orderedHand().map(function(c){return c.id;});
+  if(mode===G.sort&&mode!=='mine')G.dir=-(G.dir||1);    // the same choice again reverses it
+  else{G.dir=1;if(mode==='mine'){G.order=shown;}G.sort=mode;}
+  G.menu=false;save();render();
+}
+function moveCard(id,toIndex){
+  var ids=orderedHand().map(function(c){return c.id;}),from=ids.indexOf(id);if(from<0)return;
+  ids.splice(from,1);toIndex=Math.max(0,Math.min(ids.length,toIndex));ids.splice(toIndex,0,id);
+  if(G.sort==='lanes'){var a=lanes();G.breaks=[];['sets','runs','spare'].forEach(function(k){a[k].forEach(function(g){var l=g.cards[g.cards.length-1];if(l&&l.id!==id)G.breaks.push(l.id);});});}
+  G.order=ids;G.sort='mine';G.dir=1;save();
+}
+function meldHTML(m,cfg,can){
+  var h='<div class="meld'+(can?' can':'')+'" data-meld="'+m.id+'" style="--c:'+SEATCOL[m.owner]+'" role="'+(can?'button':'group')+'"'+(can?' tabindex="0"':'')+' aria-label="'+(m.t==='set'?'Set of '+RK[m.rank]+'s':'Run of '+['clubs','diamonds','hearts','spades'][m.suit])+'">';
+  m.cards.forEach(function(c,k){
+    var as='';
+    if(S.isWild(c,cfg))as=m.t==='set'?RK[m.rank]:RK[S.rankAtPos(m.start+k)]+SUITCH[m.suit];
+    h+=cardHTML(c,cfg,{mini:true,as:as});
+  });
+  return h+'</div>';
+}
+function microMeld(m,cfg,can){
+  var h='<div class="mm'+(can?' can':'')+'" data-meld="'+m.id+'" aria-label="'+(m.t==='set'?'Set of '+RK[m.rank]+'s':'Run of '+['clubs','diamonds','hearts','spades'][m.suit])+(can?', your card fits here':'')+'">';
+  m.cards.forEach(function(c){
+    if(c.suit===4){h+='<span class="mc jk">★</span>';return;}
+    var wild=S.isWild(c,cfg),red=(c.suit===1||c.suit===2)?' red':'';
+    h+='<span class="mc'+red+(wild?' jk':'')+'"><b>'+RK[c.rank]+'</b>'+SUITCH[c.suit]+'</span>';
+  });
+  return h+'</div>';
+}
+// Seat positions round the oval: you at the bottom, the others spread over the top and the sides.
+function seatSpots(n){
+  var out=[],others=n-1,a0,a1;
+  if(others<=3){a0=200;a1=340;}else if(others<=5){a0=175;a1=365;}else{a0=160;a1=380;}
+  var ry=others>=6?36:40;
+  for(var k=0;k<others;k++){var a=(others===1?270:a0+(a1-a0)*k/(others-1))*Math.PI/180;out.push({x:50+44*Math.cos(a),y:52+ry*Math.sin(a)});}
+  return out;
+}
+function seatHTML(i,spot){
+  var st=G.st,p=st.players[i],you=i===G.human,turn=st.turn===i&&st.phase!=='roundOver';
+  var n=p.hand.length,fan='';
+  for(var k=0;k<Math.min(n,7);k++)fan+='<i></i>';
+  var h='<div class="seat'+(turn?' turn':'')+(you?' you':'')+'" style="left:'+spot.x.toFixed(1)+'%;top:'+spot.y.toFixed(1)+'%;--c:'+SEATCOL[i]+'">';
+  h+='<div class="nm"><b>'+esc(you?'You':p.name)+'</b>'+(G.levels[i]?' <span class="lv">'+esc(G.levels[i])+'</span>':'')+'</div>';
+  if(!you)h+='<div class="fan" aria-label="'+n+' cards">'+fan+'<span>'+n+'</span></div>';
+  h+='<div class="st">'+(p.down?'<span class="badge">DOWN</span>':'buys '+p.buysLeft)+' · '+st.scores[i]+'</div>';
+  if(G.last&&G.last[i])h+='<div class="said">'+esc(G.last[i])+'</div>';
+  return h+'</div>';
+}
+function coachState(){
+  // which decision is in front of you, and its advice (worked out once per position)
+  if(!G||!C||G.coach==='off'||!waiter)return null;
+  var st=G.st,kind=waiter.kind;if(kind!=='draw'&&kind!=='play'&&kind!=='buy')return null;
+  if(G.coach==='tap'&&G.hintFor!==posKey())return null;
+  var key=posKey();
+  if(G.adviceKey!==key){
+    try{G.advice=kind==='draw'?C.adviseDraw(st,G.human):kind==='buy'?C.adviseBuy(st,G.human):C.advisePlay(st,G.human);}catch(e){console.error(e);G.advice=null;}
+    G.adviceKey=key;
+  }
+  return G.advice;
+}
+function posKey(){
+  var st=G.st,me=st.players[G.human];
+  return [st.round,st.turnsThisRound,st.phase,waiter&&waiter.kind,st.turn,st.top?st.top.id:'-',me.hand.map(function(c){return c.id;}).sort().join('.'),st.melds.reduce(function(s,m){return s+m.cards.length;},0)].join('|');
+}
+function render(){
+  if(!G)return;
+  if(G.dragging){G.renderPending=true;return;}
+  var st=G.st,cfg=st.cfg,me=st.players[G.human],rd=S.roundInfo(st)||cfg.rounds[cfg.rounds.length-1];
+  var h='';
+  if(st.phase==='gameOver'||st.over){renderGameOver();return;}
+  h+='<div class="top"><div class="title"><b>Round '+(st.round+1)+' of '+cfg.rounds.length+'</b><div class="contract">'+esc(contractText(rd.contract))+(rd.allAtOnce?' · all at once':rd.noDiscardOut?' · no discard to go out':'')+'</div></div>';
+  h+='<button class="btn ghost" id="scores">Scores</button><button class="btn ghost" id="menu" aria-label="Menu">☰</button></div>';
+  h+='<div class="table" id="table">';
+  if(G.showScores)h+=scoresHTML();
+  if(st.phase==='roundOver')h+=roundOverHTML();
+  else{
+    var adv=coachState(),myDraw=waiter&&waiter.kind==='draw';
+    if(adv)h+='<div class="coach" role="status"><b>'+esc(adv.head)+'</b>'+(adv.lines.length?'<ul>'+adv.lines.map(function(l){return '<li>'+esc(l)+'</li>';}).join('')+'</ul>':'')+'</div>';
+    // the oval table: seats round it, each player's melds on the felt in front of them, the pile and face-up card in the middle
+    var spots=seatSpots(st.players.length),k=0,where={};
+    st.players.forEach(function(p,i){if(i!==G.human)where[i]=spots[k++];});
+    where[G.human]={x:50,y:97};
+    var one=selectedCards(),pick=one.length===1&&me.down&&waiter&&waiter.kind==='play'?one[0]:null;
+    function fits(m){return pick&&(S.layOffSpots(pick,m,cfg).length||S.swapSpots(pick,m,cfg).length);}
+    h+='<div class="oval n'+st.players.length+(st.melds.length?' has-melds':'')+'"><div class="felt"></div>';
+    st.players.forEach(function(p,i){
+      h+=seatHTML(i,where[i]);
+      var ms=st.melds.filter(function(m){return m.owner===i;});if(!ms.length)return;
+      var w=where[i],you=i===G.human;
+      var pos=you?'left:50%;top:calc(97% - 34px)':'left:clamp(58px,'+w.x.toFixed(1)+'%,calc(100% - 58px));top:calc('+w.y.toFixed(1)+'% + 34px)';
+      h+='<div class="zone'+(you?' mine':'')+(G.zoom===i?' open':'')+'" data-owner="'+i+'" style="'+pos+';--c:'+SEATCOL[i]+'" role="button" tabindex="0" aria-label="'+esc((i===G.human?'Your':p.name+"'s")+' melds: tap to see them large')+'">';
+      ms.forEach(function(m){h+=microMeld(m,cfg,fits(m));});
+      h+='</div>';
+    });
+    var tipStock=adv&&adv.pick==='stock',tipFace=adv&&adv.pick==='discard';
+    h+='<div class="centre"><button type="button" class="pile'+(myDraw?' live':'')+(tipStock?' tip':'')+'" id="stock"'+(myDraw?'':' disabled')+' aria-label="Draw from the pile"><div class="back"></div><span class="muted">pile '+st.stock.length+'</span></button>';
+    h+='<button type="button" class="pile'+(myDraw&&st.top?' live':'')+(tipFace?' tip':'')+'" id="faceup"'+(myDraw&&st.top?'':' disabled')+' aria-label="Take the face-up card">'+(st.top?cardHTML(st.top,cfg):'<div class="card" style="opacity:.25"></div>')+'<span class="muted">face up</span></button></div>';
+    h+='</div>';
+    // a player's melds full size, when their cards on the table are tapped
+    if(G.zoom!=null&&st.melds.some(function(m){return m.owner===G.zoom;})){
+      var zp=G.zoom;
+      h+='<div class="melds zoomed"><div class="owner"><span class="dot" style="background:'+SEATCOL[zp]+'"></span>'+esc(zp===G.human?'Your melds':st.players[zp].name+"'s melds")+' <button class="btn ghost" id="unzoom" style="min-height:44px;margin-left:8px">Close</button></div>';
+      st.melds.filter(function(m){return m.owner===zp;}).forEach(function(m){h+=meldHTML(m,cfg,fits(m));});
+      h+='</div>';
+    }
+    h+='<div class="log">'+G.log.map(esc).join('<br>')+'</div>';
+    if(!st.melds.length)h+='<div class="muted">Nobody is down yet.</div>';
+  }
+  h+='</div>';
+  // hand panel
+  var adv2=st.phase!=='roundOver'?coachState():null;
+  h+='<div class="handpanel">';
+  if(waiter&&waiter.kind==='buy'){
+    h+='<div class="prompt"><b>Buy the '+esc(cardText(st.top))+'?</b> '+esc(buyReason())+' You also take '+cfg.buyPenalty+' card'+(cfg.buyPenalty===1?'':'s')+' from the pile. Buys left: '+me.buysLeft+'.'+(adv2?'<div class="tipline">Coach: '+esc(adv2.pick?'buy it':'let it go')+'</div>':'')+'<div class="row" style="margin-top:6px"><button class="btn primary" id="buyyes">Buy it</button><button class="btn" id="buyno">No thanks</button>'+hintBtn()+'</div></div>';
+  }
+  var msgText=esc(G.msg||(waiter&&waiter.kind==='play'?'':st.turn!==G.human&&st.phase!=='roundOver'?st.players[st.turn].name+' is playing…':''));
+  var n=selectedCards().length,sortLbl=orderLabel()+' ▾';
+  if(waiter&&waiter.kind==='play'){
+    h+='<div class="msg" aria-live="polite">'+msgText+'</div>';
+    h+='<div class="actions">';
+    if(!me.down){var able=canGoDown();h+='<button class="btn primary" id="godown"'+(able||G.goDownMode==='always'?'':' disabled')+'>Go down</button>';}
+    else h+='<button class="btn primary" id="layall">Lay off all</button>';
+    h+='<button class="btn" id="discard"'+(n===1?'':' disabled')+'>Throw</button>';
+    h+=hintBtn();
+  }else{
+    h+='<div class="actions" style="align-items:center"><div class="msg" aria-live="polite" style="flex:1 1 140px;margin:0">'+msgText+'</div>';
+    if(waiter&&waiter.kind==='draw')h+=hintBtn();
+  }
+  if(n===1)h+='<button class="btn ghost" id="mvl" aria-label="Move card left">◀</button><button class="btn ghost" id="mvr" aria-label="Move card right">▶</button>';
+  h+='<button class="btn ghost" id="sort">'+sortLbl+'</button>';
+  if(n)h+='<button class="btn ghost" id="clear">Clear</button>';
+  h+='</div>';
+  var tipId=adv2&&adv2.discardId,layIds=(adv2&&adv2.layIds)||[];
+  h+='<div class="hand" id="hand">';
+  function cardBtn(c){return cardHTML(c,cfg,{button:true,sel:!!G.sel[c.id],isNew:c.id===G.lastDrawn,tip:c.id===tipId||layIds.indexOf(c.id)>=0});}
+  if(G.sort==='lanes'){
+    var ln=lanes();
+    h=h.replace('<div class="hand" id="hand">','<div class="hand lanes" id="hand">');
+    [['sets','Sets'],['runs','Runs'],['spare','Spare']].forEach(function(L){
+      if(!ln[L[0]].length)return;
+      h+='<div class="lane '+L[0]+'">';
+      ln[L[0]].forEach(function(g){h+='<div class="grp '+g.kind+'"><div class="gl">'+esc(g.label)+'</div><div class="gc">'+g.cards.map(cardBtn).join('')+'</div></div>';});
+      h+='</div>';
+    });
+  }else{
+    var shown=orderedHand();if(G.sort==='mine')G.order=shown.map(function(c){return c.id;});
+    var br={};(G.sort==='mine'?(G.breaks||[]):[]).forEach(function(id){br[id]=1;});
+    shown.forEach(function(c){h+=cardBtn(c);if(br[c.id])h+='<span class="gap" aria-hidden="true"></span>';});
+  }
+  h+='</div>';
+  if(G.menu){
+    h+='<div class="ordermenu" role="menu">';
+    [['suit','Suit'],['rank','Number'],['lanes','Sets & runs'],['mine','My order']].forEach(function(o){
+      var cur=G.sort===o[0];
+      h+='<button class="btn'+(cur?' primary':'')+'" role="menuitem" id="ord-'+o[0]+'">'+o[1]+(cur&&o[0]!=='mine'?' · tap to reverse':'')+'</button>';
+    });
+    h+='</div>';
+  }
+  h+='</div>';
+  $app.innerHTML=h;
+  wire();
+  if(Q.get('debug')==='1')debugPanel();
+}
+// Can you go down now? Worked out once per position.
+function canGoDown(){
+  var st=G.st,me=st.players[G.human],rd=S.roundInfo(st),key=posKey();
+  if(G.canKey===key)return G.canVal;
+  var f=S.findContract(me.hand,rd.contract,st.cfg),ok=!!f;
+  if(ok&&rd.allAtOnce)ok=!!B.planAllOut(st,G.human,f,true);
+  if(ok&&!rd.noDiscardOut&&st.cfg.mustDiscardToGoOut){var used=f.reduce(function(n,m){return n+m.cards.length;},0);if(used>=me.hand.length)ok=false;}
+  G.canKey=key;G.canVal=ok;return ok;
+}
+function hintBtn(){return G.coach==='tap'?'<button class="btn ghost" id="hint">Hint</button>':'';}
+function wire(){
+  function on(id,fn){var el=document.getElementById(id);if(el)el.addEventListener('click',fn);}
+  on('stock',function(){if(waiter&&waiter.kind==='draw')resolve('stock');});
+  on('faceup',function(){if(waiter&&waiter.kind==='draw')resolve('discard');});
+  on('buyyes',function(){if(waiter&&waiter.kind==='buy')resolve(true);});on('buyno',function(){if(waiter&&waiter.kind==='buy')resolve(false);});
+  on('godown',goDown);on('layall',layOffAll);on('discard',discard);
+  on('hint',function(){G.hintFor=posKey();render();var t=document.querySelector('.coach');if(t)t.scrollIntoView({block:'nearest'});});
+  on('sort',function(){G.menu=!G.menu;render();});
+  ['suit','rank','lanes','mine'].forEach(function(m){on('ord-'+m,function(){chooseOrder(m);});});
+  on('mvl',function(){var c=selectedCards()[0],ids=orderedHand().map(function(x){return x.id;});moveCard(c.id,ids.indexOf(c.id)-1);render();});
+  on('mvr',function(){var c=selectedCards()[0],ids=orderedHand().map(function(x){return x.id;});moveCard(c.id,ids.indexOf(c.id)+1);render();});
+  on('clear',function(){G.sel={};G.msg='';render();});
+  on('scores',function(){G.showScores=!G.showScores;render();});
+  on('menu',function(){confirmQuit();});
+  on('next',function(){if(waiter&&waiter.kind==='next'){G.showScores=false;resolve();}});
+  on('again',function(){var su=Object.assign({},DEFAULT_SETUP,load('setup')||{});var seed=G.st.seed;newGame(G.st.cfg,seed,Object.assign({},su,{bots:G.st.players.length-1}));});
+  on('newgame',function(){G=null;renderSetup();});
+  var hand=document.getElementById('hand');
+  if(hand)wireHand(hand);
+  document.querySelectorAll('.meld.can').forEach(function(el){el.addEventListener('click',function(){tapMeld(+el.getAttribute('data-meld'));});});
+  document.querySelectorAll('.zone').forEach(function(el){el.addEventListener('click',function(e){
+    var mm=e.target.closest('.mm.can');
+    if(mm){tapMeld(+mm.getAttribute('data-meld'));return;}
+    var o=+el.getAttribute('data-owner');G.zoom=G.zoom===o?null:o;render();
+    var z=document.querySelector('.zoomed');if(z)z.scrollIntoView({block:'nearest'});
+  });});
+  on('unzoom',function(){G.zoom=null;render();});
+}
+// Tap a card to pick it; press and drag it to move it.
+function wireHand(hand){
+  var drag=null,ghost=null,suppress=false,mark=null;
+  function clearMark(){if(mark){mark.classList.remove('drop-before','drop-after');mark=null;}}
+  function end(apply){
+    if(!drag)return;
+    if(!drag.on){drag=null;return;}   // a plain tap: the click handler picks the card
+    {
+      suppress=true;
+      if(apply&&drag.target!=null){
+        var ids=orderedHand().map(function(c){return c.id;}).filter(function(id){return id!==drag.id;});
+        var at=ids.indexOf(drag.target);if(at<0)at=ids.length;else if(drag.after)at++;
+        if(G.sort==='lanes'){var a=lanes();G.breaks=[];['sets','runs','spare'].forEach(function(k){a[k].forEach(function(g){var l=g.cards[g.cards.length-1];if(l&&l.id!==drag.id)G.breaks.push(l.id);});});}
+        ids.splice(at,0,drag.id);G.order=ids;G.sort='mine';G.dir=1;save();
+      }
+      if(ghost)ghost.remove();ghost=null;clearMark();
+    }
+    drag=null;G.dragging=false;G.renderPending=false;
+    render();
+  }
+  hand.addEventListener('pointerdown',function(e){
+    var b=e.target.closest('.card');if(!b||e.button>0)return;
+    drag={id:+b.getAttribute('data-id'),x:e.clientX,y:e.clientY,el:b,on:false,pid:e.pointerId,target:null,after:false};
+  });
+  hand.addEventListener('pointermove',function(e){
+    if(!drag)return;
+    if(!drag.on){
+      if(Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)<10)return;
+      drag.on=true;G.dragging=true;
+      try{hand.setPointerCapture(drag.pid);}catch(x){}
+      ghost=drag.el.cloneNode(true);ghost.classList.add('ghost');document.body.appendChild(ghost);
+      drag.el.classList.add('dragging');
+    }
+    e.preventDefault();
+    ghost.style.left=(e.clientX-23)+'px';ghost.style.top=(e.clientY-50)+'px';
+    var under=document.elementFromPoint(e.clientX,e.clientY),t=under&&under.closest&&under.closest('#hand .card');
+    clearMark();
+    if(t&&+t.getAttribute('data-id')!==drag.id){
+      var r=t.getBoundingClientRect(),after=e.clientX>r.left+r.width/2;
+      drag.target=+t.getAttribute('data-id');drag.after=after;mark=t;t.classList.add(after?'drop-after':'drop-before');
+    }
+  });
+  hand.addEventListener('pointerup',function(){end(true);});
+  hand.addEventListener('pointercancel',function(){end(false);});
+  hand.addEventListener('click',function(e){
+    if(suppress){suppress=false;return;}
+    var b=e.target.closest('.card');if(!b)return;
+    var id=+b.getAttribute('data-id');if(G.sel[id])delete G.sel[id];else G.sel[id]=1;
+    if(!(waiter&&waiter.kind==='play'))G.msg=Object.keys(G.sel).length?'Use ◀ ▶ or drag to move a card.':'';
+    else G.msg='';
+    render();
+  });
+}
+var quitArmed=false;
+function confirmQuit(){
+  // two taps on the menu within 3 seconds leave the game (it stays saved)
+  if(quitArmed){quitArmed=false;waiter=null;G=null;renderSetup();return true;}
+  quitArmed=true;G.msg='Tap ☰ again to leave this game. It is saved: you can carry on later.';render();
+  setTimeout(function(){quitArmed=false;},3000);return false;
+}
+function scoresHTML(){
+  var st=G.st,h='<h2>Scores (lowest wins)</h2><table class="sc"><tr><th>Round</th>';
+  st.players.forEach(function(p,i){h+='<th class="n">'+esc(i===G.human?'You':p.name)+'</th>';});h+='</tr>';
+  st.history.forEach(function(r){h+='<tr><td>'+(r.round+1)+'</td>';r.points.forEach(function(x,i){h+='<td class="n">'+(r.out===i?'out':x)+'</td>';});h+='</tr>';});
+  h+='<tr><th>Total</th>';st.scores.forEach(function(x){h+='<th class="n">'+x+'</th>';});return h+'</tr></table>';
+}
+function roundOverHTML(){
+  var st=G.st,cfg=st.cfg,r=st.history[st.history.length-1],h='<h2>';
+  h+=r.out==null?'Round over: nobody went out':(r.out===G.human?'You went out!':esc(st.players[r.out].name)+' went out');
+  h+='</h2><table class="sc"><tr><th>Player</th><th>Left in hand</th><th class="n">Points</th></tr>';
+  st.players.forEach(function(p,i){
+    h+='<tr><td>'+esc(i===G.human?'You':p.name)+'</td><td><div class="left">'+p.hand.map(function(c){return cardHTML(c,cfg,{mini:true});}).join('')+'</div></td><td class="n">'+r.points[i]+'</td></tr>';
+  });
+  h+='</table>';
+  var last=st.round>=cfg.rounds.length-1;
+  h+='<div class="row" style="margin-top:10px"><button class="btn primary" id="next">'+(last?'Final scores':'Next round')+'</button></div>';
+  h+=scoresHTML();
+  return h;
+}
+function renderGameOver(){
+  var st=G.st,order=st.players.map(function(p,i){return {i:i,s:st.scores[i]};}).sort(function(a,b){return a.s-b.s;});
+  var best=order[0].s,winners=order.filter(function(o){return o.s===best;});
+  var h='<div class="setup"><h1>'+(winners.some(function(w){return w.i===G.human;})?(winners.length>1?'You tied for the win!':'You won!'):esc(st.players[winners[0].i].name)+' won')+'</h1>';
+  h+='<table class="sc"><tr><th>Place</th><th>Player</th><th class="n">Points</th></tr>';
+  order.forEach(function(o,k){h+='<tr><td>'+(k+1)+'</td><td>'+esc(o.i===G.human?'You':st.players[o.i].name+(G.levels[o.i]?' ('+G.levels[o.i]+')':''))+'</td><td class="n">'+o.s+'</td></tr>';});
+  h+='</table><p class="muted">Deal number '+st.seed+': enter it again to replay the same cards.</p>';
+  h+='<div class="row"><button class="btn primary" id="again">Same deal again</button><button class="btn" id="newgame">New game</button></div>';
+  h+=scoresHTML()+'</div>';
+  $app.className='';$app.innerHTML=h;wire();
+}
+function debugPanel(){
+  var d=document.getElementById('dbg')||document.body.appendChild(Object.assign(document.createElement('div'),{id:'dbg'}));
+  var vv=window.visualViewport;
+  d.textContent='inner '+innerWidth+'x'+innerHeight+' vv '+(vv?Math.round(vv.width)+'x'+Math.round(vv.height)+' off '+Math.round(vv.offsetTop):'-')+' dpr '+devicePixelRatio;
+}
+document.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.classList&&e.target.classList.contains('meld')&&e.target.classList.contains('can'))e.target.click();});
+window.addEventListener('unhandledrejection',function(e){
+  var r=e.reason;console.error('Shanghai error: '+(r&&r.stack?r.stack:r));
+  if(G){G.msg='Sorry, something went wrong. Your game was saved before it: tap ☰ twice, then Carry on.';try{render();}catch(x){}}
+});
+window.__shanghai={get G(){return G;},S:S,B:B};
+renderSetup();
+if(AUTO){document.getElementById('start').click();}
+})();
+</script>
+</body>
+</html>
