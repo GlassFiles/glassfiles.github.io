@@ -529,6 +529,8 @@ function dblSVG(L,side,lit){
     s+=`<rect x="${isL?47:0}" y="0" width="3" height="${H}" fill="#3a4447"/>`;
   }
   s+=`<rect width="50" height="${H}" fill="url(#dsheen)" />`;
+  /* Remembrance on a church: a poppy wreath on each leaf, so it swings open with its door (Guy, 16 Nov: it hung in mid-air) */
+  if(st.startsWith("church")&&evOf(L.day).some(e=>e.k==="poppy")){const wy=108-DBL_TOP[st];s+=`<g transform="translate(25 ${wy}) scale(.78) translate(-25 ${-wy})">${wreathSVG(25,wy,"poppy",L.r2+L.day+(isL?0:.37))}</g>`}
   return s+`</svg>`;
 }
 function churchFront(L){
@@ -674,7 +676,6 @@ function frontSVG(L){
   if(x) s+=`<path d="M-6 216 L-6 203 Q6 199 16 202 Q30 198 44 201 Q58 197 72 201 Q88 198 100 202 Q114 199 126 203 L126 216 Z" fill="#f4f7fb"/><path d="M-6 205 Q20 201 44 204 Q70 200 100 204 Q114 202 126 205" fill="none" stroke="#c9d6e6" stroke-width="1"/><path d="M2 192.6 Q30 189 60 192 Q90 188.6 118 192.6 L118 194 L2 194 Z" fill="#f4f7fb"/>`+(kinds.includes("christmas")?`<g fill="#b7c4d6">${[[20,207],[30,211],[42,206],[54,210],[66,206],[78,210],[90,206],[102,210]].map(([hx,hy])=>`<ellipse cx="${hx}" cy="${hy}" rx="1.1" ry="1.6"/><ellipse cx="${hx+2.4}" cy="${hy}" rx="1.1" ry="1.6"/>`).join("")}</g>`:"");
   else { for(let i=0;i<10;i++){const px=r()*120,py=201+r()*13,cols=["#a4161a","#e06c1f","#c79a2b","#7a4520","#d1361b","#8d1e1e"];s+=`<ellipse cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" rx="${(2+r()*1.8).toFixed(1)}" ry="1.1" fill="${cols[Math.floor(r()*cols.length)]}" transform="rotate(${Math.floor(r()*80-40)} ${px.toFixed(1)} ${py.toFixed(1)})"/>`} }
   if(L.style==="downing") s+=downingFront(L);
-  if(L.style.startsWith("church")&&kinds.includes("poppy")) s+=wreathSVG(60,130,"poppy",L.r2+L.day);
   if(L.style==="saloon") s+=numberSVG({day:L.day,num:"brass"},60,14);
   const ballooned = allow("effects","balloons") && ev.length && !ev.every(e=>NO_BALLOONS.includes(e.k));
   if(ballooned){const k=ev.find(e=>!NO_BALLOONS.includes(e.k)).k;s+=balloonsSVG(103,22+L.hy,BALLOON_COLS[k]||BALLOON_COLS.birthday)}
