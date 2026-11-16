@@ -208,6 +208,12 @@ dialog::backdrop{background:rgba(20,5,10,.55)}
   <label class="toggle" style="margin-top:8px"><input type="checkbox" id="eonlyok" checked> Only drinks I can make now</label>
   <div id="plan"></div>
   <div class="row" style="margin-top:12px"><button class="btn" id="shuffle">Suggest another evening</button></div>
+  <h2 style="font-size:28px;margin-top:28px">Make a flight</h2>
+  <p class="meta" style="margin:4px 0 8px">A tasting flight: small pours of a few drinks side by side, lightest first, so you can compare them. Uses the "Who's drinking" and "Only drinks I can make now" choices above.</p>
+  <div class="row" id="ftheme"></div>
+  <div class="row" id="fsize" style="margin-top:8px"></div>
+  <div id="flight"></div>
+  <div class="row" style="margin-top:12px"><button class="btn" id="fshuffle">Another flight</button></div>
 </section>
 
 <section class="view" id="v-world">
@@ -437,9 +443,58 @@ function renderEvening() {
 }
 document.getElementById("v-evening").addEventListener("click", e => {
   const w = e.target.closest("[data-w]"), f = e.target.closest("[data-food]"), d = e.target.closest(".drink");
-  if (w) { who = w.dataset.w; renderEvening(); } else if (f) { food = f.dataset.food; renderEvening(); } else if (d) openDrink(d.dataset.id);
+  if (w) { who = w.dataset.w; renderEvening(); renderFlight(); } else if (f) { food = f.dataset.food; renderEvening(); } else if (d) openDrink(d.dataset.id);
 });
-document.getElementById("eonlyok").addEventListener("change", renderEvening);
+document.getElementById("eonlyok").addEventListener("change", () => { renderEvening(); renderFlight(); });
+/* ---------- flights ---------- */
+const SPIRITS = {gin:["gin","gin_lemon","sloe_gin"], rum:["rum_white","rum_spiced","rum_dark","agricole"], whisky:["bourbon","scotch","rye","irish","islay"],
+  tequila:["teq_white","teq_brown","mezcal"], vodka:["vodka","vodka_lemon","vodka_vanilla"], brandy:["cognac","pisco","applejack"]};
+const FTHEMES = [["surprise","Surprise me"],["gin","Gin"],["rum","Rum"],["whisky","Whisky"],["tequila","Tequila"],["vodka","Vodka"],["brandy","Brandy & pisco"],
+  ["family","One drink and its variations"],["world","Around the world"],["time","Through time"],["xmas","Christmas"]];
+let ftheme = "surprise", fsize = 4, fseed = 1;
+const frnd = n => { fseed = (fseed * 9301 + 49297) % 233280; return Math.floor(fseed / 233280 * n); };
+const shuffleArr = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = frnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const weight = d => d.s[3] * 0.7 + d.s[4] * 0.3 + d.s[0] * 0.05;
+function flightPool() {
+  let pool = all().filter(d => d.s && (who === "kids" ? d.kind === "mocktail" : d.kind !== "mocktail"));
+  if (document.getElementById("eonlyok").checked) pool = pool.filter(d => status(d).k >= 1);
+  if (ftheme !== "xmas") pool = pool.filter(d => !d.hot && !(d.serves > 4));   // no hot drinks or party batches mixed into other flights
+  return pool;
+}
+function spread(list, n) { if (list.length <= n) return list; const out = []; for (let i = 0; i < n; i++) out.push(list[Math.round(i * (list.length - 1) / (n - 1))]); return out; }
+function buildFlight() {
+  const pool = flightPool(), n = fsize; let pick = [], ordered = true, why = "";
+  const uses = (d, keys) => (d.need || []).some(a => a.split("|").some(k => keys.includes(k)));
+  if (SPIRITS[ftheme]) { pick = shuffleArr(pool.filter(d => uses(d, SPIRITS[ftheme]))).slice(0, n); why = "All built on " + FTHEMES.find(t => t[0] === ftheme)[1].toLowerCase() + "."; }
+  else if (ftheme === "family") {
+    const rel = d => (d.vars || []).filter(v => pool.some(x => x.id === v[0])).length;
+    let bases = shuffleArr(pool.filter(d => rel(d) >= n - 1)); if (!bases.length) bases = shuffleArr(pool.filter(d => rel(d) >= 2));
+    if (bases.length) { const b = bases[0]; pick = [b].concat(shuffleArr(b.vars.map(v => pool.find(x => x.id === v[0])).filter(Boolean))).slice(0, n); why = `${b.n} and its relatives: taste what one change does.`; }
+  }
+  else if (ftheme === "world") { const seen = new Set(); shuffleArr(pool.filter(d => d.o && d.o.country)).forEach(d => { if (!seen.has(d.o.country) && pick.length < n) { seen.add(d.o.country); pick.push(d); } }); why = "One drink from each country."; }
+  else if (ftheme === "time") { const dated = pool.filter(d => d.o && d.o.sy).sort((a,b) => a.o.sy - b.o.sy); pick = spread(dated, n); ordered = false; why = "Oldest first, across the centuries."; }
+  else if (ftheme === "xmas") { pick = shuffleArr(pool.filter(d => d.xmas)).slice(0, n); why = "A Christmas flight."; }
+  else { // surprise: spread across the flavour map
+    const sorted = shuffleArr(pool).sort((a,b) => weight(a) - weight(b)); pick = spread(sorted, n).filter((d,i,a) => a.indexOf(d) === i); why = "A spread from light to rich."; }
+  if (ordered) pick.sort((a,b) => weight(a) - weight(b) || (a.s[0] - b.s[0]));
+  return {pick, why};
+}
+function renderFlight() {
+  const kids = who === "kids";
+  const themes = kids ? FTHEMES.filter(t => ["surprise","xmas"].includes(t[0])) : FTHEMES;
+  if (!themes.some(t => t[0] === ftheme)) ftheme = "surprise";
+  document.getElementById("ftheme").innerHTML = themes.map(([k,l]) => `<button class="chip" data-ft="${k}" aria-pressed="${ftheme===k}">${l}</button>`).join("");
+  document.getElementById("fsize").innerHTML = [3,4,5].map(k => `<button class="chip" data-fs="${k}" aria-pressed="${fsize===k}">${k} drinks</button>`).join("");
+  const {pick, why} = buildFlight();
+  const pos = (i, len) => i === 0 ? "Start here: the lightest" : i === len - 1 ? "Finish: the richest" : "Next";
+  document.getElementById("flight").innerHTML = pick.length >= 2 ? `<div class="course"><h3>${pick.length}-drink flight</h3><p class="why">${esc(why)}${kids ? "" : " Pour each at half size, so the whole flight is about two drinks."}</p>
+    ${pick.map((d, i) => `<p class="meta" style="margin:10px 0 4px"><b>${i + 1}</b> · ${ftheme === "time" ? esc(d.o.era || "") : pos(i, pick.length)}</p><button class="drink" data-id="${d.id}">${glass(d)}<span><h3>${esc(d.n)}</h3><small>${esc(DATA.styles[d.st][0])} · ${SRC[d.src]}</small></span>${pill(status(d))}</button>`).join("")}</div>`
+    : `<p class="meta" style="margin-top:12px">Not enough drinks for this flight${document.getElementById("eonlyok").checked ? ". Untick 'Only drinks I can make now', or mark more in My shelf" : ""}.</p>`;
+}
+document.getElementById("ftheme").addEventListener("click", e => { const b = e.target.closest("[data-ft]"); if (b) { ftheme = b.dataset.ft; renderFlight(); } });
+document.getElementById("fsize").addEventListener("click", e => { const b = e.target.closest("[data-fs]"); if (b) { fsize = +b.dataset.fs; renderFlight(); } });
+document.getElementById("flight").addEventListener("click", e => { const d = e.target.closest(".drink"); if (d) openDrink(d.dataset.id); });
+document.getElementById("fshuffle").addEventListener("click", () => { fseed = (fseed + 7919) % 233280 || 1; renderFlight(); });
 document.getElementById("shuffle").addEventListener("click", () => { seed = (seed + 7919) % 233280 || 1; renderEvening(); });
 
 /* ---------- history & places ---------- */
@@ -537,7 +592,7 @@ function show(v) {
   if (!VIEWS.includes(v)) v = "make";
   VIEWS.forEach(x => document.getElementById("v-" + x).classList.toggle("on", x === v));
   document.querySelectorAll("#nav button").forEach(b => b.setAttribute("aria-current", String(b.dataset.v === v)));
-  ({make: renderMake, bar: renderBar, map: drawMap, evening: renderEvening, world: renderWorld})[v]();
+  ({make: renderMake, bar: renderBar, map: drawMap, evening: () => { renderEvening(); renderFlight(); }, world: renderWorld})[v]();
 }
 document.getElementById("nav").addEventListener("click", e => { const b = e.target.closest("[data-v]"); if (!b) return; if (location.hash !== "#" + b.dataset.v) location.hash = b.dataset.v; else show(b.dataset.v); });
 addEventListener("hashchange", () => show(location.hash.slice(1)));
