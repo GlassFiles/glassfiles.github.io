@@ -341,7 +341,7 @@ var Net = (function () {
   function setLive() { var l = anyLive(); if (l !== st.live) { st.live = l; if (st.onLive) st.onLive(l); } }
   async function start(code, onMsg, onLive) {
     var norm = String(code).toLowerCase().replace(/[^a-z0-9]/g, "");
-    st.root = "gcs1/" + hex(await crypto.subtle.digest("SHA-256", enc.encode("topic|" + norm))).slice(0, 24) + "/";
+    st.root = (window.GC && window.GC.demo ? "gcs1test/" : "gcs1/") + hex(await crypto.subtle.digest("SHA-256", enc.encode("topic|" + norm))).slice(0, 24) + "/";
     st.key = await crypto.subtle.importKey("raw", await crypto.subtle.digest("SHA-256", enc.encode("key|" + norm)), "AES-GCM", false, ["encrypt", "decrypt"]);
     st.onMsg = onMsg; st.onLive = onLive;
     if (!window.mqtt) { if (onLive) onLive(false); return; }
@@ -397,8 +397,8 @@ var Net = (function () {
   var TODAY = ymd(new Date());
   if (CFG.demo && /^\d{4}-\d{2}-\d{2}$/.test(q.get("today") || "")) TODAY = q.get("today");
   var DATE = TODAY, asked = q.get("date");
-  if (asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) && asked < TODAY && CFG.allowPast) DATE = asked;
-  var FUTURE = asked && asked > TODAY;
+  if (asked && /^\d{4}-\d{2}-\d{2}$/.test(asked) && ((asked < TODAY && CFG.allowPast) || CFG.demo)) DATE = asked;   // the test page may open any day
+  var FUTURE = asked && asked > TODAY && !CFG.demo;
   var mon = Number(DATE.slice(5, 7)); document.body.classList.add(mon === 12 ? "xmas" : mon === 11 ? "autumn" : "plain");
 
   /* ---------- the family code and who I am ---------- */

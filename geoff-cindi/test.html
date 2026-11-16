@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" href="favicon.png">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Geoff &amp; Cindi">
+<meta property="og:title" content="Geoff and Cindi&#x27;s Advent"><meta property="og:description" content="Our advent calendar and sudoku."><meta property="og:image" content="https://glassfiles.github.io/geoff-cindi/og-image-2.jpg"><meta name="twitter:card" content="summary_large_image">
+<title>Geoff and Cindi's Advent</title>
+<style>
+/* VOICE: warm, homely, a little magical. IDEA: a street of real front doors at dusk, one per day.
+   PICTURE: the doors themselves, each a different house front. COLOUR: dusk amber in autumn, snowy night blue at Christmas.
+   TYPE: Georgia throughout. LAYOUT: title, month switch, the street of doors, notes below. */
+:root{--ink:#f3e9d8;--ink2:#cbbfa9;--gold:#e3b55a;--skyA:#1d1424;--skyB:#4a2a22;--board:#2b1f19;--glow:255,178,92}
+body.xmas{--ink:#eef3f8;--ink2:#b9c6d4;--gold:#f0c560;--skyA:#0b1220;--skyB:#1c2a40;--board:#1b2230;--glow:255,196,120}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{min-height:100dvh;color:var(--ink);font-family:Georgia,"Times New Roman",serif;overflow-x:hidden;
+  background:radial-gradient(ellipse 60% 40% at 8% 0%,rgba(var(--glow),.22),transparent 70%),radial-gradient(ellipse 60% 40% at 92% 0%,rgba(var(--glow),.18),transparent 70%),linear-gradient(180deg,var(--skyA),var(--skyB));
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+canvas.fx{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none}
+#fxBack{z-index:0}#fxFront{z-index:5}
+header{position:relative;z-index:2;text-align:center;padding:18px 12px 6px}
+h1{font-weight:normal;font-size:clamp(24px,4.8vw,40px);margin:4px 0 2px;text-shadow:0 2px 12px rgba(0,0,0,.6)}
+.sub{color:var(--ink2);font-size:15px;margin:0 0 10px}
+.controls{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;align-items:center;margin:6px 0 4px}
+.controls button,.controls select{min-height:44px;min-width:44px;padding:0 14px;font:16px Georgia,serif;color:var(--ink);background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.25);border-radius:22px;touch-action:manipulation;cursor:pointer}
+.controls button[aria-pressed="true"]{background:rgba(var(--glow),.28);border-color:var(--gold)}
+.controls #goToday{background:rgba(var(--glow),.42);border-color:var(--gold);color:#fff}
+.controls label{font-size:15px;color:var(--ink2)}
+.lights{position:relative;z-index:2;width:100%;height:34px;margin:4px auto 0;max-width:1180px;display:none}
+body.xmas .lights{display:block}
+.board{position:relative;z-index:2;max-width:1180px;margin:6px auto 20px;padding:46px 14px 40px;border-radius:10px;background:var(--board);box-shadow:inset 0 0 90px rgba(0,0,0,.7),0 10px 40px rgba(0,0,0,.5)}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:50px 10px}
+@media (min-width:600px){.grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:54px 12px}}
+@media (min-width:900px){.grid{grid-template-columns:repeat(6,minmax(0,1fr));gap:56px 12px}}
+.bay{position:relative;aspect-ratio:120/216;border:0;padding:0;margin:0;background:none;cursor:pointer;touch-action:manipulation;color:inherit;font:inherit;-webkit-tap-highlight-color:transparent}
+.bay>*{pointer-events:none}
+.bay:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radius:6px}
+.bay svg{display:block;width:100%;height:100%;overflow:visible}
+.layer{position:absolute;inset:0}
+.hole{position:absolute;left:8.333%;top:10.185%;width:83.334%;height:78.704%;perspective:1100px}
+.inside{position:absolute;inset:0;overflow:hidden;background:radial-gradient(ellipse 80% 70% at 50% 35%,rgba(var(--glow),.95),rgba(150,80,30,.85) 55%,#2a140a 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4%;opacity:0;transition:opacity .4s}
+.bay.ajar .inside,.bay.open .inside,.bay.saloon .inside{opacity:1}
+.inside .frame{width:62%;aspect-ratio:4/3;background:#f4ead6;border:3px solid #6b4423;box-shadow:0 2px 6px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center}
+.inside .frame svg{width:60%;height:60%}
+.inside .play{font-size:clamp(10px,1.5vw,14px);color:#3a1d0b;background:#f6d38b;border-radius:10px;padding:2px 8px}
+.leaf{position:absolute;inset:0;transform-origin:0% 50%;transform-style:preserve-3d;transition:transform 1.1s cubic-bezier(.25,.7,.25,1);will-change:transform}
+.leaf>svg,.leaf .back{position:absolute;inset:0;width:100%;height:100%;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.leaf .back{transform:rotateY(180deg)}
+.bay.ajar .leaf{transform:rotateY(-20deg)}
+.bay.open .leaf{transform:rotateY(-108deg)}
+/* saloon: two half-height bat-wing doors */
+.leaf.wing{top:30%;bottom:auto;height:42%;width:50%}
+.leaf.wing.R{left:50%;transform-origin:100% 50%}
+.bay.saloon .leaf.L{animation:swingL 4s ease-in-out infinite}
+.bay.saloon .leaf.R{animation:swingR 4s ease-in-out infinite}
+@keyframes swingL{0%,100%{transform:rotateY(-6deg)}50%{transform:rotateY(4deg)}}
+@keyframes swingR{0%,100%{transform:rotateY(6deg)}50%{transform:rotateY(-4deg)}}
+.bay.saloon.open .leaf.L{transform:rotateY(-72deg);animation:swingOpenL 2s ease-out forwards}
+.bay.saloon.open .leaf.R{transform:rotateY(72deg);animation:swingOpenR 2s ease-out forwards}
+@keyframes swingOpenL{0%{transform:rotateY(0)}35%{transform:rotateY(-118deg)}60%{transform:rotateY(-48deg)}80%{transform:rotateY(-84deg)}100%{transform:rotateY(-72deg)}}
+@keyframes swingOpenR{0%{transform:rotateY(0)}35%{transform:rotateY(118deg)}60%{transform:rotateY(48deg)}80%{transform:rotateY(84deg)}100%{transform:rotateY(72deg)}}
+.leaf.dbl{width:50%;bottom:auto}
+.leaf.dbl.R{left:50%;transform-origin:100% 50%}
+.bay.ajar .leaf.dbl.L{transform:rotateY(-16deg)}
+.bay.ajar .leaf.dbl.R{transform:rotateY(16deg)}
+.bay.open .leaf.dbl.L{transform:rotateY(-104deg)}
+.bay.open .leaf.dbl.R{transform:rotateY(104deg)}
+.bay.shake .leaf{animation:rattle .55s ease-in-out}
+@keyframes rattle{0%,100%{translate:0 0}15%{translate:-2px 0}30%{translate:2px 0}45%{translate:-2px 0}60%{translate:1.5px 0}80%{translate:-1px 0}}
+.bay.locked .leaf,.bay.locked .wall{filter:brightness(.8) saturate(.85)}
+.cap{position:absolute;left:-4px;right:-4px;bottom:-20px;text-align:center;font-size:13px;line-height:1.1;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.today .cap{color:var(--gold)}
+.handle,.knocker,.wreath,.balloons,.flame,.lamp,.tail,.burst,.twinkle{transform-box:fill-box}
+.handle{transform-origin:50% 50%;transition:transform .35s ease}
+.lever{transform-origin:100% 50%}
+.bay.turn .handle{transform:rotate(-55deg)}
+.bay.turn .lever{transform:rotate(-32deg)}
+.bay.jiggle .handle{animation:jig .5s ease-in-out}
+.bay.jiggle .lever{animation:jigL .5s ease-in-out}
+@keyframes jig{0%,100%{transform:rotate(0)}25%{transform:rotate(-22deg)}50%{transform:rotate(8deg)}75%{transform:rotate(-14deg)}}
+@keyframes jigL{0%,100%{transform:rotate(0)}25%{transform:rotate(-20deg)}50%{transform:rotate(-4deg)}75%{transform:rotate(-14deg)}}
+.knocker{transform-origin:50% 0%}
+.bay.knock .knocker{animation:knock .7s ease-in-out}
+@keyframes knock{0%,100%{transform:scaleY(1)}20%{transform:scaleY(.45)}35%{transform:scaleY(1)}55%{transform:scaleY(.45)}70%{transform:scaleY(1)}}
+.today .knocker{animation:idleKnock 6s ease-in-out infinite}
+/* today's door wears a warm halo (Guy, 16 Nov) */
+.bay.today{z-index:2}
+.bay.today::after{content:"";position:absolute;inset:2% 1% 3%;border-radius:10px;pointer-events:none;box-shadow:0 0 14px 5px rgba(255,196,96,.75),0 0 34px 12px rgba(255,170,60,.35);animation:halo 2.6s ease-in-out infinite}
+.bay.today.flash::after{animation:haloFlash .45s ease-in-out 3}
+@keyframes halo{0%,100%{opacity:.65}50%{opacity:1}}
+@keyframes haloFlash{0%,100%{opacity:.6}50%{opacity:1;box-shadow:0 0 22px 10px rgba(255,214,120,.95),0 0 50px 20px rgba(255,170,60,.5)}}
+@keyframes idleKnock{0%,88%,100%{transform:scaleY(1)}92%{transform:scaleY(.8)}96%{transform:scaleY(1)}}
+.wreath{transform-origin:50% 0%;animation:sway 5s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-2deg)}50%{transform:rotate(2deg)}}
+.balloons{transform-origin:50% 100%;animation:bob 3.2s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-4px) rotate(3deg)}}
+.flame{transform-origin:50% 100%;animation:flick .9s ease-in-out infinite alternate}
+@keyframes flick{0%{transform:scale(1,1);opacity:.95}100%{transform:scale(.85,1.15);opacity:.75}}
+.lamp{animation:lampf 3s ease-in-out infinite alternate}
+@keyframes lampf{0%{opacity:.8}100%{opacity:1}}
+.tail{transform-origin:0% 100%;animation:tail 2.6s ease-in-out infinite}
+@keyframes tail{0%,100%{transform:rotate(0)}50%{transform:rotate(18deg)}}
+.burst{transform-origin:50% 50%;animation:burst 2.4s ease-out infinite}
+@keyframes burst{0%{transform:scale(.1);opacity:0}10%{opacity:1}70%{transform:scale(1);opacity:.9}100%{transform:scale(1.1);opacity:0}}
+.twinkle{animation:tw 1.8s ease-in-out infinite alternate}
+.critter{transform-box:fill-box;transform-origin:50% 100%}
+.bay.open .critter.cat{animation:catLeap 1.5s ease-in-out .1s forwards}
+@keyframes catLeap{0%{transform:translate(0,0)}20%{transform:translate(0,1.2px) scale(1.06,.82)}28%{transform:translate(calc(var(--dx)*.1),-6px) rotate(-14deg)}52%{transform:translate(calc(var(--dx)*.5),-26px) rotate(-6deg)}74%{transform:translate(calc(var(--dx)*.85),-15px) rotate(12deg) scale(.85);opacity:1}100%{transform:translate(var(--dx),-10px) scale(.45);opacity:0}}
+.bay.open .critter.run{animation:bound 1.5s linear .05s forwards}
+.bay.disturb .critter.bird,.bay.startle .critter.bird{animation:flyoff 1.6s ease-in forwards}
+.leg{transform-box:fill-box;transform-origin:50% 0%}
+.bay.open .critter.run .la{animation:legA .16s ease-in-out infinite alternate}
+.bay.open .critter.run .lb{animation:legB .16s ease-in-out infinite alternate}
+@keyframes legA{0%{transform:rotate(35deg)}100%{transform:rotate(-35deg)}}
+@keyframes legB{0%{transform:rotate(-35deg)}100%{transform:rotate(35deg)}}
+.peck{transform-box:fill-box;transform-origin:20% 100%;animation:peck 2.6s ease-in-out infinite}
+@keyframes peck{0%,70%,100%{transform:rotate(0)}78%{transform:rotate(16deg)}86%{transform:rotate(0)}92%{transform:rotate(14deg)}}
+.wing{transform-box:fill-box;transform-origin:20% 60%}
+.bay.disturb .critter.bird .peck,.bay.startle .critter.bird .peck{animation:none}
+.bay.disturb .critter.bird .wing,.bay.startle .critter.bird .wing{animation:flap .09s linear infinite alternate}
+@keyframes flap{0%{transform:rotate(-70deg) scaleY(1.6)}100%{transform:rotate(30deg) scaleY(1.2)}}
+@keyframes flyoff{0%{transform:translate(0,0)}8%{transform:translate(0,-3px) scaleX(-1)}22%{transform:translate(calc(var(--dx)*.12),-16px) scaleX(-1) rotate(var(--rot))}50%{transform:translate(calc(var(--dx)*.45),-48px) scaleX(-1) rotate(var(--rot))}75%{transform:translate(calc(var(--dx)*.75),-80px) scaleX(-1) rotate(calc(var(--rot)*.5)) scale(.8);opacity:1}100%{transform:translate(var(--dx),-120px) scaleX(-1) scale(.55);opacity:0}}
+/* poses that swap when the animal moves */
+.critter .leap,.critter .fly{opacity:0}
+.bay.open .critter.cat .sit{animation:off .01s linear .42s forwards}
+.bay.open .critter.cat .leap{animation:on .01s linear .42s forwards}
+.bay.disturb .critter.bird .ground,.bay.startle .critter.bird .ground{animation:off .01s linear .14s forwards}
+.bay.disturb .critter.bird .fly,.bay.startle .critter.bird .fly{animation:on .01s linear .14s forwards}
+@keyframes off{to{opacity:0}}@keyframes on{to{opacity:1}}
+.wingF{transform-box:fill-box;transform-origin:50% 100%}.wingF.wB{transform-origin:50% 0%}
+.bay.disturb .critter.bird .wingF,.bay.startle .critter.bird .wingF{animation:flapF .1s linear infinite alternate}
+.bay.disturb .critter.bird .wingF.wB,.bay.startle .critter.bird .wingF.wB{animation:flapB .1s linear infinite alternate}
+@keyframes flapF{0%{transform:scaleY(1)}100%{transform:scaleY(-.5)}}
+@keyframes flapB{0%{transform:scaleY(.3)}100%{transform:scaleY(1)}}
+.bay.open .critter.cat .leap .la{animation:legA .22s ease-in-out .42s 3 alternate}
+.bw{transform-box:fill-box}.bwL{transform-origin:100% 60%}.bwR{transform-origin:0% 60%}
+.bfly .bw{animation:rest 3.4s ease-in-out infinite}
+@keyframes rest{0%,80%,100%{transform:scaleX(1)}88%{transform:scaleX(.25)}}
+.bay.disturb .critter.flutter .bw,.bay.startle .critter.flutter .bw{animation:bflap .07s linear infinite alternate}
+@keyframes bflap{0%{transform:scaleX(1)}100%{transform:scaleX(.15)}}
+.bay.disturb .critter.flutter,.bay.startle .critter.flutter{animation:flutterOff 2.2s ease-in-out forwards}
+/* a startled neighbour's bird or butterfly comes back a few seconds later, so it is still there to fly when its own door opens */
+.bay.homing .critter.bird,.bay.homing .critter.flutter{animation:homeBack 1.3s ease-out both}
+.bay.homing .critter.bird .wing,.bay.homing .critter.flutter .bw{animation:flap .09s linear 12 alternate}
+.bay.homing .critter.bird .ground{animation:hideThenShow 1.1s steps(1,end) both}
+.bay.homing .critter.bird .fly{animation:showThenHide 1.1s steps(1,end) both}
+@keyframes hideThenShow{0%{opacity:0}100%{opacity:1}}
+@keyframes showThenHide{0%{opacity:1}100%{opacity:0}}
+@keyframes homeBack{0%{transform:translate(calc(var(--dx)*-.5),-70px) scaleX(-1);opacity:0}25%{opacity:1}80%{transform:translate(0,-4px) scaleX(-1)}100%{transform:translate(0,0)}}
+@keyframes flutterOff{0%{transform:translate(0,0)}15%{transform:translate(calc(var(--dx)*.1),-10px) rotate(-12deg)}30%{transform:translate(calc(var(--dx)*-.05),-22px) rotate(10deg)}45%{transform:translate(calc(var(--dx)*.3),-34px) rotate(-14deg)}60%{transform:translate(calc(var(--dx)*.2),-52px) rotate(12deg)}80%{transform:translate(calc(var(--dx)*.6),-70px) rotate(-8deg);opacity:1}100%{transform:translate(var(--dx),-96px) scale(.7);opacity:0}}
+@keyframes catIn_old{0%{transform:translate(0,0)}12%{transform:translate(0,-2px) scaleY(1.08)}30%{transform:translate(calc(var(--dx)*.3),-9px)}42%{transform:translate(calc(var(--dx)*.45),-3px)}62%{transform:translate(calc(var(--dx)*.75),-8px) scale(.9)}80%{transform:translate(calc(var(--dx)*.92),-10px) scale(.75);opacity:1}100%{transform:translate(var(--dx),-12px) scale(.5);opacity:0}}
+@keyframes bound{0%{transform:translate(0,0)}8%{transform:translate(0,-2px) scaleX(-1)}20%{transform:translate(calc(var(--dx)*.14),-9px) scaleX(-1)}32%{transform:translate(calc(var(--dx)*.28),0) scaleX(-1)}46%{transform:translate(calc(var(--dx)*.45),-9px) scaleX(-1)}58%{transform:translate(calc(var(--dx)*.6),0) scaleX(-1)}72%{transform:translate(calc(var(--dx)*.78),-8px) scaleX(-1);opacity:1}86%{transform:translate(calc(var(--dx)*.92),0) scaleX(-1)}100%{transform:translate(var(--dx),-4px) scaleX(-1);opacity:0}}
+.mist{animation:mist 9s ease-in-out infinite alternate}
+@keyframes mist{0%{transform:translateX(-8px)}100%{transform:translateX(8px)}}
+.today .glowring{animation:pulse 2.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:.75}}
+.bulb{animation:tw 2.2s ease-in-out infinite alternate}
+.topple{transform-box:fill-box}.tL{transform-origin:0% 100%}.tR{transform-origin:100% 100%}
+.bay.open .tL{animation:toppleL 1s cubic-bezier(.5,0,.8,.6) .25s forwards}
+.bay.open .tR{animation:toppleR 1s cubic-bezier(.5,0,.8,.6) .25s forwards}
+@keyframes toppleL{0%{transform:rotate(0)}70%{transform:rotate(-86deg)}82%{transform:rotate(-77deg)}100%{transform:rotate(-83deg)}}
+@keyframes toppleR{0%{transform:rotate(0)}70%{transform:rotate(86deg)}82%{transform:rotate(77deg)}100%{transform:rotate(83deg)}}
+.sleigh{position:fixed;left:0;top:8vh;z-index:6;pointer-events:none;animation:sleighFly 6.5s ease-in-out forwards;filter:drop-shadow(0 0 6px rgba(255,240,200,.5))}
+@keyframes sleighFly{0%{transform:translate(-280px,30vh) rotate(-8deg)}50%{transform:translate(45vw,4vh) rotate(-3deg)}100%{transform:translate(110vw,-6vh) rotate(-10deg)}}
+@keyframes tw{0%{opacity:.35}100%{opacity:1}}
+.legend{position:relative;z-index:2;max-width:1180px;margin:30px auto 30px;padding:0 16px;color:var(--ink2);font-size:15px;line-height:1.55}
+.legend b{color:var(--ink);font-weight:normal}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:20;background:rgba(0,0,0,.8);color:#fff;padding:10px 16px;border-radius:20px;font-size:16px;opacity:0;transition:opacity .3s;pointer-events:none;max-width:90vw;text-align:center}
+.toast.on{opacity:1}
+#splash{position:fixed;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(ellipse 70% 60% at 50% 40%,rgba(var(--glow),.25),transparent 70%),linear-gradient(180deg,var(--skyA),var(--skyB));transition:opacity .8s ease}
+#splash.gone{opacity:0;pointer-events:none}
+.sp-in{text-align:center;max-width:640px}
+#splash h1{font-size:clamp(34px,8vw,64px);line-height:1.05;margin:18px 0 10px;text-wrap:balance}
+#splash p{font-size:clamp(17px,2.6vw,21px);color:var(--ink2);margin:0 0 26px}
+#spGo{min-height:52px;padding:0 28px;font:20px Georgia,serif;border-radius:28px;border:1px solid var(--gold);background:rgba(var(--glow),.25);color:var(--ink);cursor:pointer;touch-action:manipulation}
+.sp-stage{width:150px;margin:0 auto;position:relative}
+.sp-stage>svg{display:block;width:150px;height:auto;filter:drop-shadow(0 0 40px rgba(var(--glow),.35))}
+.sp-leafbtn{position:absolute;left:13px;top:12px;width:124px;height:184px;padding:0;border:0;background:none;cursor:pointer;perspective:420px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.sp-leaf{display:block;width:100%;height:100%;transform-origin:0 50%;transition:transform 1.1s cubic-bezier(.3,.1,.2,1),filter 1.1s}
+.sp-leafbtn:focus-visible{outline:3px solid var(--gold);outline-offset:4px}
+#splash.opening .sp-leaf{transform:rotateY(82deg);filter:brightness(.7)}
+@media (hover:hover){.sp-leafbtn:hover .sp-leaf{transform:rotateY(7deg)}}
+.sp-mat{width:118px;height:52px;margin:-6px auto 0;border-radius:4px;background:repeating-linear-gradient(90deg,rgba(0,0,0,.07) 0 2px,transparent 2px 5px),linear-gradient(#a8844c,#8a6a3a);box-shadow:inset 0 0 0 4px #6b4f28,0 10px 14px rgba(0,0,0,.45);transform:perspective(260px) rotateX(58deg);transform-origin:50% 0;display:flex;align-items:center;justify-content:center;font:bold 38px Georgia,serif;color:#f1e2c0;text-shadow:0 1px 0 #5a3f1c}
+dialog{border:0;padding:0;background:transparent;max-width:min(520px,94vw);width:100%}
+dialog::backdrop{background:rgba(5,5,10,.72)}
+.card{background:#f6eedd;color:#2a1a0e;border-radius:14px;padding:18px 18px 16px;box-shadow:0 20px 60px rgba(0,0,0,.6);text-align:center}
+.card h2{font-weight:normal;font-size:28px;margin:2px 0 6px}
+.card .ev{display:inline-block;margin:0 4px 10px;padding:4px 12px;border-radius:14px;background:#7a1f1f;color:#fff3e0;font-size:16px}
+.card .ph{margin:6px auto 12px;width:86%;aspect-ratio:4/3;background:#fffaf0;border:10px solid #fff;box-shadow:0 3px 10px rgba(0,0,0,.35);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#7b6a55;font-size:16px;gap:6px;rotate:-1.5deg}
+.card .row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.card button{min-height:48px;padding:0 18px;font:18px Georgia,serif;border-radius:24px;border:1px solid #6b4423;background:#fff;color:#2a1a0e;cursor:pointer;touch-action:manipulation}
+.card button.go{background:#7a1f1f;color:#fff;border-color:#7a1f1f}
+@media (prefers-reduced-motion:reduce){
+  .leaf,.handle{transition:none}
+  .wreath,.balloons,.flame,.lamp,.bulb,.tail,.burst,.twinkle,.mist,.peck,.bw,.wingF,.topple,.today .knocker,.today .glowring,.bay.saloon .leaf,.bay.open .critter,.bay.disturb .critter,.bay.startle .critter,.bay.homing .critter,.leg,.wing{animation:none!important}
+  .bay.open .critter,.bay.disturb .critter.bird{opacity:0}
+  .bay.startle .critter{opacity:1}
+  .bay.shake .leaf,.bay.knock .knocker,.bay.jiggle .handle{animation:none}
+}
+</style>
+</head>
+<body>
+<canvas class="fx" id="fxBack" aria-hidden="true"></canvas>
+<div id="splash" role="dialog" aria-modal="true" aria-labelledby="spT"><div class="sp-in"><div class="sp-stage"><svg viewBox="0 0 150 196" aria-hidden="true"><defs><linearGradient id="spG" x1="0" x2="1"><stop offset="0" stop-color="#8a2525"/><stop offset="1" stop-color="#5a1515"/></linearGradient><radialGradient id="spIn" cx=".5" cy=".55" r=".7"><stop offset="0" stop-color="#ffe9b0"/><stop offset=".55" stop-color="#e3a54a"/><stop offset="1" stop-color="#6b3a12"/></radialGradient></defs><rect x="0" y="0" width="150" height="196" rx="6" fill="#e8dcc4"/><rect x="5" y="5" width="140" height="191" rx="4" fill="#cdbd9e"/><rect x="13" y="12" width="124" height="184" rx="3" fill="url(#spIn)"/></svg>
+<button class="sp-leafbtn" id="spLeafBtn" aria-label="Open the door"><svg class="sp-leaf" id="spLeaf" viewBox="13 12 124 184" aria-hidden="true"><rect x="13" y="12" width="124" height="184" rx="3" fill="url(#spG)"/><g fill="none" stroke="#4a1010" stroke-width="2.5"><path d="M24 94 V48 Q75 14 126 48 V94 Z"/><rect x="24" y="108" width="46" height="76" rx="2"/><rect x="80" y="108" width="46" height="76" rx="2"/></g><g id="spCross" opacity=".55"><rect x="73.4" y="48" width="3.2" height="22" rx=".6" fill="#c9a24a"/><rect x="68" y="53" width="14" height="3.2" rx=".6" fill="#c9a24a"/></g><circle cx="118" cy="104" r="5.5" fill="#d4ad4a" stroke="#8a6a1f"/></svg></button><div class="sp-mat" id="spMat" aria-hidden="true"></div></div><h1 id="spT"></h1><p id="spL"></p><button id="spGo"></button></div></div>
+<header>
+  <div id="testBanner" style="display:none;background:#ffd34d;color:#000;font:bold 15px sans-serif;padding:6px;border-radius:8px;margin-bottom:8px">TEST VERSION: every door opens. Not for Dad and Cindi.</div><h1 id="title"></h1>
+  <p class="sub" id="subtitle"></p>
+  <div class="controls">
+    <span id="months" style="display:contents"></span>
+    <button id="goToday" class="go">Today's door</button>
+    <button id="snd" aria-pressed="true">Sound on</button>
+    <span id="demo" style="display:contents"><label for="day">Pretend today is</label>
+    <select id="day"></select></span>
+  </div>
+</header>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="dsheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".08"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".18"/></linearGradient></defs></svg>
+<svg class="lights" id="lights" viewBox="0 0 1100 34" preserveAspectRatio="none" aria-hidden="true"></svg>
+<main class="board"><div class="grid" id="grid"></div></main>
+<section class="legend" id="legend"></section>
+<canvas class="fx" id="fxFront" aria-hidden="true"></canvas>
+<div class="toast" id="toast" role="status"></div>
+<dialog id="dlg"><div class="card">
+  <h2 id="dT">Door 16</h2>
+  <div id="dE"></div>
+  <div class="ph" id="dPh"></div>
+  <p id="dMsg" style="margin:0 0 12px;font-size:17px"></p>
+  <div class="row"><button class="go" id="dPlay">Play</button><button id="dClose">Close</button></div>
+</div></dialog>
+<script>window.ADVENT={"_about": "Engine defaults. Every calendar starts from this file, then settings/shared.json, then its own calendars/<name>.json. Do not put people in here.", "title": "Geoff and Cindi's Advent", "subtitle": "Tap today's door. A door that isn't due yet stays locked.", "months": [{"year": 2026, "month": 11, "skin": "autumn"}, {"year": 2026, "month": 12, "skin": "xmas"}], "demoControls": true, "public": false, "splash": {"show": true, "title": "Geoff and Cindi", "line": "One door a day, all through November and December. Tap the door to come in.", "button": "", "cross": true, "mat": "G"}, "behind": {"type": "link", "cardTitle": "Door {day}", "label": "Play today's sudoku", "message": "", "photoPlaceholder": "A family photo goes here", "notReady": "The sudoku game is being built next; this door is ready for it.", "pastLabel": "Play door {day}'s sudoku", "href": "sudoku.html?date={date}", "demoHref": "sudoku-test.html?date={date}"}, "events": {"2026-11-01": [{"k": "saints", "t": "All Saints' Day"}], "2026-11-05": [{"k": "bonfire", "t": "Bonfire Night"}], "2026-11-08": [{"k": "poppy", "t": "Remembrance Sunday"}], "2026-11-11": [{"k": "poppy", "t": "Remembrance Day"}], "2026-11-24": [{"k": "arrive", "t": "Geoff arrives in England"}], "2026-11-26": [{"k": "thanks", "t": "Thanksgiving (US)"}], "2026-11-29": [{"k": "advent", "t": "1st Sunday of Advent"}], "2026-11-30": [{"k": "andrew", "t": "St Andrew's Day"}], "2026-12-06": [{"k": "advent", "t": "2nd Sunday of Advent"}, {"k": "nicholas", "t": "St Nicholas' Day"}], "2026-12-11": [{"k": "birthday", "t": "A birthday (example)"}], "2026-12-13": [{"k": "advent", "t": "3rd Sunday of Advent"}], "2026-12-17": [{"k": "anniversary", "t": "An anniversary (example)"}], "2026-12-20": [{"k": "advent", "t": "4th Sunday of Advent"}], "2026-12-21": [{"k": "solstice", "t": "Winter solstice"}], "2026-12-24": [{"k": "eve", "t": "Christmas Eve"}], "2026-12-25": [{"k": "christmas", "t": "Christmas Day"}], "2026-12-26": [{"k": "boxing", "t": "Boxing Day"}], "2026-12-31": [{"k": "nye", "t": "New Year's Eve"}]}, "specialDoors": {"2026-11-10": "downing", "2026-12-10": "downing", "2026-11-19": "saloon", "2026-12-15": "saloon"}, "captions": {"16": "John 3:16", "23": "Psalm 23"}, "homes": {}, "photos": {"2026-11-01": {"enc": "photos/2026-11-01.bin"}, "2026-11-02": {"enc": "photos/2026-11-02.bin"}, "2026-11-03": {"enc": "photos/2026-11-03.bin"}, "2026-11-04": {"enc": "photos/2026-11-04.bin"}, "2026-11-05": {"enc": "photos/2026-11-05.bin"}, "2026-11-06": {"enc": "photos/2026-11-06.bin"}, "2026-11-07": {"enc": "photos/2026-11-07.bin"}, "2026-11-08": {"enc": "photos/2026-11-08.bin"}, "2026-11-09": {"enc": "photos/2026-11-09.bin"}, "2026-11-10": {"enc": "photos/2026-11-10.bin"}, "2026-11-11": {"enc": "photos/2026-11-11.bin"}, "2026-11-12": {"enc": "photos/2026-11-12.bin"}, "2026-11-13": {"enc": "photos/2026-11-13.bin"}, "2026-11-14": {"enc": "photos/2026-11-14.bin"}, "2026-11-15": {"enc": "photos/2026-11-15.bin"}, "2026-11-16": {"enc": "photos/2026-11-16.bin"}, "2026-11-17": {"enc": "photos/2026-11-17.bin"}, "2026-11-18": {"enc": "photos/2026-11-18.bin"}, "2026-11-19": {"enc": "photos/2026-11-19.bin"}, "2026-11-20": {"enc": "photos/2026-11-20.bin"}, "2026-11-21": {"enc": "photos/2026-11-21.bin"}, "2026-11-22": {"enc": "photos/2026-11-22.bin"}, "2026-11-23": {"enc": "photos/2026-11-23.bin"}, "2026-11-24": {"enc": "photos/2026-11-24.bin"}, "2026-11-25": {"enc": "photos/2026-11-25.bin"}, "2026-11-26": {"enc": "photos/2026-11-26.bin"}, "2026-11-27": {"enc": "photos/2026-11-27.bin"}, "2026-11-28": {"enc": "photos/2026-11-28.bin"}, "2026-11-29": {"enc": "photos/2026-11-29.bin"}, "2026-11-30": {"enc": "photos/2026-11-30.bin"}, "2026-12-01": {"enc": "photos/2026-12-01.bin"}, "2026-12-02": {"enc": "photos/2026-12-02.bin"}, "2026-12-03": {"enc": "photos/2026-12-03.bin"}, "2026-12-04": {"enc": "photos/2026-12-04.bin"}, "2026-12-05": {"enc": "photos/2026-12-05.bin"}, "2026-12-06": {"enc": "photos/2026-12-06.bin"}, "2026-12-07": {"enc": "photos/2026-12-07.bin"}, "2026-12-08": {"enc": "photos/2026-12-08.bin"}, "2026-12-09": {"enc": "photos/2026-12-09.bin"}, "2026-12-10": {"enc": "photos/2026-12-10.bin"}, "2026-12-11": {"enc": "photos/2026-12-11.bin"}, "2026-12-12": {"enc": "photos/2026-12-12.bin"}, "2026-12-13": {"enc": "photos/2026-12-13.bin"}, "2026-12-14": {"enc": "photos/2026-12-14.bin"}, "2026-12-15": {"enc": "photos/2026-12-15.bin"}, "2026-12-16": {"enc": "photos/2026-12-16.bin"}, "2026-12-17": {"enc": "photos/2026-12-17.bin"}, "2026-12-18": {"enc": "photos/2026-12-18.bin"}, "2026-12-19": {"enc": "photos/2026-12-19.bin"}, "2026-12-20": {"enc": "photos/2026-12-20.bin"}, "2026-12-21": {"enc": "photos/2026-12-21.bin"}, "2026-12-22": {"enc": "photos/2026-12-22.bin"}, "2026-12-23": {"enc": "photos/2026-12-23.bin"}, "2026-12-24": {"enc": "photos/2026-12-24.bin"}, "2026-12-25": {"enc": "photos/2026-12-25.bin"}, "2026-12-26": {"enc": "photos/2026-12-26.bin"}, "2026-12-27": {"enc": "photos/2026-12-27.bin"}, "2026-12-28": {"enc": "photos/2026-12-28.bin"}, "2026-12-29": {"enc": "photos/2026-12-29.bin"}, "2026-12-30": {"enc": "photos/2026-12-30.bin"}, "2026-12-31": {"enc": "photos/2026-12-31.bin"}}, "note": "* Example dates: the real birthdays and anniversaries go in when Guy sends them.", "head": {"icon": "apple-touch-icon.png", "favicon": "favicon.png", "appName": "Geoff & Cindi", "ogImage": "https://glassfiles.github.io/geoff-cindi/og-image-2.jpg", "description": "Our advent calendar and sudoku."}, "allow": {"animals": ["cat", "dog", "robin", "fox", "squirrel", "pigeon", "hedgehog", "butterfly"], "doorStyles": ["four", "six", "fan", "glazed", "cottage", "stable", "arch", "pair", "church", "downing", "saloon"], "christmasLooks": ["arch", "swagbows", "snowystar", "nutcracker", "lanterns", "simple", "tinsel", "ribbonwreath", "icicle", "holly"], "doorstep": ["milk", "parcels", "bay", "wellies", "boots", "paper", "lanternstep", "pumpkins", "acorns", "conkers", "toadstools", "apples", "pinecones", "leafpile", "tree", "snowman", "sledgeup"], "effects": ["sound", "fireworks", "balloons", "sleigh", "topLights", "falling", "startleNeighbours"], "eventKinds": ["saints", "bonfire", "poppy", "thanks", "advent", "andrew", "nicholas", "solstice", "eve", "christmas", "boxing", "nye", "birthday", "anniversary", "arrive"]}, "openAll": true};</script>
+<script>
+"use strict";
+{
+/* ================= settings (merged by build.py: engine defaults, then shared, then this calendar) ================= */
+const CFG=window.ADVENT||{};
+const ALLOW=CFG.allow||{};
+const allow=(group,item)=>!ALLOW[group]||ALLOW[group].includes(item);
+const MONTH_NAMES=["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MONTHS={};
+(CFG.months||[{year:2026,month:12,skin:"xmas"}]).forEach(m=>{
+  const days=new Date(m.year,m.month,0).getDate(), first=new Date(m.year,m.month-1,1).getDay();
+  const ev={},special={};
+  for(const [date,list] of Object.entries(CFG.events||{})){const [y,mo,d]=date.split("-").map(Number);if(y===m.year&&mo===m.month)ev[d]=list}
+  for(const [date,kind] of Object.entries(CFG.specialDoors||{})){const [y,mo,d]=date.split("-").map(Number);if(y===m.year&&mo===m.month&&kind&&allow("doorStyles",kind))special[d]=kind}
+  MONTHS[m.month]={name:MONTH_NAMES[m.month-1],year:m.year,days,first,skin:m.skin||(m.month===12?"xmas":"autumn"),ev,special};
+});
+const MKEYS=Object.keys(MONTHS).map(Number);
+const CAPTIONS=CFG.captions||{};
+const HOMES=Object.fromEntries(Object.entries(CFG.homes||{}).map(([d,h])=>[d,h.caption]));
+const MATS=Object.fromEntries(Object.entries(CFG.homes||{}).map(([d,h])=>[d,h.mat||""]));
+const VERSES=CAPTIONS;
+const NO_BALLOONS=["poppy"];
+const FIREWORKS=allow("effects","fireworks")?["bonfire","nye"]:[];
+let month=MKEYS[0], today=1, soundOn=allow("effects","sound");
+{const now=new Date();const k=now.getMonth()+1;if(MONTHS[k]&&MONTHS[k].year===now.getFullYear()){month=k;today=now.getDate()}
+ else{const m0=MONTHS[MKEYS[0]],start=new Date(m0.year,MKEYS[0]-1,1);if(now<start){month=MKEYS[0];today=0}else{month=MKEYS[MKEYS.length-1];today=MONTHS[month].days+1}}}
+const dateOf=d=>`${M().year}-${String(month).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+const RM=matchMedia("(prefers-reduced-motion: reduce)");
+const M=()=>MONTHS[month], skin=()=>M().skin, X=()=>skin()==="xmas";
+const isSunday=d=>((M().first+d-1)%7)===0;
+
+/* ================= seeded variety ================= */
+function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function shuffled(arr,seed){const r=rng(seed),a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+const sh=(hex,amt)=>{let n=parseInt(hex.slice(1),16),r=n>>16,g=n>>8&255,b=n&255;const f=v=>Math.max(0,Math.min(255,Math.round(amt<0?v*(1+amt):v+(255-v)*amt)));return"#"+((1<<24)|(f(r)<<16)|(f(g)<<8)|f(b)).toString(16).slice(1)};
+const COLOURS=["#1f4d3a","#1f3254","#6e1f2b","#1c1c1f","#86aaa4","#b8892b","#4d2a47","#a3262a","#7b8d70","#8a5a2b*","#6b4423*","#4a535a","#d6ccb0","#8a7da4","#1f5f63","#4f3320*","#7d98b3","#2e4a2a","#a2522f","#33363b","#c08a3e","#3b2236","#596b3a","#8d1e22","#2f5d7c","#9a3b2a","#5e6b4f","#c9b48a","#3d3f6b","#6d7f86","#7a2e4a","#405a43"];
+const STYLES=["four","six","fan","glazed","cottage","stable","arch","pair"].filter(k=>allow("doorStyles",k));if(!STYLES.length)STYLES.push("four");
+const HANDLES=["knob","lever","ring","knob","lever","knob","lever"];
+const METALS=[{c:"#c9a24a",h:"#f3dc8f"},{c:"#26262a",h:"#6a6a72"},{c:"#aeb3b8",h:"#eef1f4"},{c:"#b06a3b",h:"#e6a777"}];
+const NUMS=["brass","slate","tile","numerals","iron","wood","brass","numerals"];
+const WALLS=[{k:"brick",c:"#8b4a37"},{k:"stock",c:"#b59a6a"},{k:"render",c:"#e9e4d8"},{k:"render",c:"#e7c3bd"},{k:"render",c:"#cfe0d0"},{k:"render",c:"#efe0a8"},{k:"render",c:"#c7d7e4"},{k:"stone",c:"#c3b8a4"},{k:"brick",c:"#6f3a2c"},{k:"stock",c:"#9e8c6a"}];
+const SURR=[{c:"#d9d2c3",k:"plain"},{c:"#ecebe6",k:"pediment"},{c:"#f2efe8",k:"keystone"},{c:"#bdb5a3",k:"keystone"},{c:"#efe8d8",k:"plain"},{c:"#8f877a",k:"plain"},{c:"#ffffff",k:"pediment"}];
+function look(day){
+  const mo=M(), r=rng(month*1000+day*7919+3);
+  const colI=shuffled(COLOURS.map((_,i)=>i),month*17)[day-1];
+  const cs=COLOURS[colI], wood=cs.endsWith("*"), col=cs.replace("*","");
+  let style=STYLES[shuffled(Array.from({length:35},(_,i)=>i%STYLES.length),month*29)[day-1]];
+  const special=mo.special[day]||null;
+  if(isSunday(day)&&allow("doorStyles","church")){const fs=[1,2,3,4,5,6,7].find(isSunday);style=["church1","church2","church3"][Math.floor((day-fs)/7)%3]}
+  if(special==="saloon") style="saloon";
+  if(special==="downing") style="downing";
+  const CH={church1:"#5e2f17",church2:"#b07a34",church3:"#2a3033"};
+  const L={day,col: style==="downing"?"#141416":(CH[style]||col), wood: style==="church1"||style==="church2"?true:wood, style,
+    handle: style==="cottage"?"latch":(style.startsWith("church")?"none":(style==="downing"?"knob":HANDLES[Math.floor(r()*HANDLES.length)])),
+    metal: style==="downing"?METALS[0]:(style.startsWith("church")?METALS[1]:METALS[Math.floor(r()*METALS.length)]),
+    knocker: ["cottage","saloon"].includes(style)||style.startsWith("church")?null:(style==="downing"?"lion":(r()<.5?(r()<.5?"ring":"stirrup"):null)),
+    letterbox: r()<.55?(r()<.3?"vertical":"plate"):null,
+    num: NUMS[Math.floor(r()*NUMS.length)],
+    catflap: ["four","six","stable","arch"].includes(style)&&r()<.25,
+    kick: !["cottage","saloon"].includes(style)&&!style.startsWith("church")&&r()<.3,
+    wall: style==="downing"?{k:"brick",c:"#2b2724"}:WALLS[Math.floor(r()*WALLS.length)],
+    surr: SURR[Math.floor(r()*SURR.length)],
+    lantern: style!=="downing"&&r()<.35, bell: r()<.45?(r()<.75?"push":"pull"):null,
+    swag: r()<.4, icicles: r()<.35, creeper: r()<.3,
+    r1:r(), r2:r(), r3:r(), r4:r(), r5:r(), r6:r()};
+  if(month===12){const dbl=style.startsWith("church")||style==="pair";
+    const W0={arch:3,swagbows:3,snowystar:3,nutcracker:2,lanterns:3,simple:4,tinsel:3,ribbonwreath:3,icicle:4,holly:3};
+    const W=Object.fromEntries(Object.entries(W0).filter(([k])=>allow("christmasLooks",k)));if(!Object.keys(W).length)W.simple=1;
+    const SEQ=shuffled(Object.entries(W).flatMap(([k,n])=>Array(n).fill(k)),777);
+    L.xt= style==="downing"?"downing":(["church2","church3"].includes(style)?"churchplain":(style==="church1"?"simple":SEQ[(day-1)%SEQ.length]));
+    const FL={snowystar:[2,"lit"],swagbows:[2,"topiary"],lanterns:[2,"planter"],simple:[1,"tree"],tinsel:[1,"tree"],downing:[1,"tree"],churchplain:[1,"tree"]}[L.xt]||[0,""];
+    L.xflank=FL[0]; L.xtree=FL[1];
+    if(!["downing","church1","saloon"].includes(style)) L.lantern=true; L.swag=false; L.lantern2= L.xt==="nutcracker";}
+  {const n=parseInt(L.col.slice(1),16),lum=(0.299*(n>>16)+0.587*(n>>8&255)+0.114*(n&255))/255; L.dark=lum<.45; if(L.num==="iron"&&L.dark) L.num="numerals";}
+  if(style==="downing"){L.letterbox="plate";L.num="downing";L.surr={c:"#e6dfcd",k:"plain"};L.bell=null;L.knocker="lion";L.lantern=false;L.catflap=false;L.kick=false}
+  if(style.startsWith("church")){L.letterbox=null;L.knocker=null;L.catflap=false;L.kick=false;L.bell=null;L.lantern=false;L.handle="none";
+    L.num="brass";
+    if(style==="church1"){L.wall={k:"stock",c:"#d9cfbd"};L.surr={c:"#e6dccb",k:"plain"}}
+    if(style==="church2"){L.wall={k:"granite",c:"#8f9093"};L.surr={c:"#a9a9ab",k:"plain"}}
+    if(style==="church3"){L.wall={k:"ashlar",c:"#cbbf9f"};L.surr={c:"#c2b48f",k:"plain"}}}
+  if(style==="saloon"){L.letterbox=null;L.lantern=true}
+  if(style==="pair"){L.letterbox=null;L.knocker=null;L.catflap=false;L.kick=false;L.handle="none";L.num=r()<.5?"brass":"slate"}
+  return L;
+}
+
+/* ================= drawing helpers ================= */
+function panel(x,y,w,h,c){const i=3.2;return `<rect x="${x-1.5}" y="${y-1.5}" width="${w+3}" height="${h+3}" fill="none" stroke="${sh(c,-.35)}" stroke-width=".8" opacity=".7"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${sh(c,-.14)}"/><polygon points="${x},${y} ${x+w},${y} ${x+w-i},${y+i} ${x+i},${y+i}" fill="#000" opacity=".32"/><polygon points="${x},${y} ${x+i},${y+i} ${x+i},${y+h-i} ${x},${y+h}" fill="#000" opacity=".22"/><polygon points="${x},${y+h} ${x+i},${y+h-i} ${x+w-i},${y+h-i} ${x+w},${y+h}" fill="#fff" opacity=".2"/><polygon points="${x+w},${y} ${x+w},${y+h} ${x+w-i},${y+h-i} ${x+w-i},${y+i}" fill="#fff" opacity=".12"/><rect x="${x+i}" y="${y+i}" width="${w-2*i}" height="${h-2*i}" fill="${sh(c,-.06)}"/>`}
+function grain(seed,x0,x1,y0,y1,c){const r=rng(seed);let s="";for(let x=x0+2;x<x1;x+=2.6+r()*2.4){let p=`M${x.toFixed(1)} ${y0}`;for(let y=y0;y<y1;y+=17){p+=` Q${(x+(r()-.5)*3).toFixed(1)} ${y+8} ${(x+(r()-.5)*1.4).toFixed(1)} ${Math.min(y+17,y1)}`}s+=`<path d="${p}" stroke="${sh(c,r()<.5?-.3:.18)}" stroke-width="${(.3+r()*.5).toFixed(2)}" fill="none" opacity=".55"/>`}return s}
+let GID=0;
+function glass(x,y,w,h,lit,kind){const id="g"+(GID++);let s=`<defs><linearGradient id="${id}" x1="0" y1="0" x2="${lit?0:1}" y2="1">${lit?'<stop offset="0" stop-color="#ffd890"/><stop offset="1" stop-color="#d9822f"/>':'<stop offset="0" stop-color="#2b3c55"/><stop offset="1" stop-color="#121a28"/>'}</linearGradient></defs><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${id})"/>`;
+  if(kind==="lead"){s+=`<clipPath id="${id}c"><rect x="${x}" y="${y}" width="${w}" height="${h}"/></clipPath><g clip-path="url(#${id}c)">`;for(let k=-h;k<w;k+=9){s+=`<line x1="${x+k}" y1="${y}" x2="${x+k+h}" y2="${y+h}" stroke="#2b2b2b" stroke-width=".7"/><line x1="${x+k+h}" y1="${y}" x2="${x+k}" y2="${y+h}" stroke="#2b2b2b" stroke-width=".7"/>`}s+=`</g>`}
+  else if(kind==="bars"){s+=`<line x1="${x+w/2}" y1="${y}" x2="${x+w/2}" y2="${y+h}" stroke="#222" stroke-width="1.6"/><line x1="${x}" y1="${y+h/2}" x2="${x+w}" y2="${y+h/2}" stroke="#222" stroke-width="1.6"/>`}
+  return s+`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#111" stroke-width="1.4" opacity=".7"/>`}
+function clipGlass(x,y,w,h){return `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none"/>`}
+/* the number: never a plain white oval; seven kinds, all centred */
+function numberSVG(L,x,y){
+  const t=String(L.day), T=`text-anchor="middle" dominant-baseline="central" font-family="Georgia,serif"`;
+  switch(L.num){
+    case "brass": return `<rect x="${x-14}" y="${y-10}" width="28" height="20" rx="3" fill="#b8923f"/><rect x="${x-12.5}" y="${y-8.5}" width="25" height="17" rx="2" fill="none" stroke="#f0d68e" stroke-width=".7"/><circle cx="${x-11}" cy="${y-7}" r=".7" fill="#7a5c1c"/><circle cx="${x+11}" cy="${y+7}" r=".7" fill="#7a5c1c"/><text x="${x}" y="${y+.6}" ${T} font-size="14" font-weight="bold" fill="#2b1d08">${t}</text>`;
+    case "slate": return `<rect x="${x-14}" y="${y-10}" width="28" height="20" rx="1.5" fill="#2f3438"/><rect x="${x-14}" y="${y-10}" width="28" height="1.5" fill="#4b5359"/><text x="${x}" y="${y+.6}" ${T} font-size="14" fill="#e9e4d6">${t}</text>`;
+    case "tile": {const b=["#2f5d7c","#7a2e2a","#3e6b46","#6b4a1f"][L.day%4];return `<rect x="${x-13}" y="${y-11}" width="26" height="22" rx="1" fill="#e2d4b2"/><rect x="${x-13}" y="${y-11}" width="26" height="22" rx="1" fill="none" stroke="${b}" stroke-width="2.4" stroke-dasharray="2.2 1.2"/><path d="M${x-10} ${y+8} l5 -3 M${x+6} ${y-9} l3 2" stroke="#b9a882" stroke-width=".4"/><text x="${x}" y="${y+.6}" ${T} font-size="13" font-style="italic" fill="${b}">${t}</text>`}
+    case "numerals": return `<text x="${x}" y="${y+.6}" ${T} font-size="18" font-weight="bold" fill="#c9a24a" stroke="#6b4f12" stroke-width=".5">${t}</text><text x="${x+.6}" y="${y+1.4}" ${T} font-size="18" font-weight="bold" fill="#000" opacity=".25">${t}</text>`;
+    case "iron": return `<text x="${x}" y="${y+.6}" ${T} font-size="17" font-weight="bold" fill="#1a1a1c" stroke="#55555c" stroke-width=".35">${t}</text>`;
+    case "wood": return `<rect x="${x-15}" y="${y-9}" width="30" height="18" rx="2" fill="#8a5a2b"/>${grain(L.day*3,x-15,x+15,y-9,y+9,"#8a5a2b")}<rect x="${x-15}" y="${y-9}" width="30" height="18" rx="2" fill="none" stroke="#4d2f12" stroke-width=".8"/><text x="${x}" y="${y+.6}" ${T} font-size="13" fill="#f3e3c2">${t}</text>`;
+    case "gilt": return `<text x="${x}" y="${y+.6}" ${T} font-size="18" font-weight="bold" fill="#f0cf72" stroke="#2a1c04" stroke-width="2.4" paint-order="stroke" stroke-linejoin="round">${t}</text>`;
+    case "band": return `<text x="${x}" y="${y+.4}" ${T} font-size="8.4" font-weight="bold" fill="#3a2e14" letter-spacing=".4">${t}</text>`;
+    case "downing": return `<text x="${x-5}" y="${y+.6}" ${T} font-size="17" fill="#f4f1ea">1</text><text x="${x+5}" y="${y+.6}" ${T} font-size="17" fill="#f4f1ea" transform="rotate(-9 ${x+5} ${y})">0</text>`;
+  }
+  return "";
+}
+function handleSVG(L,x,y){
+  const m=L.metal;
+  if(L.handle==="knob") return `<g class="handle"><circle cx="${x}" cy="${y}" r="6.4" fill="${sh(m.c,-.35)}"/><circle cx="${x}" cy="${y}" r="4.6" fill="${m.c}"/><circle cx="${x-1.4}" cy="${y-1.6}" r="1.5" fill="${m.h}"/></g>`;
+  /* levers point back towards the hinges (left) */
+  if(L.handle==="lever") return `<rect x="${x-3}" y="${y-9}" width="6" height="18" rx="2.6" fill="${sh(m.c,-.25)}"/><g class="handle lever"><rect x="${x-13}" y="${y-1.9}" width="14" height="3.8" rx="1.9" fill="${m.c}"/><rect x="${x-11}" y="${y-1.3}" width="10" height="1" fill="${m.h}" opacity=".7"/></g><circle cx="${x}" cy="${y}" r="2.3" fill="${m.h}"/>`;
+  if(L.handle==="ring") return `<circle cx="${x}" cy="${y}" r="3.4" fill="${sh(m.c,-.3)}"/><g class="handle"><circle cx="${x}" cy="${y+7}" r="6" fill="none" stroke="${m.c}" stroke-width="2.4"/><circle cx="${x-1.5}" cy="${y+3}" r=".9" fill="${m.h}"/></g>`;
+  return `<rect x="${x-2}" y="${y-14}" width="4" height="28" rx="2" fill="#2a2a2e"/><g class="handle lever"><rect x="${x-10}" y="${y-2}" width="11" height="3" rx="1.5" fill="#3a3a40"/></g><path d="M${x} ${y+3} q 5 6 0 10" stroke="#2a2a2e" stroke-width="2.2" fill="none"/>`;
+}
+function knockerSVG(L,x,y){
+  const m=L.metal;
+  if(L.knocker==="ring") return `<circle cx="${x}" cy="${y}" r="3.6" fill="${sh(m.c,-.3)}"/><g class="knocker"><circle cx="${x}" cy="${y+9.5}" r="7.2" fill="none" stroke="${m.c}" stroke-width="2.6"/></g>`;
+  if(L.knocker==="lion") return `<g><circle cx="${x}" cy="${y}" r="8.5" fill="#1b1b1d"/>${Array.from({length:14},(_,i)=>{const a=i/14*6.283;return `<circle cx="${(x+Math.cos(a)*7.4).toFixed(1)}" cy="${(y+Math.sin(a)*7.4).toFixed(1)}" r="2.2" fill="#2c2c30"/>`}).join("")}<ellipse cx="${x}" cy="${y+.5}" rx="4.6" ry="5.4" fill="#33333a"/><circle cx="${x-1.8}" cy="${y-1.2}" r=".8" fill="#77777f"/><circle cx="${x+1.8}" cy="${y-1.2}" r=".8" fill="#77777f"/><path d="M${x-1.6} ${y+2.4} q1.6 1.4 3.2 0" stroke="#77777f" stroke-width=".6" fill="none"/></g><g class="knocker"><path d="M${x-5} ${y+5} Q${x} ${y+15} ${x+5} ${y+5}" fill="none" stroke="#2c2c30" stroke-width="2.6"/></g>`;
+  return `<rect x="${x-6}" y="${y-3}" width="12" height="6" rx="3" fill="${sh(m.c,-.3)}"/><g class="knocker"><path d="M${x-6} ${y} L${x-6} ${y+10} Q${x} ${y+18} ${x+6} ${y+10} L${x+6} ${y}" fill="none" stroke="${m.c}" stroke-width="2.8"/></g>`;
+}
+function letterSVG(L,x,y,vx){
+  const m=L.metal;
+  if(L.letterbox==="vertical") return `<rect x="${vx-3.6}" y="${y-14}" width="7.2" height="28" rx="1.4" fill="${sh(m.c,-.3)}"/><rect x="${vx-2.4}" y="${y-12.5}" width="4.8" height="25" rx="1" fill="${m.c}"/><rect x="${vx-2.4}" y="${y-12.5}" width="1" height="25" fill="${m.h}" opacity=".8"/>`;
+  return `<rect x="${x-17}" y="${y-5}" width="34" height="10" rx="1.5" fill="${sh(m.c,-.3)}"/><rect x="${x-15}" y="${y-3.5}" width="30" height="7" rx="1" fill="${m.c}"/><rect x="${x-15}" y="${y-3.5}" width="30" height="1.2" fill="${m.h}" opacity=".8"/><text x="${x}" y="${y+1.2}" text-anchor="middle" dominant-baseline="central" font-family="Georgia,serif" font-size="2.6" letter-spacing=".5" fill="${sh(m.c,-.5)}">LETTERS</text>`;
+}
+function catflapSVG(x,y){return `<rect x="${x-10}" y="${y-8}" width="20" height="17" rx="3" fill="#2a2a2a"/><rect x="${x-8.5}" y="${y-6.5}" width="17" height="14" rx="2.2" fill="#3c4048" opacity=".9"/><rect x="${x-8.5}" y="${y-6.5}" width="17" height="2" rx="1" fill="#707782"/>`}
+function wreathSVG(x,y,kind,seed){
+  const r=rng(Math.floor(seed*1e6)+7);let s=`<g class="wreath"><path d="M${x} ${y-14} L${x} ${y-21}" stroke="#7a1f1f" stroke-width="1.2"/>`;
+  const PAL={xmas:["#24563a","#2f6b44","#1b4a30","#3c7a4d"],autumn:["#a4161a","#d1361b","#e06c1f","#c79a2b","#7a4520","#8d2a12"],heart:["#7a1626","#a01c2e","#5a1220","#b8323f"],poppy:["#2f5a30","#3d6b3b","#28502a"],harvest:["#c79a2b","#b5892a","#d9b45a","#8a6a2a"]};
+  const pal=PAL[kind]||PAL.autumn;
+  for(let i=0;i<26;i++){const a=i/26*6.283;let px,py;
+    if(kind==="heart"){px=x+12*Math.pow(Math.sin(a),3)*1.05;py=y-(10*Math.cos(a)-4*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a))*.95+2}else{px=x+Math.cos(a)*12;py=y+Math.sin(a)*12}
+    s+=`<ellipse cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" rx="5.2" ry="2.4" fill="${pal[Math.floor(r()*pal.length)]}" transform="rotate(${(a*57.3+90+(r()-.5)*40).toFixed(0)} ${px.toFixed(1)} ${py.toFixed(1)})"/>`}
+  if(kind==="xmas"){for(let i=0;i<9;i++){const a=r()*6.283;s+=`<circle cx="${(x+Math.cos(a)*12).toFixed(1)}" cy="${(y+Math.sin(a)*12).toFixed(1)}" r="1.5" fill="#c4252b"/>`}s+=`<path d="M${x} ${y+12} l-6 -4 l0 8 z M${x} ${y+12} l6 -4 l0 8 z" fill="#b51f25"/>`}
+  if(kind==="autumn"||kind==="harvest"){for(let i=0;i<6;i++){const a=r()*6.283,ax=x+Math.cos(a)*12,ay=y+Math.sin(a)*12;s+=acorn(ax,ay,.55)}}
+  if(kind==="poppy"){for(let i=0;i<9;i++){const a=i/9*6.283,px=x+Math.cos(a)*12,py=y+Math.sin(a)*12;s+=`<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="3.4" fill="#c8102e"/><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="1.1" fill="#111"/>`}}
+  return s+`</g>`;
+}
+const acorn=(x,y,k)=>`<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${k})"><ellipse cx="0" cy="2" rx="3" ry="4" fill="#a8743a"/><path d="M-3.6 -.6 Q0 -4.4 3.6 -.6 Q0 1 -3.6 -.6Z" fill="#6b4a24"/><rect x="-.4" y="-4.6" width=".8" height="2" fill="#5a3a1a"/></g>`;
+const conker=(x,y,k)=>`<g transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${k})"><circle r="3.4" fill="#6a2d12"/><ellipse cx="-.6" cy="1" rx="1.9" ry="1.3" fill="#d6b58a"/><circle cx="-1.2" cy="-1.3" r=".9" fill="#b3653a" opacity=".8"/></g>`;
+const pumpkin=(x,y,w,c)=>`<g><ellipse cx="${x}" cy="${y}" rx="${w}" ry="${w*.75}" fill="${c}"/><ellipse cx="${x}" cy="${y}" rx="${w*.55}" ry="${w*.75}" fill="${sh(c,.1)}" opacity=".6"/><path d="M${x-w*.5} ${y-w*.6} Q${x-w*.6} ${y} ${x-w*.5} ${y+w*.6} M${x+w*.5} ${y-w*.6} Q${x+w*.6} ${y} ${x+w*.5} ${y+w*.6}" stroke="${sh(c,-.3)}" stroke-width=".6" fill="none"/><rect x="${x-.8}" y="${y-w*.95}" width="1.6" height="${w*.35}" rx=".6" fill="#4d6b2a"/></g>`;
+function balloonsSVG(x,y,cols){return `<g class="balloons"><path d="M${x} ${y} Q${x-6} ${y-24} ${x-8} ${y-40} M${x} ${y} Q${x+2} ${y-28} ${x+4} ${y-48} M${x} ${y} Q${x+10} ${y-24} ${x+16} ${y-36}" stroke="#eee" stroke-width=".6" fill="none"/>${[[x-8,y-48,cols[0]],[x+4,y-56,cols[1]],[x+16,y-44,cols[2]]].map(b=>`<ellipse cx="${b[0]}" cy="${b[1]}" rx="7" ry="8.6" fill="${b[2]}"/><ellipse cx="${b[0]-2.5}" cy="${b[1]-3.5}" rx="1.8" ry="2.6" fill="#fff" opacity=".45"/><path d="M${b[0]-1.2} ${b[1]+8.6} l1.2 1.6 l1.2 -1.6z" fill="${b[2]}"/>`).join("")}</g>`}
+const BALLOON_COLS={birthday:["#e84a5f","#f6c344","#4aa3df"],anniversary:["#c8102e","#f2c94c","#f4f1ea"],advent:["#6b3a8f","#d978a8","#6b3a8f"],nicholas:["#b3202a","#f4f1ea","#b3202a"],solstice:["#2f3f7a","#f4f1ea","#2f3f7a"],eve:["#f2c94c","#b3202a","#1f6b3a"],christmas:["#b3202a","#1f6b3a","#f2c94c"],boxing:["#4aa3df","#f6c344","#b3202a"],nye:["#f2c94c","#c0c0c8","#1c1c1f"],saints:["#f2c94c","#f4f1ea","#6b3a8f"],bonfire:["#e06c1f","#f2c94c","#a4161a"],arrive:["#e84a5f","#4aa3df","#f6c344"],thanks:["#e06c1f","#a4161a","#c79a2b"],andrew:["#005eb8","#f4f1ea","#005eb8"]};
+
+/* ================= layer 1: the house front and doorway (viewBox 120 x 216) ================= */
+function wallSVG(L){
+  const w=L.wall,c=w.c,rr=rng(L.day*53+month);let s=`<rect class="wall" x="-6" y="-14" width="132" height="216" fill="${c}"/>`;
+  if(w.k==="brick"||w.k==="stock"){for(let y=-14,row=0;y<200;y+=6,row++){s+=`<line x1="-6" y1="${y}" x2="126" y2="${y}" stroke="${sh(c,w.k==="stock"?-.25:.2)}" stroke-width=".6" opacity=".7"/>`;for(let x=(row%2)*6-6;x<126;x+=12){s+=`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+6}" stroke="${sh(c,w.k==="stock"?-.25:.2)}" stroke-width=".6" opacity=".7"/>`;if(rr()<.18)s+=`<rect x="${x+.6}" y="${y+.6}" width="10.8" height="4.8" fill="${sh(c,(rr()-.5)*.3)}" opacity=".6"/>`}}}
+  else if(w.k==="granite"){for(let y=-14;y<200;y+=9){let x=-6-rr()*10;while(x<126){const bw=9+rr()*12;s+=`<rect x="${x.toFixed(1)}" y="${y}" width="${(bw-1).toFixed(1)}" height="8.2" rx="1.2" fill="${sh(c,(rr()-.5)*.35)}"/>`;x+=bw}}}
+  else if(w.k==="ashlar"){for(let y=-14,row=0;y<200;y+=12,row++){s+=`<line x1="-6" y1="${y}" x2="126" y2="${y}" stroke="${sh(c,-.22)}" stroke-width=".7"/>`;for(let x=(row%2)*14-6;x<126;x+=28){s+=`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+12}" stroke="${sh(c,-.22)}" stroke-width=".7"/>`;if(rr()<.3)s+=`<rect x="${x+1}" y="${y+1}" width="26" height="10" fill="${sh(c,(rr()-.5)*.12)}" opacity=".7"/>`}}}
+  else if(w.k==="stone"){for(let y=-14,row=0;y<200;y+=14,row++){s+=`<line x1="-6" y1="${y}" x2="126" y2="${y}" stroke="${sh(c,-.25)}" stroke-width=".6"/>`;for(let x=(row%2)*16-6;x<126;x+=32)s+=`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+14}" stroke="${sh(c,-.25)}" stroke-width=".6"/>`}}
+  else{for(let i=0;i<4;i++)s+=`<ellipse cx="${(rr()*120).toFixed(0)}" cy="${(rr()*190).toFixed(0)}" rx="${(10+rr()*16).toFixed(0)}" ry="${(4+rr()*8).toFixed(0)}" fill="${sh(c,-.08)}" opacity=".5"/>`}
+  return s+`<rect x="-6" y="-14" width="132" height="216" fill="url(#dusk)" />`;
+}
+function surroundSVG(L,state){
+  const S=L.surr,ev=evOf(L.day),kinds=ev.map(e=>e.k),x=X(),sc=S.c,dk=sh(sc,-.28),lt=sh(sc,.18);
+  let s=`<svg class="layer" viewBox="0 0 120 216" aria-hidden="true"><defs><linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity="${x?.38:.28}"/><stop offset=".6" stop-color="#000" stop-opacity="${x?.22:.12}"/><stop offset="1" stop-color="#000" stop-opacity="${x?.3:.2}"/></linearGradient><radialGradient id="pool"><stop offset="0" stop-color="#ffcf7a" stop-opacity=".55"/><stop offset="1" stop-color="#ffcf7a" stop-opacity="0"/></radialGradient></defs>`;
+  s+=wallSVG(L);
+  if(state==="today") s+=`<rect class="glowring" x="1" y="4" width="118" height="194" rx="8" fill="none" stroke="rgba(255,205,120,1)" stroke-width="5" style="filter:blur(4px)"/>`;
+  s+=`<rect x="10" y="22" width="100" height="170" fill="#0e0907"/>`;
+  s+=`<rect x="1" y="16" width="10" height="177" fill="${sc}"/><rect x="109" y="16" width="10" height="177" fill="${sc}"/><rect x="9.2" y="20" width="1.8" height="173" fill="${dk}"/><rect x="109" y="20" width="1.8" height="173" fill="${dk}"/>`;
+  s+=`<rect x="0" y="9" width="120" height="13" fill="${sc}"/><rect x="0" y="20.5" width="120" height="1.5" fill="${dk}"/><rect x="0" y="9" width="120" height="1.4" fill="${lt}"/><rect x="10" y="22" width="100" height="5" fill="#000" opacity=".35"/>`;
+  if(S.k==="pediment") s+=`<path d="M-1 10 L60 0 L121 10 Z" fill="${sc}" stroke="${dk}" stroke-width=".8"/>`;
+  if(S.k==="keystone") s+=`<path d="M53 7 L67 7 L64.5 22 L55.5 22 Z" fill="${lt}" stroke="${dk}" stroke-width=".7"/>`;
+  s+=`<rect x="2" y="192" width="116" height="8" fill="${sh(sc,-.12)}"/><rect x="2" y="192" width="116" height="1.4" fill="${lt}"/><rect x="-6" y="200" width="132" height="16" fill="${x?"#5b6573":"#4d4a45"}"/>`;
+  for(let px=-6;px<126;px+=22) s+=`<line x1="${px}" y1="200" x2="${px+4}" y2="216" stroke="#000" stroke-width=".5" opacity=".3"/>`;
+  if(L.lantern){ s+=`<g><rect x="111" y="44" width="7" height="2" fill="#222"/><path d="M110.5 46 L118.5 46 L117.5 58 L111.5 58 Z" fill="#1d1d1d"/><rect class="lamp" x="112" y="47.5" width="5" height="9" fill="#ffcf7a"/><circle class="lamp" cx="114.5" cy="52" r="10" fill="rgba(255,190,100,.2)"/></g><ellipse class="lamp" cx="100" cy="198" rx="26" ry="6" fill="url(#pool)"/>`; }
+  if(L.lantern2){ s+=`<g><rect x="2" y="44" width="7" height="2" fill="#222"/><path d="M1.5 46 L9.5 46 L8.5 58 L2.5 58 Z" fill="#1d1d1d"/><rect class="lamp" x="3" y="47.5" width="5" height="9" fill="#ffcf7a"/><circle class="lamp" cx="5.5" cy="52" r="10" fill="rgba(255,190,100,.2)"/></g>`; }
+  if(L.bell==="push") s+=`<g><rect x="111.5" y="88" width="6" height="9" rx="1" fill="#b8923f"/><circle cx="114.5" cy="92.5" r="1.8" fill="#f3dc8f" stroke="#7a5c1c" stroke-width=".4"/></g>`;
+  if(L.bell==="pull") s+=`<g><rect x="112" y="76" width="5" height="16" rx="2.5" fill="#26262a"/><path d="M114.5 92 q0 6 -1 9" stroke="#26262a" stroke-width="1.4" fill="none"/><circle cx="113.4" cy="102" r="1.6" fill="#26262a"/></g>`;
+  if(L.style==="church1"){ s+=`<rect x="0" y="2" width="120" height="8" fill="${sh(sc,-.1)}"/><rect x="57" y="-9" width="6" height="2" fill="#2a2a2a"/><path d="M55.5 -7 h9 l-1.4 9 h-6.2 z" fill="#2a2a2a"/><rect class="lamp" x="57.4" y="-5.6" width="5.2" height="6.4" fill="#ffd98a"/><ellipse class="lamp" cx="60" cy="4" rx="30" ry="9" fill="rgba(255,210,130,.18)"/>`; }
+  if(x){ if(L.swag) s+=`<path d="M0 12 Q30 30 60 13 Q90 30 120 12" stroke="#1f4f33" stroke-width="5" fill="none"/><path d="M0 12 Q30 30 60 13 Q90 30 120 12" stroke="#2f6b44" stroke-width="2" fill="none" stroke-dasharray="1 2.4"/>${[0,60,120].map(px=>`<path d="M${px} 13 l-4 -3 l0 6 z M${px} 13 l4 -3 l0 6 z" fill="#b51f25"/>`).join("")}${[15,30,45,75,90,105].map((px,i)=>`<circle class="twinkle" style="animation-delay:${i*.3}s" cx="${px}" cy="${(13+17*Math.sin(Math.PI*((px%60)/60))).toFixed(1)}" r="1.1" fill="${["#ffd34d","#ff6b5b","#7ad0ff"][i%3]}"/>`).join("")}`;
+     s+=`<path d="M0 10 Q8 4 18 8 Q30 3 42 8 Q56 2 70 7 Q84 3 96 8 Q108 4 120 9 L120 11 L0 11 Z" fill="#f4f7fb"/>`;
+     if(L.xt==="tinsel"){const tc=["#e3b55a","#d9dde3","#c8102e","#e3b55a"][L.day%4],tc2=L.day%2?"#fff3c4":"#ffd0d0";const rr2=rng(L.day*41);
+       const strand=(pts)=>pts.map(([px,py])=>Array.from({length:3},()=>{const a=rr2()*6.283,l=2.2+rr2()*2.6;return `<line x1="${px}" y1="${py}" x2="${(px+Math.cos(a)*l).toFixed(1)}" y2="${(py+Math.sin(a)*l).toFixed(1)}" stroke="${rr2()<.3?tc2:tc}" stroke-width="1.1"/>`}).join("")).join("");
+       const pts=[];for(let px=4;px<=116;px+=2.2)pts.push([px,+(22+6*Math.sin(Math.PI*((px-4)/56))**2).toFixed(1)]);for(let py=26;py<186;py+=3)pts.push([6,py],[114,py]);
+       s+=`<g class="twinkle" style="animation-duration:.9s">${strand(pts)}</g>`;}
+     if(L.xt==="simple"||L.xt==="tinsel"){const fc=L.xt==="simple"?["#ff4d4d","#ffd34d","#4dd2ff","#7dff6b"]:["#ffd98a"];let i=0;
+       s+=`<path d="M3 192 V12 H117 V192" fill="none" stroke="#1c2a1c" stroke-width=".5"/>`;
+       for(let py=190;py>14;py-=8) for(const px of [3,117]) s+=`<circle class="twinkle" style="animation-delay:${((i++)%9)*.22}s" cx="${px}" cy="${py}" r="1.3" fill="${fc[i%fc.length]}"/>`;
+       for(let px=9;px<114;px+=8) s+=`<circle class="twinkle" style="animation-delay:${((i++)%9)*.22}s" cx="${px}" cy="12" r="1.3" fill="${fc[i%fc.length]}"/>`;}
+     if(L.icicles) for(let px=12;px<110;px+=7+((px*7)%5)) s+=`<path d="M${px} 22 l1.6 0 l-.8 ${4+((px*13)%7)} z" fill="#e8f3ff" opacity=".9"/>`;
+  } else if(L.creeper){ const rr=rng(L.day*97);for(let i=0;i<30;i++){const px=rr()*14-2,py=40+rr()*150;s+=`<path transform="translate(${px.toFixed(1)} ${py.toFixed(1)}) rotate(${(rr()*360).toFixed(0)}) scale(${(1.6+rr()*1.4).toFixed(2)})" d="M0 -1 L.6 -.2 L1 -.4 L.6 .4 L0 1 L-.6 .4 L-1 -.4 L-.6 -.2 Z" fill="${["#8d1e1e","#a4161a","#c0392b","#7a1a1a","#b5462a"][Math.floor(rr()*5)]}"/>`}}
+  const adv=ev.find(e=>e.k==="advent");
+  if(adv&&x){ for(let i=0;i<4;i++){const cx=40+i*13,lit=i<adv.n,colr=i===2?"#d978a8":"#6b3a8f";s+=`<rect x="${cx-2.5}" y="-3" width="5" height="12" fill="${colr}"/>`+(lit?`<path class="flame" d="M${cx} -10 q3 4 0 7 q-3 -3 0 -7z" fill="#ffcc55"/>`:"")} }
+  if(kinds.includes("solstice")) s+=`<g><circle cx="60" cy="-6" r="6" fill="#f3efd6"/><circle cx="62.8" cy="-7.4" r="5.3" fill="${skyCol()}"/>${[[20,-4],[36,-10],[86,-8],[102,-3]].map(p=>`<path class="twinkle" d="M${p[0]} ${p[1]-2.4} L${p[0]+.8} ${p[1]} L${p[0]} ${p[1]+2.4} L${p[0]-.8} ${p[1]} Z M${p[0]-2.4} ${p[1]} L${p[0]} ${p[1]+.8} L${p[0]+2.4} ${p[1]} L${p[0]} ${p[1]-.8} Z" fill="#fff6c8"/>`).join("")}</g>`;
+  if(kinds.includes("eve")) s+=`<path class="twinkle" d="M60 -12 l3 7 l7.6 .6 l-5.8 4.9 l1.9 7.4 l-6.7 -4.1 l-6.7 4.1 l1.9 -7.4 l-5.8 -4.9 l7.6 -.6z" fill="#f2c94c" stroke="#9a6b12" stroke-width=".6"/>`;
+  if(kinds.includes("bonfire")||kinds.includes("nye")) s+=fireworks(L.day);
+  if(kinds.includes("andrew")) s+=`<g><line x1="4" y1="40" x2="22" y2="28" stroke="#3a2a1a" stroke-width="1.2"/><rect x="12" y="20" width="16" height="11" fill="#005eb8" transform="rotate(-34 22 28)"/><path d="M12 20 L28 31 M28 20 L12 31" stroke="#fff" stroke-width="2" transform="rotate(-34 22 28)"/></g>`;
+  return s+`</svg>`;
+}
+function skyCol(){return X()?"#1c2a40":"#3a2422"}
+function fireworks(d){const r=rng(d*331);let s="";for(let i=0;i<3;i++){const cx=20+r()*80,cy=-22+r()*14,c=["#ffd34d","#ff6b5b","#7ad0ff","#9dff7a","#ff8af0"][Math.floor(r()*5)];s+=`<g class="burst" style="animation-delay:${(i*.8).toFixed(1)}s">${Array.from({length:12},(_,k)=>{const a=k/12*6.283;return `<line x1="${cx}" y1="${cy}" x2="${(cx+Math.cos(a)*9).toFixed(1)}" y2="${(cy+Math.sin(a)*9).toFixed(1)}" stroke="${c}" stroke-width=".9" stroke-linecap="round"/>`}).join("")}<circle cx="${cx}" cy="${cy}" r="1.2" fill="#fff"/></g>`}return s}
+
+/* ================= layer 2: the door leaf (viewBox 100 x 170, hinge on the left) ================= */
+function leafSVG(L,state){
+  const c=L.col,lit=state!=="locked",d=L.day,ev=evOf(d),kinds=ev.map(e=>e.k);
+  let s=`<svg viewBox="0 0 100 170" aria-hidden="true"><defs><linearGradient id="sheen${d}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".10"/><stop offset=".15" stop-color="#fff" stop-opacity="0"/><stop offset=".85" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".3"/></linearGradient></defs>`;
+  const st=L.style, archTop=st==="arch"||st==="church";
+  const shape= st==="church" ? `M0 170 L0 40 Q4 6 50 0 Q96 6 100 40 L100 170 Z` : (st==="arch"?`M0 170 L0 34 Q50 -10 100 34 L100 170 Z`:`M0 0 H100 V170 H0 Z`);
+  s+=`<path d="${shape}" fill="${c}"/>`;
+  if(L.wood) s+=`<clipPath id="cl${d}"><path d="${shape}"/></clipPath><g clip-path="url(#cl${d})">${grain(d*31+month,0,100,0,170,c)}</g>`;
+  let numY=0,numX=50,knockY=0,letterY=0,vX=50,handleY=96,flapY=0;
+  switch(st){
+    case "four": s+=panel(11,12,34,62,c)+panel(55,12,34,62,c)+panel(11,100,34,58,c)+panel(55,100,34,58,c); numY=87; knockY=36; vX=50; letterY= L.letterbox==="vertical"?128:0; flapY=148; break;
+    case "six": case "downing": s+=panel(11,10,34,22,c)+panel(55,10,34,22,c)+panel(11,40,34,48,c)+panel(55,40,34,48,c)+panel(11,108,34,52,c)+panel(55,108,34,52,c); numY= st==="downing"?21:98; knockY= st==="downing"?60:52; letterY= st==="downing"?98:(L.letterbox==="vertical"?134:0); vX=50; flapY=150; break;
+    case "fan": s+=`<path d="M10 40 L10 32 A40 30 0 0 1 90 32 L90 40 Z" fill="${sh(c,-.3)}"/>`+glass(13,10,74,28,lit,"none")+`<g stroke="#1b1b1b" stroke-width="1.1">${[0,1,5,6].map(i=>{const a=Math.PI*(i/6);return `<line x1="50" y1="38" x2="${(50-Math.cos(a)*38).toFixed(1)}" y2="${(38-Math.sin(a)*28).toFixed(1)}"/>`}).join("")}</g>`+panel(11,50,34,44,c)+panel(55,50,34,44,c)+panel(11,112,34,48,c)+panel(55,112,34,48,c); numY=24; knockY=0; letterY=L.letterbox?103:0; flapY=0; L.num= L.num==="tile"||L.num==="wood"?"gilt":(L.num==="brass"?"brass":"gilt"); break;
+    case "glazed": s+=panel(9,8,82,72,c)+glass(15,14,70,60,lit,"lead")+panel(11,100,34,58,c)+panel(55,100,34,58,c); numY=27; letterY=L.letterbox?90:0; flapY=0; if(L.num==="iron"||L.num==="gilt"||L.num==="numerals") L.num="brass"; break;
+    case "cottage": for(let x=12.5;x<100;x+=12.5) s+=`<line x1="${x}" y1="0" x2="${x}" y2="170" stroke="${sh(c,-.4)}" stroke-width="1"/>`;
+      s+=`<rect x="0" y="22" width="100" height="10" fill="${sh(c,.08)}"/><rect x="0" y="138" width="100" height="10" fill="${sh(c,.08)}"/><path d="M4 136 L96 34" stroke="${sh(c,.08)}" stroke-width="9"/>`+glass(34,42,32,24,lit,"bars"); numY=12; if(L.num==="tile"||L.num==="gilt")L.num="wood"; letterY=L.letterbox==="plate"?110:0; handleY=92; break;
+    case "stable": s+=panel(12,14,76,58,c)+panel(12,98,76,60,c)+`<rect x="0" y="80" width="100" height="5" fill="${sh(c,-.4)}"/><rect x="-1" y="76" width="102" height="4" fill="${sh(c,.15)}"/>`; numY=28; knockY=46; letterY=0; handleY=110; flapY=148; break;
+    case "arch": s+=glass(26,22,48,30,lit,"bars")+panel(13,62,74,36,c)+panel(13,108,74,50,c); numY=37; letterY=L.letterbox?103:0; flapY=148; if(L.num==="iron"||L.num==="numerals"||L.num==="gilt") L.num="brass"; break;
+    case "church": for(let x=12.5;x<100;x+=12.5) s+=`<line x1="${x}" y1="2" x2="${x}" y2="170" stroke="${sh(c,-.4)}" stroke-width="1"/>`;
+      for(const hy of [44,140]) s+=`<path d="M0 ${hy} H70 q6 0 6 -4 q0 -4 -4 -3 q-3 1 -1 3" stroke="#1d1d1f" stroke-width="3.2" fill="none"/>${[10,24,38,52,64].map(x=>`<circle cx="${x}" cy="${hy}" r=".9" fill="#55555c"/>`).join("")}`;
+      for(let y=60;y<130;y+=14) for(let x=10;x<95;x+=16) s+=`<circle cx="${x}" cy="${y}" r="1.1" fill="#2a2a2e"/>`;
+      s+=`<rect x="40" y="18" width="20" height="14" rx="2" fill="#2a2a2e" opacity=".8"/>${[44,48,52,56].map(x=>`<line x1="${x}" y1="18" x2="${x}" y2="32" stroke="#555" stroke-width=".8"/>`).join("")}`;
+      numY=92; numX=50; handleY=96; break;
+  }
+  s+=`<path d="${shape}" fill="url(#sheen${d})"/>`;
+  if(L.kick) s+=`<rect x="4" y="156" width="92" height="12" fill="${L.metal.c}"/><rect x="4" y="156" width="92" height="2" fill="${L.metal.h}" opacity=".7"/>`;
+  if(L.catflap&&flapY) s+=catflapSVG(st==="stable"?50:28,flapY);
+  if(letterY&&L.letterbox) s+=letterSVG(L,50,letterY,vX);
+  
+  if(numY) s+=numberSVG(L,numX,numY);
+  /* wreaths and knockers */
+  const xm=X();
+  let wk=null;const xmT=xm&&["arch","swagbows","nutcracker","lanterns","simple","tinsel","ribbonwreath","snowystar"].includes(L.xt);
+  if(kinds.includes("anniversary")) wk="heart"; else if(kinds.includes("poppy")) wk="poppy"; else if(kinds.includes("thanks")) wk="harvest";
+  else if(kinds.includes("christmas")) wk="xmas"; else if(st!=="downing"&&st!=="church"){ if(xm?xmT:L.r1<.3) wk= xm?"xmas":"autumn"; }
+  const wy={four:50,six:58,fan:72,glazed:48,cottage:84,stable:52,arch:74,church:60,downing:64}[st];
+  if(xm&&L.xt==="snowystar"&&wk==="xmas"){ s+=`<g transform="translate(50 ${wy})"><path d="M0 -16 L4.4 -5 L16 -4.6 L7 2.6 L10 14 L0 7.6 L-10 14 L-7 2.6 L-16 -4.6 L-4.4 -5 Z" fill="none" stroke="#c9a46a" stroke-width="3" stroke-linejoin="round"/><path d="M0 -16 L4.4 -5 L16 -4.6 L7 2.6 L10 14 L0 7.6 L-10 14 L-7 2.6 L-16 -4.6 L-4.4 -5 Z" fill="none" stroke="#8a6a3a" stroke-width=".6" stroke-dasharray="1.6 1"/></g>`; wk=null; }
+  if(xm&&L.xt==="ribbonwreath"&&wk==="xmas") s+=`<rect x="48.8" y="0" width="2.4" height="${wy-12}" fill="#b00c26"/>`+bowX(50,6,.75,"velvet");
+  if(wk) s+=wreathSVG(50,wy,wk,L.r2+d);
+  if(xm&&wk==="xmas"){const bs={swagbows:"velvet",nutcracker:"velvet",tinsel:"tartan",lanterns:"gold"}[L.xt];if(bs)s+=bowX(50,wy+12,L.xt==="nutcracker"?.8:.6,bs)}
+  else if(L.knocker&&knockY) s+=knockerSVG(L,50,knockY);
+  if(kinds.includes("anniversary")) s+=`<circle cx="46" cy="${wy}" r="3.4" fill="none" stroke="#e3b55a" stroke-width="1.4"/><circle cx="52" cy="${wy}" r="3.4" fill="none" stroke="#e3b55a" stroke-width="1.4"/>`;
+  if(kinds.includes("christmas")) s+=`<path d="M8 76 Q50 90 92 76" stroke="#7a1f1f" stroke-width="1.2" fill="none"/>${[22,50,78].map((x,i)=>{const c2=["#b3202a","#1f6b3a","#b3202a"][i];return `<g><path d="M${x-5} ${80+(i===1?4:0)} v14 q0 6 6 6 h7 q4 0 4 -4 q0 -4 -4 -4 h-4 v-12 z" fill="${c2}"/><rect x="${x-6}" y="${78+(i===1?4:0)}" width="12" height="5" rx="1.5" fill="#f4f1ea"/></g>`}).join("")}`;
+  s+=handleSVG(L,84,handleY);
+  return s+`</svg>`;
+}
+/* saloon: two bat-wings (each viewBox 50 x 72) */
+function wingSVG(L,side){
+  const c=L.col;let s=`<svg viewBox="0 0 50 72" aria-hidden="true"><path d="${side==="L"?"M0 8 Q25 0 50 10 L50 72 L0 72 Z":"M0 10 Q25 0 50 8 L50 72 L0 72 Z"}" fill="${c}"/>`;
+  for(let y=14;y<66;y+=5) s+=`<rect x="6" y="${y}" width="38" height="3" rx="1" fill="${sh(c,-.3)}"/><rect x="6" y="${y}" width="38" height="1" fill="${sh(c,.2)}"/>`;
+  s+=`<rect x="0" y="0" width="50" height="72" fill="none" stroke="${sh(c,-.4)}" stroke-width="1.5"/>`;
+  return s+`</svg>`;
+}
+function saloonInside(L){
+  const r=rng(L.day*17),bottles=[];
+  for(const sy of [20,36]) for(let x=8;x<92;x+=4.6+r()*2){const h=7+r()*5,c=["#3a6b2a","#7a3a14","#c9a24a","#2f5d7c","#8a1e1e","#d9d2b0"][Math.floor(r()*6)];bottles.push(`<rect x="${x.toFixed(1)}" y="${(sy-h).toFixed(1)}" width="3" height="${h.toFixed(1)}" rx=".6" fill="${c}" opacity=".9"/><rect x="${(x+.9).toFixed(1)}" y="${(sy-h-2.4).toFixed(1)}" width="1.2" height="2.6" fill="${c}"/><rect x="${(x+.4).toFixed(1)}" y="${(sy-h+1).toFixed(1)}" width=".6" height="${(h-2).toFixed(1)}" fill="#fff" opacity=".35"/>`)}
+  return `<svg viewBox="0 0 100 170" style="position:absolute;inset:0;width:100%;height:100%" aria-hidden="true"><defs><radialGradient id="sg${L.day}" cx=".5" cy=".3" r=".75"><stop offset="0" stop-color="#ffcf7a" stop-opacity=".75"/><stop offset=".55" stop-color="#7a3a18" stop-opacity=".35"/><stop offset="1" stop-color="#1a0c06" stop-opacity="0"/></radialGradient><radialGradient id="mg${L.day}"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+  <rect width="100" height="170" fill="#2a160c"/>${Array.from({length:10},(_,i)=>`<rect x="${i*10}" y="0" width="9.4" height="170" fill="${["#3a2112","#43271a","#3d2316"][i%3]}"/>`).join("")}
+  <rect x="22" y="44" width="56" height="58" rx="2" fill="#5a4a3a"/><rect x="25" y="47" width="50" height="52" fill="#8a7a62" opacity=".55"/><ellipse cx="50" cy="66" rx="20" ry="14" fill="#ffd98a" opacity=".25"/>
+  <rect x="4" y="20" width="92" height="2" fill="#6b4423"/><rect x="4" y="36" width="92" height="2" fill="#6b4423"/>${bottles.join("")}
+  <rect x="0" y="118" width="100" height="26" fill="#5a3218"/><rect x="0" y="116" width="100" height="4" fill="#8a5a2b"/><rect x="0" y="140" width="100" height="2" fill="#c9a24a"/>${[10,30,50,70,90].map(x=>`<rect x="${x-6}" y="122" width="12" height="16" fill="#4a2810" opacity=".7"/>`).join("")}
+  ${[24,74].map(x=>`<g><ellipse cx="${x}" cy="146" rx="7" ry="2" fill="#2a160c"/><rect x="${x-1}" y="146" width="2" height="18" fill="#2a160c"/><rect x="${x-5}" y="160" width="10" height="1.4" fill="#2a160c"/></g>`).join("")}
+  <rect x="0" y="164" width="100" height="6" fill="#1e1008"/>
+  <path d="M50 0 V8" stroke="#222" stroke-width="1"/><path d="M40 8 h20 l-4 6 h-12 z" fill="#2a2a2a"/><circle class="lamp" cx="50" cy="16" r="3.6" fill="#ffe2a0"/>
+  <rect width="100" height="170" fill="url(#sg${L.day})"/>
+  <g class="mist"><ellipse cx="30" cy="70" rx="40" ry="16" fill="url(#mg${L.day})"/><ellipse cx="72" cy="110" rx="36" ry="14" fill="url(#mg${L.day})"/><ellipse cx="50" cy="30" rx="44" ry="12" fill="url(#mg${L.day})"/></g>
+  </svg>`}
+
+
+/* ================= church double doors: each half is viewBox 50 x H ================= */
+const DBL_TOP={church1:0,church2:48,church3:64,pair:30};
+const isDbl=st=>st.startsWith("church")||st==="pair";
+function dblSVG(L,side,lit){
+  const st=L.style,H=170-DBL_TOP[st],c=L.col,d=L.day,isL=side==="L",edge=isL?50:0,r=rng(d*71+(isL?1:2));
+  let s=`<svg viewBox="0 0 50 ${H}" aria-hidden="true">`;
+  s+=`<rect width="50" height="${H}" fill="${c}"/>`;
+  if(L.wood) s+=grain(d*37+(isL?3:9),0,50,0,H,c);
+  if(st==="church1"){
+    const cid=`cg${d}${side}`, GL=["#e8452c","#f2a51a","#f4d03f","#4caf50","#2e86c1","#8e44ad","#e67e22","#27ae60","#c0392b","#eef3f4","#1abc9c","#d35400"];
+    s+=`<rect x="5" y="7" width="40" height="112" rx="2" fill="${sh(c,-.35)}"/><clipPath id="${cid}"><rect x="7" y="9" width="36" height="108"/></clipPath><g clip-path="url(#${cid})">`;
+    for(let y=9;y<117;y+=6) for(let x=7;x<43;x+=6) s+=`<rect x="${x+.4}" y="${y+.4}" width="5.2" height="5.2" fill="${GL[Math.floor(r()*GL.length)]}"/>`;
+    const cx=edge, cy=63;
+    s+=`<circle cx="${cx}" cy="${cy}" r="40" fill="${sh(c,-.2)}"/>`;
+    for(let ring=0;ring<4;ring++){const r0=10+ring*7.4,r1=r0+7;for(let k=0;k<24;k++){const a0=k/24*6.283,a1=(k+1)/24*6.283;const p=(ang,rad)=>`${(cx+Math.cos(ang)*rad).toFixed(2)} ${(cy+Math.sin(ang)*rad).toFixed(2)}`;s+=`<path d="M${p(a0,r0)} L${p(a0,r1)} L${p(a1,r1)} L${p(a1,r0)} Z" fill="${GL[(k+ring*5+d)%GL.length]}" stroke="#2a1a10" stroke-width=".5"/>`}}
+    s+=`<circle cx="${cx}" cy="${cy}" r="9.6" fill="${GL[(d+3)%GL.length]}" stroke="#2a1a10" stroke-width=".6"/><circle cx="${cx}" cy="${cy}" r="39.6" fill="none" stroke="${sh(c,-.15)}" stroke-width="4.4"/><circle cx="${cx}" cy="${cy}" r="39.6" fill="none" stroke="${sh(c,.2)}" stroke-width=".8"/>`;
+    s+=`</g><rect x="7" y="9" width="36" height="108" fill="${lit?"rgba(255,220,150,.12)":"rgba(0,0,10,.38)"}"/>`;
+    s+=panel(7,128,36,34,c);
+    const hx=isL?40:10; s+=`<rect x="${hx-1.4}" y="58" width="2.8" height="44" rx="1.4" fill="#c9ccd2"/><rect x="${hx-.6}" y="58" width=".8" height="44" fill="#fff" opacity=".7"/><rect x="${hx-1}" y="60" width="2" height="2" fill="#7c8088"/><rect x="${hx-1}" y="98" width="2" height="2" fill="#7c8088"/>`;
+  }
+  if(st==="pair"){
+    const gid=`pg${d}${side}`;
+    s+=`<rect x="5" y="5" width="40" height="78" rx="3" fill="${sh(c,-.3)}"/><defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">${lit?'<stop offset="0" stop-color="#ffd890"/><stop offset="1" stop-color="#c9752a"/>':'<stop offset="0" stop-color="#2b3c55"/><stop offset="1" stop-color="#121a28"/>'}</linearGradient></defs>`;
+    s+=`<path d="M8 80 L8 22 Q8 8 25 8 Q42 8 42 22 L42 80 Z" fill="url(#${gid})"/><path d="M8 80 L8 22 Q8 8 25 8 Q42 8 42 22 L42 80 Z" fill="none" stroke="${sh(c,-.45)}" stroke-width="1.6"/><line x1="25" y1="8" x2="25" y2="80" stroke="${sh(c,-.45)}" stroke-width="1.2"/><line x1="8" y1="44" x2="42" y2="44" stroke="${sh(c,-.45)}" stroke-width="1.2"/>`;
+    s+=panel(8,90,34,18,c)+panel(8,114,34,22,c);
+    const hx=isL?44:6; s+=`<rect x="${hx-1.6}" y="74" width="3.2" height="14" rx="1.6" fill="#c9a24a"/><circle cx="${hx}" cy="76" r="1" fill="#f3dc8f"/>`;
+  }
+  if(st==="church2"){
+    s+=panel(6,6,16,52,c)+panel(28,6,16,52,c)+panel(6,64,16,52,c)+panel(28,64,16,52,c);
+    if(isL) s+=`<circle cx="44" cy="62" r="2.6" fill="#2a2a2e"/><circle cx="44" cy="69" r="5.2" fill="none" stroke="#2a2a2e" stroke-width="2"/><rect x="42" y="74" width="4" height="7" rx="1" fill="#2a2a2e"/>`;
+    s+=`<rect x="${isL?0:48.6}" y="0" width="1.4" height="${H}" fill="#000" opacity=".25"/>`;
+  }
+  if(st==="church3"){
+    s+=`<rect width="50" height="${H}" fill="${c}"/><rect x="1.5" y="1.5" width="47" height="${H-3}" fill="none" stroke="#4a5356" stroke-width="1.6"/>`;
+    for(const px of [4,26]){ s+=`<rect x="${px}" y="10" width="20" height="74" fill="#1d2224"/><path d="M${px} 18 Q${px+10} 4 ${px+20} 18" fill="none" stroke="#56606a" stroke-width="1.2"/><path d="M${px+5} 18 Q${px+10} 10 ${px+15} 18" fill="none" stroke="#56606a" stroke-width=".7"/>`;
+      for(let y=24;y<82;y+=3.2) s+=`<line x1="${px+2.4}" y1="${y}" x2="${px+2.4+r()*4+11}" y2="${y}" stroke="#7a868c" stroke-width=".7" opacity="${lit?.85:.55}"/>`; }
+    s+=`<rect x="0" y="88" width="50" height="${H-88}" fill="#1d2224"/><rect x="0" y="88" width="50" height="1.6" fill="#56606a"/>`;
+    s+=`<rect x="${isL?47:0}" y="0" width="3" height="${H}" fill="#3a4447"/>`;
+  }
+  s+=`<rect width="50" height="${H}" fill="url(#dsheen)" />`;
+  /* Remembrance on a church: a poppy wreath on each leaf, so it swings open with its door (Guy, 16 Nov: it hung in mid-air) */
+  if(st.startsWith("church")&&evOf(L.day).some(e=>e.k==="poppy")){const wy=108-DBL_TOP[st];s+=`<g transform="translate(25 ${wy}) scale(.78) translate(-25 ${-wy})">${wreathSVG(25,wy,"poppy",L.r2+L.day+(isL?0:.37))}</g>`}
+  return s+`</svg>`;
+}
+function churchFront(L){
+  const st=L.style,sc=L.surr.c,dk=sh(sc,-.3),lt=sh(sc,.15);let s="";
+  if(st==="church1") s+=numberSVG(L,60,14);
+  if(st==="pair"){ const tid="tr"+L.day; s+=`<rect x="10" y="22" width="100" height="30" fill="${sh(L.col,-.2)}"/><defs><linearGradient id="${tid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd890"/><stop offset="1" stop-color="#c9752a"/></linearGradient></defs><rect x="15" y="26" width="90" height="22" fill="url(#${tid})"/>${[30,45,75,90].map(x=>`<line x1="${x}" y1="26" x2="${x}" y2="48" stroke="${sh(L.col,-.45)}" stroke-width="1.4"/>`).join("")}<rect x="15" y="26" width="90" height="22" fill="none" stroke="${sh(L.col,-.45)}" stroke-width="1.4"/><rect x="10" y="50" width="100" height="2" fill="${sh(L.col,-.45)}"/>`+numberSVG(L,60,37); }
+  if(st==="church2"){
+    const arch=`M10 70 L10 54 Q12 26 60 22 Q108 26 110 54 L110 70`;
+    s+=`<path d="M10 22 H110 V70 H10 Z" fill="${sc}"/><path d="${arch} Z" fill="#a8742f"/>${grain(L.day*5,10,110,22,70,"#a8742f")}<path d="M10 22 H110 V70 L110 54 Q108 26 60 22 Q12 26 10 54 Z" fill="${sc}"/>`;
+    s+=`<path d="M57.6 32 h4.8 v8 h7 v4.4 h-7 v15 h-4.8 v-15 h-7 v-4.4 h7 Z" fill="#8a5a22" stroke="#5a3a14" stroke-width=".8"/><path d="${arch}" fill="none" stroke="${dk}" stroke-width="1.6"/><path d="M4 76 L4 52 Q6 16 60 12 Q114 16 116 52 L116 76" fill="none" stroke="${lt}" stroke-width="6"/><path d="M4 76 L4 52 Q6 16 60 12 Q114 16 116 52 L116 76" fill="none" stroke="${dk}" stroke-width=".8"/><rect x="10" y="69" width="100" height="2.4" fill="${dk}"/>`;
+    s+=`<path d="M49 4 L71 4 L68.5 26 L51.5 26 Z" fill="${lt}" stroke="${dk}" stroke-width=".8"/>`+numberSVG(L,60,15);
+  }
+  if(st==="church3"){
+    const arch=`M10 86 L10 60 Q14 26 60 20 Q106 26 110 60 L110 86`;
+    s+=`<path d="M10 22 H110 V86 L110 60 Q106 26 60 20 Q14 26 10 60 Z" fill="${sc}"/>`;
+    s+=`<path d="M12 78 L12 60 Q16 30 60 24 Q104 30 108 60 L108 78 Z" fill="#c9a24a"/>`;
+    for(let i=0;i<14;i++){const a=Math.PI+i/13*Math.PI;s+=`<line x1="60" y1="66" x2="${(60+Math.cos(a)*56).toFixed(1)}" y2="${(66+Math.sin(a)*46).toFixed(1)}" stroke="#f1d68a" stroke-width="1.2" opacity=".6"/>`}
+    s+=`<path d="M57.8 32 h4.4 v10 h8.4 v4 h-8.4 v20 h-4.4 v-20 h-8.4 v-4 h8.4 Z" fill="#7a5410"/>`;
+    for(let y=28;y<78;y+=3) for(let x=14;x<108;x+=3) if(((x*7+y*3)%11)===0) s+=`<rect x="${x}" y="${y}" width="1.2" height="1.2" fill="#e6c46a" opacity=".7"/>`;
+    s+=`<rect x="10" y="78" width="100" height="8" fill="#e8dfc8"/><rect x="10" y="78" width="100" height="8" fill="none" stroke="${dk}" stroke-width=".6"/>`;
+    for(let x=14;x<104;x+=2.2) if(Math.abs(x-60)>9) s+=`<rect x="${x}" y="80.6" width="1.4" height="1" fill="#6a5a3a" opacity=".55"/><rect x="${x}" y="83" width="1.2" height="1" fill="#6a5a3a" opacity=".45"/>`;
+    s+=numberSVG(L,60,82);
+    s+=`<path d="${arch}" fill="none" stroke="${dk}" stroke-width="1.2"/>`;
+    for(const [off,w,col] of [[4,4,lt],[8,3,sc],[11,3,dk]]) s+=`<path d="M${10-off} 192 L${10-off} 60 Q${14-off} ${26-off*1.6} 60 ${20-off*1.3} Q${106+off} ${26-off*1.6} ${110+off} 60 L${110+off} 192" fill="none" stroke="${col}" stroke-width="${w}"/>`;
+  }
+  return s;
+}
+
+
+/* Number 10: fixed fanlight above, door below (viewBox 100 x 132) */
+const LEAF_TOP={downing:38};
+function downingLeaf(L){
+  const c="#111113";let s=`<svg viewBox="0 0 100 132" aria-hidden="true"><rect width="100" height="132" fill="${c}"/>`;
+  s+=panel(11,8,32,30,c)+panel(57,8,32,30,c)+panel(11,46,32,34,c)+panel(57,46,32,34,c)+panel(11,96,32,30,c)+panel(57,96,32,30,c);
+  s+=`<text x="44.5" y="25" text-anchor="middle" dominant-baseline="central" font-family="Georgia,serif" font-size="13" fill="#f4f1ea">1</text><text x="54.5" y="25" text-anchor="middle" dominant-baseline="central" font-family="Georgia,serif" font-size="13" fill="#f4f1ea" transform="rotate(-10 54.5 25)">0</text>`;
+  s+=knockerSVG({knocker:"lion",metal:METALS[1]},50,46);
+  if(X()) s+=wreathSVG(50,52,"xmas",L.day+.5);
+  s+=`<rect x="36" y="84" width="28" height="9" rx="1" fill="#8a6a22"/><rect x="37.5" y="85.5" width="25" height="6" rx=".8" fill="#d4ad4a"/><rect x="37.5" y="85.5" width="25" height="1.2" fill="#f3dc8f"/>`;
+  s+=`<g class="handle"><circle cx="50" cy="104" r="4" fill="#8a6a22"/><circle cx="50" cy="104" r="2.8" fill="#d4ad4a"/><circle cx="49" cy="103" r=".9" fill="#f3dc8f"/></g>`;
+  s+=`<rect width="100" height="132" fill="url(#dsheen)"/></svg>`;return s;
+}
+function downingFront(L){
+  const cream="#ece6d6",dk="#b9b09a";let s="";
+  s+=`<rect x="10" y="22" width="100" height="38" fill="${cream}"/><path d="M14 60 A46 34 0 0 1 106 60 Z" fill="#20252c"/>`;
+  s+=`<path d="M14 60 A46 34 0 0 1 106 60" fill="none" stroke="#f4f1ea" stroke-width="2.4"/><path d="M34 60 A26 19 0 0 1 86 60" fill="none" stroke="#f4f1ea" stroke-width="1.4"/>`;
+  for(let i=1;i<10;i++){const a=Math.PI*i/10;s+=`<line x1="${(60-Math.cos(a)*26).toFixed(1)}" y1="${(60-Math.sin(a)*19).toFixed(1)}" x2="${(60-Math.cos(a)*46).toFixed(1)}" y2="${(60-Math.sin(a)*34).toFixed(1)}" stroke="#f4f1ea" stroke-width="1.1"/>`}
+  s+=`<rect x="10" y="58.6" width="100" height="2.6" fill="${cream}"/>`;
+  s+=`<rect x="1" y="18" width="11" height="176" fill="${cream}"/><rect x="108" y="18" width="11" height="176" fill="${cream}"/><rect x="3" y="20" width="1.2" height="172" fill="${dk}"/><rect x="115.8" y="20" width="1.2" height="172" fill="${dk}"/>`;
+  s+=`<rect x="-1" y="14" width="15" height="6" fill="${cream}" stroke="${dk}" stroke-width=".5"/><rect x="106" y="14" width="15" height="6" fill="${cream}" stroke="${dk}" stroke-width=".5"/>`;
+  s+=`<rect x="-3" y="3" width="126" height="11" fill="${cream}"/><rect x="-4" y="1" width="128" height="3" fill="${cream}" stroke="${dk}" stroke-width=".5"/><rect x="-3" y="12.6" width="126" height="1.4" fill="${dk}"/>`;
+  s+=`<g><rect x="56" y="-1" width="8" height="2.4" fill="#141416"/><path d="M54 -1 L66 -1 L64.5 -17 L55.5 -17 Z" fill="#141416"/><rect class="lamp" x="56.6" y="-15" width="6.8" height="12" fill="#ffd98a"/><path d="M54 -17 L60 -24 L66 -17 Z" fill="#141416"/><circle cx="60" cy="-25.6" r="1.6" fill="#c9a24a"/><circle class="lamp" cx="60" cy="-9" r="14" fill="rgba(255,200,110,.18)"/></g>`;
+  s+=`<g stroke="#141416" stroke-width="1.1">${[0,4,8,12,108,112,116,120].map(px=>`<line x1="${px}" y1="176" x2="${px}" y2="214"/><path d="M${px-1.4} 177 L${px} 173 L${px+1.4} 177 Z" fill="#141416"/>`).join("")}<line x1="-2" y1="182" x2="14" y2="182"/><line x1="106" y1="182" x2="122" y2="182"/><line x1="-2" y1="210" x2="14" y2="210"/><line x1="106" y1="210" x2="122" y2="210"/></g>`;
+  for(const px of [16,104]) s+=`<g><rect x="${px-1}" y="150" width="2" height="62" fill="#141416"/><path d="M${px-4} 152 Q${px} 146 ${px+4} 152" fill="none" stroke="#141416" stroke-width="1.2"/><path d="M${px-3} 150 L${px+3} 150 L${px+2} 140 L${px-2} 140 Z" fill="#141416"/><rect class="lamp" x="${px-1.6}" y="141.5" width="3.2" height="7" fill="#ffd98a"/><path d="M${px-3} 140 L${px} 136 L${px+3} 140 Z" fill="#141416"/></g>`;
+  return s;
+}
+
+/* ================= Christmas dressing ================= */
+function garland(L,kind){
+  const rr=rng(L.day*67+3);let s="";const pts=[];const top=kind==="top";
+  if(!top) for(let y=198;y>16;y-=3) pts.push([6,y]);
+  for(let x=6;x<=114;x+=3) pts.push([x, top? +(13+5*Math.sin(Math.PI*(x-6)/108)).toFixed(1) : 13]);
+  if(!top) for(let y=16;y<=198;y+=3) pts.push([114,y]);
+  const w=kind==="lush"?8:5.5, G=["#1d4a30","#22573a","#2a6544","#173d27","#2f6b44"];
+  for(const [px,py] of pts) for(let k=0;k<(kind==="lush"?4:3);k++){const a=rr()*6.283,l=2.6+rr()*w*.6,ox=(rr()-.5)*w,oy=(rr()-.5)*w*.7;s+=`<line x1="${(px+ox).toFixed(1)}" y1="${(py+oy).toFixed(1)}" x2="${(px+ox+Math.cos(a)*l).toFixed(1)}" y2="${(py+oy+Math.sin(a)*l).toFixed(1)}" stroke="${G[Math.floor(rr()*5)]}" stroke-width="1.7" stroke-linecap="round"/>`}
+  if(kind==="snowy"){for(const [px,py] of pts){if(rr()<.55)s+=`<ellipse cx="${(px+(rr()-.5)*5).toFixed(1)}" cy="${(py-1.6).toFixed(1)}" rx="2" ry="1" fill="#f4f7fb"/>`;if(rr()<.14)s+=`<circle cx="${(px+(rr()-.5)*4).toFixed(1)}" cy="${(py+(rr()-.5)*3).toFixed(1)}" r="1" fill="#c4252b"/>`}}
+  if(kind==="lush"){pts.forEach(([px,py],i)=>{if(i%3===0){const c=["#c8102e","#e3b55a","#d9dde3","#b5172f","#e8c46a"][Math.floor(rr()*5)],bx=px+(rr()-.5)*6,by=py+(rr()-.5)*5;s+=`<circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${(1.8+rr()*1.2).toFixed(1)}" fill="${c}"/><circle cx="${(bx-.7).toFixed(1)}" cy="${(by-.7).toFixed(1)}" r=".6" fill="#fff" opacity=".7"/>`}
+      if(i%9===4){let f=`<g transform="translate(${(px+(rr()-.5)*4).toFixed(1)} ${py.toFixed(1)}) rotate(${Math.floor(rr()*72)})">`;for(let k=0;k<5;k++)f+=`<ellipse cx="0" cy="-2.6" rx="1.3" ry="2.8" fill="#c8102e" transform="rotate(${k*72})"/>`;s+=f+`<circle r="1" fill="#e3b55a"/></g>`}})}
+  if(kind!=="snowy") pts.forEach(([px,py],i)=>{if(i%3===1)s+=`<circle class="twinkle" style="animation-delay:${((i*.13)%2).toFixed(2)}s" cx="${(px+(rr()-.5)*4).toFixed(1)}" cy="${(py+(rr()-.5)*3).toFixed(1)}" r=".95" fill="#ffe2a0"/>`});
+  return s;
+}
+function bowX(x,y,sc,st){
+  const c=st==="gold"?"#d4ad4a":"#b00c26",d=st==="gold"?"#8a6a22":"#6e0816";
+  let s=`<g transform="translate(${x} ${y}) scale(${sc})"><path d="M0 0 q-10 -8 -12 -1 q-1 6 12 1z M0 0 q10 -8 12 -1 q1 6 -12 1z" fill="${c}" stroke="${d}" stroke-width=".5"/><path d="M-1 1 q-3 8 -6 15 l3 -1 l2 3 q2 -9 2.6 -16z M1 1 q3 8 6 15 l-3 -1 l-2 3 q-2 -9 -2.6 -16z" fill="${c}" stroke="${d}" stroke-width=".4"/>`;
+  if(st==="tartan") s+=`<path d="M-10 -4 l7 5 M-7 -6 l6 5 M10 -4 l-7 5 M7 -6 l-6 5 M-4 4 l-2 9 M4 4 l2 9" stroke="#1f4d3a" stroke-width="1.1"/><path d="M-11 -1 l8 2 M11 -1 l-8 2" stroke="#e3b55a" stroke-width=".5"/>`;
+  if(st==="velvet") s+=`<path d="M-9 -3 q4 0 7 2 M9 -3 q-4 0 -7 2" stroke="#e0233d" stroke-width=".7" fill="none" opacity=".7"/>`;
+  return s+`<ellipse cx="0" cy=".3" rx="2.2" ry="1.9" fill="${d}"/></g>`;
+}
+function nutcracker(x){
+  return `<g><rect x="${x-7.5}" y="30" width="15" height="150" rx="1" fill="#141a22"/><rect x="${x-6.5}" y="31" width="13" height="148" fill="none" stroke="#c9a24a" stroke-width=".6"/>
+  <rect x="${x-3.6}" y="40" width="7.2" height="16" rx="1" fill="#141416"/><rect x="${x-3.6}" y="52" width="7.2" height="2" fill="#c9a24a"/><circle cx="${x}" cy="62" r="4.2" fill="#f2c9a8"/><circle cx="${x-1.4}" cy="61" r=".5" fill="#111"/><circle cx="${x+1.4}" cy="61" r=".5" fill="#111"/><path d="M${x-3} 64 q3 6 6 0" fill="#f4f1ea"/>
+  <rect x="${x-5}" y="67" width="10" height="34" rx="1.4" fill="#c8102e"/><rect x="${x-.6}" y="67" width="1.2" height="34" fill="#c9a24a"/>${[72,79,86,93].map(y=>`<circle cx="${x}" cy="${y}" r=".8" fill="#f2d26a"/>`).join("")}<rect x="${x-7}" y="68" width="2.4" height="24" rx="1" fill="#c8102e"/><rect x="${x+4.6}" y="68" width="2.4" height="24" rx="1" fill="#c8102e"/>
+  <rect x="${x-5}" y="100" width="10" height="3" fill="#141416"/><rect x="${x-4.6}" y="103" width="4" height="34" fill="#f4f1ea"/><rect x="${x+.6}" y="103" width="4" height="34" fill="#f4f1ea"/><rect x="${x-4.8}" y="137" width="4.4" height="22" fill="#141416"/><rect x="${x+.4}" y="137" width="4.4" height="22" fill="#141416"/>${[42,170].map(y=>`<path d="M${x-4} ${y} l4 -3 l4 3" stroke="#c9a24a" stroke-width=".6" fill="none"/>`).join("")}</g>`;
+}
+/* ================= layer 3: in front of the door: doorstep, pavement, balloons ================= */
+function frontSVG(L){
+  const x=X(),ev=evOf(L.day),kinds=ev.map(e=>e.k),r=rng(L.day*211+month*7);let s=`<svg class="layer" viewBox="0 0 120 216" aria-hidden="true">`;
+  if(L.style==="church") s+=`<path d="M10 22 H110 V62 Q106 28 60 22 Q14 28 10 62 Z" fill="${L.surr.c}"/><path d="M10 62 Q14 28 60 22 Q106 28 110 62" fill="none" stroke="${sh(L.surr.c,-.3)}" stroke-width="1.2"/>`;
+  if(L.style==="arch") s+=`<path d="M10 22 H110 V49 Q60 4 10 49 Z" fill="${L.surr.c}"/>`;
+  if(L.style==="saloon") s+=`<rect x="10" y="22" width="100" height="3" fill="${sh(L.surr.c,-.3)}"/>`;
+  if(isDbl(L.style)) s+=churchFront(L);
+  /* doormat */
+  const MW=MATS[L.day]||"";
+  if((L.r3<.62||MW) && L.style!=="saloon"){const mc=["#b08a4e","#8a6a3a","#3d3d3d","#6b2a2a"][Math.floor(L.r4*4)],word=MW?MW:["","WELCOME","HELLO","",""][Math.floor(L.r5*5)];s+=`<path d="M34 193.5 L86 193.5 L90 200 L30 200 Z" fill="${mc}"/><path d="M36 194.5 L84 194.5 L87 199 L33 199 Z" fill="none" stroke="${sh(mc,-.35)}" stroke-width=".8"/>${word?`<text x="60" y="197" text-anchor="middle" dominant-baseline="central" font-family="Georgia,serif" font-size="${MW?5.2:3.4}" letter-spacing=".6" font-weight="${MW?"bold":"normal"}" fill="${MW?"#f3e3c2":sh(mc,-.5)}">${word}</text>`:""}`}
+  /* things on the step and pavement, chosen per door */
+  const common=["milk","parcels","bay","wellies","boots","paper","lanternstep"], aut=["pumpkins","pumpkins","acorns","conkers","toadstools","apples","pinecones","leafpile"], xm=["tree","snowman","sledgeup","lanternstep","lanternstep","milk","bay","wellies"];
+  const pool=(x? xm.concat(common) : aut.concat(common)).filter(k=>allow("doorstep",k));
+  const pick=shuffled(pool,L.day*13+month).slice(0,2+Math.floor(r()*2));
+  if(kinds.includes("arrive")) pick[0]="suitcase";
+  if(kinds.includes("thanks")) {pick[0]="sheaf";pick[1]="pumpkins"}
+  if(kinds.includes("christmas")) {pick[0]="presents";pick[1]="tree";pick[2]="nibbled"}
+  if(kinds.includes("eve")) {pick[2]="santaplate"}
+  if(kinds.includes("boxing")) {pick[0]="boxes"}
+  if(kinds.includes("nicholas")) {pick[0]="boot"}
+  if(kinds.includes("saints")) {pick[0]="lanternstep"}
+  if(x&&L.xflank){const T=(tx,seed)=>{const rr=rng(seed),k=L.xtree;
+      if(k==="topiary") return `<g><path d="M${tx-7} 199 Q${tx-8} 186 ${tx-5} 184 L${tx+5} 184 Q${tx+8} 186 ${tx+7} 199 Z" fill="#2a2a2e"/><rect x="${tx-6}" y="182" width="12" height="2.4" fill="#3a3a40"/><rect x="${tx-.7}" y="160" width="1.4" height="23" fill="#5a3a1e"/><circle cx="${tx}" cy="170" r="7" fill="#2f5a2c"/><circle cx="${tx}" cy="150" r="9" fill="#2f5a2c"/><circle cx="${tx-3}" cy="147" r="4" fill="#3d6b38" opacity=".8"/>${bowX(tx,160,.55,"velvet")}${[[-5,146],[4,153],[-2,168],[3,174]].map(([dx,y],i)=>`<circle class="twinkle" style="animation-delay:${i*.4}s" cx="${tx+dx}" cy="${y}" r=".9" fill="#ffe2a0"/>`).join("")}</g>`;
+      const pot= k==="lit"?"#b5582e":(k==="planter"?"#2a2e33":["#b3202a","#6b4423","#b7bcc3"][Math.floor(rr()*3)]);
+      let t=`<g>`+(k==="planter"?`<rect x="${tx-8}" y="183" width="16" height="16" fill="${pot}"/><rect x="${tx-8.6}" y="182" width="17.2" height="2" fill="#3a4047"/>`:`<path d="M${tx-6} 199 L${tx-5} 188 L${tx+5} 188 L${tx+6} 199 Z" fill="${pot}"/><rect x="${tx-6.4}" y="187" width="12.8" height="2" fill="${sh(pot,-.25)}"/>`);
+      const tiers=k==="planter"?[[184,158,11],[166,140,8.5],[148,126,6]]:[[188,150,15],[164,126,12],[140,104,9]], topY=tiers[2][1];
+      for(const [y0,y1,w] of tiers) t+=`<path d="M${tx} ${y1} L${tx+w} ${y0} L${tx-w} ${y0} Z" fill="${["#1d4a30","#22573a","#2a6544"][Math.floor(rr()*3)]}"/><path d="M${tx-w+2} ${y0-1} q${w-2} 5 ${2*w-4} 0" stroke="#f4f7fb" stroke-width="1.4" fill="none" opacity="${k==="lit"?.95:.8}"/>`;
+      const span=tiers[0][0]-topY;
+      if(k!=="lit") for(let i=0;i<9;i++){const yy=topY+6+rr()*(span-8),half=((yy-topY)/span)*tiers[0][2]*.85,bx=tx+(rr()*2-1)*half*.8;t+=`<circle cx="${bx.toFixed(1)}" cy="${yy.toFixed(1)}" r="1.8" fill="${["#c8102e","#e3b55a","#d9dde3","#c8102e"][i%4]}"/>`}
+      for(let i=0;i<(k==="lit"?30:14);i++){const yy=topY+4+rr()*(span-4),half=((yy-topY)/span)*tiers[0][2]*.9,bx=tx+(rr()*2-1)*half*.85;t+=`<circle class="twinkle" style="animation-delay:${(i*.21).toFixed(2)}s" cx="${bx.toFixed(1)}" cy="${yy.toFixed(1)}" r="${k==="lit"?1.15:1}" fill="${i%3?"#ffd98a":"#fff6d6"}"/>`}
+      if(k==="lit") t+=`<ellipse class="lamp" cx="${tx}" cy="${(topY+span*.6).toFixed(0)}" rx="16" ry="${(span*.6).toFixed(0)}" fill="rgba(255,210,120,.16)"/>`;
+      return t+`<path class="twinkle" d="M${tx} ${topY-7} l1.2 2.8 l3 .2 l-2.3 1.9 l.8 2.9 l-2.7 -1.6 l-2.7 1.6 l.8 -2.9 l-2.3 -1.9 l3 -.2z" fill="#f2c94c"/></g>`};
+    s+=T(L.xflank===2||L.day%2?9:111,L.day*19); if(L.xflank===2) s+=T(L.day%2?111:9,L.day*23);}
+  if(x){ const t=L.xt;
+    if(t==="arch") s+=garland(L,"lush");
+    if(t==="swagbows") s+=garland(L,"lights")+bowX(9,15,.75,"velvet")+bowX(111,15,.75,"velvet")+bowX(60,13,.9,"velvet");
+    if(t==="snowystar") s+=garland(L,"snowy");
+    if(t==="lanterns") s+=garland(L,"lights")+bowX(9,15,.55,"gold")+bowX(111,15,.55,"gold");
+    if(t==="ribbonwreath") s+=garland(L,"top");
+    if(t==="nutcracker") s+=nutcracker(4)+nutcracker(116);
+    if(t==="icicle"){const rr=rng(L.day*29);let g=`<path d="M8 22 H112" stroke="#d9dde3" stroke-width=".5"/>`;for(let ix=10;ix<=110;ix+=3){const len=3+((ix*7)%5)*2.6+rr()*2;g+=`<line x1="${ix}" y1="22" x2="${ix}" y2="${(22+len).toFixed(1)}" stroke="#d9dde3" stroke-width=".35"/><circle class="twinkle" style="animation-delay:${(rr()*2).toFixed(2)}s" cx="${ix}" cy="${(22+len).toFixed(1)}" r=".9" fill="#f6fbff"/><circle class="twinkle" style="animation-delay:${(rr()*2).toFixed(2)}s" cx="${ix}" cy="${(22+len*.5).toFixed(1)}" r=".7" fill="#eaf6ff"/>`}s+=g;}
+    if(t==="holly"){const rr=rng(L.day*31);let g="";const leaf=(lx,ly,rot)=>`<path transform="translate(${lx.toFixed(1)} ${ly.toFixed(1)}) rotate(${rot})" d="M-5 0 l1.4 -1.6 l1 1 l1.2 -1.8 l1 1.2 l1.2 -1.8 l1 1.2 l1.2 -1.6 l1 1.4 l-1 1.6 l-1.2 -.2 l-1 1.4 l-1.2 -.6 l-1 1.4 l-1.2 -.8 l-1 1.2 l-1.4 -1z" fill="${rr()<.5?"#1d4a30":"#2a6544"}"/>`;
+      for(let ix=4;ix<=116;ix+=5){const y=+(14+4*Math.sin(Math.PI*(ix-4)/56)**2).toFixed(1);g+=leaf(ix,y,Math.floor(rr()*60-30))+leaf(ix+2,y+2,Math.floor(rr()*60+150));if(rr()<.5)g+=`<circle cx="${ix+1}" cy="${y+1}" r="1.1" fill="#c4252b"/><circle cx="${ix+2.6}" cy="${y+.4}" r="1" fill="#d9333a"/>`}
+      g+=`<path d="M60 22 v6" stroke="#b00c26" stroke-width="1"/>${[[-4,32,-30],[4,32,30],[-3,36,-50],[3,36,50],[0,35,0]].map(([dx,y,a])=>`<ellipse cx="${60+dx}" cy="${y}" rx="1.4" ry="3.4" fill="#7a9a4a" transform="rotate(${a} ${60+dx} ${y})"/>`).join("")}${[[-1,31],[1.4,32.4],[0,34],[-2,34]].map(([dx,y])=>`<circle cx="${60+dx}" cy="${y}" r=".9" fill="#f4f1ea"/>`).join("")}`;s+=g;}
+  }
+  const spots= x&&L.xflank ? [[30,0],[90,1],[30,0],[90,1]] : L.style==="church2" ? [[107,1],[93,1],[107,1],[93,1]] : [[13,0],[107,1],[27,0],[93,1]];
+  if(L.style==="church2") pick.length=Math.min(pick.length,2);
+  if(L.style==="downing") pick.length=0;
+  if(x&&L.xflank&&pick.length>2) pick.length=2;
+  if(x&&L.xt==="ribbonwreath"){pick[0]="reindeer";pick[1]="sledgeup"}
+  if(x&&L.xt==="lanterns"){pick[0]="lanternstep";pick[1]="lanternstep"}
+  /* animals: about half the doors get one, and some get a bird as well */
+  const beasts = (x ? ["cat","robin","fox","cat","robin","squirrel","dog","robin","cat","fox","robin","squirrel"] : ["cat","butterfly","cat","dog","cat","pigeon","cat","hedgehog","butterfly"]).filter(k=>allow("animals",k));
+  if(L.style!=="downing" && L.r6<.62 && beasts.length){ const k=beasts[(L.day*5+month)%beasts.length]; const slot=L.style==="church2"?1:(r()<.5?0:1); pick[slot]=k; }
+  if(L.style!=="downing" && L.r5>.74 && L.r6>=.62){ const fl=(x?["robin","robin","robin","robin","pigeon"]:["butterfly","pigeon"]).filter(k=>allow("animals",k)); if(fl.length) pick[3]=fl[Math.floor(r()*fl.length)]; }
+  pick.forEach((k,i)=>{if(!k)return;const [px,side]=spots[i];const big=["tree","bay","sledgeup"].includes(k)?1:(k==="robin"?2.1:(k==="squirrel"?1.05:1.6));
+    const crit=k==="cat"?"cat":(k==="hedgehog"||k==="dog"||k==="fox"||k==="squirrel"?"run":(k==="pigeon"||k==="robin"?"bird":(k==="butterfly"?"flutter":"")));
+    const vars=crit==="cat"?`--dx:${((60-px)/big).toFixed(1)}px`:(crit==="run"?`--dx:${(side?46:-46)}px`:(crit==="bird"?`--dx:${(side?62:-62)}px;--rot:${side?-14:14}deg`:(crit==="flutter"?`--dx:${(side?38:-38)}px`:"")));
+    s+=`<g transform="translate(${px} 199) scale(${big}) translate(${-px} -199)"><g class="${crit?"critter "+crit:""}" style="${vars}">${item(k,px,side,r)}</g></g>`});
+  if(x) s+=`<path d="M-6 216 L-6 203 Q6 199 16 202 Q30 198 44 201 Q58 197 72 201 Q88 198 100 202 Q114 199 126 203 L126 216 Z" fill="#f4f7fb"/><path d="M-6 205 Q20 201 44 204 Q70 200 100 204 Q114 202 126 205" fill="none" stroke="#c9d6e6" stroke-width="1"/><path d="M2 192.6 Q30 189 60 192 Q90 188.6 118 192.6 L118 194 L2 194 Z" fill="#f4f7fb"/>`+(kinds.includes("christmas")?`<g fill="#b7c4d6">${[[20,207],[30,211],[42,206],[54,210],[66,206],[78,210],[90,206],[102,210]].map(([hx,hy])=>`<ellipse cx="${hx}" cy="${hy}" rx="1.1" ry="1.6"/><ellipse cx="${hx+2.4}" cy="${hy}" rx="1.1" ry="1.6"/>`).join("")}</g>`:"");
+  else { for(let i=0;i<10;i++){const px=r()*120,py=201+r()*13,cols=["#a4161a","#e06c1f","#c79a2b","#7a4520","#d1361b","#8d1e1e"];s+=`<ellipse cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" rx="${(2+r()*1.8).toFixed(1)}" ry="1.1" fill="${cols[Math.floor(r()*cols.length)]}" transform="rotate(${Math.floor(r()*80-40)} ${px.toFixed(1)} ${py.toFixed(1)})"/>`} }
+  if(L.style==="downing") s+=downingFront(L);
+  if(L.style==="saloon") s+=numberSVG({day:L.day,num:"brass"},60,14);
+  const ballooned = allow("effects","balloons") && ev.length && !ev.every(e=>NO_BALLOONS.includes(e.k));
+  if(ballooned){const k=ev.find(e=>!NO_BALLOONS.includes(e.k)).k;s+=balloonsSVG(103,22+L.hy,BALLOON_COLS[k]||BALLOON_COLS.birthday)}
+  return s+`</svg>`;
+}
+const hat=(hx,hy,flip)=>X()?`<g transform="translate(${hx} ${hy}) rotate(${flip?18:-18})"><path d="M-3 0 Q-1 -6 3.6 -5.4 Q2 -3 3 0 Z" fill="#c8102e"/><rect x="-3.4" y="-.6" width="6.8" height="1.6" rx=".8" fill="#f4f1ea"/><circle cx="3.8" cy="-5.4" r="1" fill="#f4f1ea"/></g>`:"";
+function item(k,x,side,r){
+  const f=side?-1:1;
+  switch(k){
+    case "milk": return [0,1,2].slice(0,2+Math.floor(r()*2)).map(i=>{const bx=x+(i-1)*5*f;const cap=["#c9ccd2","#d4a83a","#c8102e","#2f5d7c"][Math.floor(r()*4)];return `<g><path d="M${bx-2} 199 L${bx-2} 189 Q${bx-2} 186 ${bx-1} 185 L${bx-1} 182 L${bx+1} 182 L${bx+1} 185 Q${bx+2} 186 ${bx+2} 189 L${bx+2} 199 Z" fill="#f6f6f2" stroke="#c9d3d8" stroke-width=".4"/><rect x="${bx-1.2}" y="181" width="2.4" height="1.6" rx=".5" fill="${cap}"/>${X()?`<ellipse cx="${bx}" cy="181" rx="1.6" ry=".7" fill="#fff"/>`:""}</g>`}).join("");
+    case "parcels": return `<g><rect x="${x-9}" y="189" width="16" height="11" fill="#c49a6c" stroke="#8a6a44" stroke-width=".5"/><rect x="${x-9}" y="193.5" width="16" height="1.6" fill="#d9c08f"/><rect x="${x-6}" y="182" width="10" height="7.5" fill="#b8895a" stroke="#8a6a44" stroke-width=".5"/><rect x="${x-1.6}" y="182" width="1.4" height="7.5" fill="#d9c08f"/><rect x="${x-7}" y="190.5" width="5" height="2.6" fill="#fff" opacity=".85"/></g>`;
+    case "bay": return `<g><path d="M${x-6} 199 L${x-5} 189 L${x+5} 189 L${x+6} 199 Z" fill="#7a4a2a"/><rect x="${x-.7}" y="170" width="1.4" height="20" fill="#5a3a1e"/><circle cx="${x}" cy="166" r="9" fill="#2f5a2c"/><circle cx="${x-3}" cy="163" r="4" fill="#3d6b38" opacity=".8"/>${X()?`<path d="M${x-8} 161 q8 -6 16 0" stroke="#fff" stroke-width="2.4" fill="none"/>`:""}</g>`;
+    case "wellies": return `<g>${[0,1].map(i=>{const bx=x+(i?4:-4);const c=["#1f4d3a","#a3262a","#e0b42a","#1f3254"][Math.floor(r()*4)];return `<path d="M${bx-2.2} 199 L${bx-2.2} 186 L${bx+1.8} 186 L${bx+1.8} 195 L${bx+4} 196 L${bx+4} 199 Z" fill="${c}"/><rect x="${bx-2.4}" y="185" width="4.4" height="1.6" fill="${sh(c,-.3)}"/>`}).join("")}</g>`;
+    case "boots": return `<g><path d="M${x-6} 199 L${x-6} 190 L${x-2} 190 L${x-2} 196 L${x+2} 197 L${x+2} 199 Z" fill="#6b4423"/><path d="M${x+1} 199 L${x+1} 191 L${x+5} 191 L${x+5} 196 L${x+9} 197 L${x+9} 199 Z" fill="#5a3a1e"/></g>`;
+    case "cat": {const c=["#1c1c1f","#d07a2a","#6e6e74","#f2efe8","#3a2a20"][Math.floor(r()*5)],st=c==="#f2efe8"?"#c9c4b8":sh(c,-.25),eye="#d8d05a";
+      const ear=(ex)=>`<path d="M${ex-1.4} 184.2 l.9 -3.2 l1.9 2.4 Z" fill="${c}"/>`;
+      return `<g transform="translate(${x} 0) scale(${f} 1)"><g class="sit"><path class="tail" d="M-5 197.6 q-6 0 -5 -8" stroke="${c}" stroke-width="1.9" fill="none" stroke-linecap="round"/><ellipse cx="-1" cy="194" rx="5.4" ry="5" fill="${c}"/><rect x="1.4" y="192" width="1.6" height="7" rx=".8" fill="${c}"/><rect x="3.6" y="192" width="1.6" height="7" rx=".8" fill="${st}"/><circle cx="3.2" cy="186.4" r="3.4" fill="${c}"/>${ear(1.6)}${ear(4.6)}<circle cx="2.4" cy="186.2" r=".55" fill="${eye}"/><circle cx="4.6" cy="186.2" r=".55" fill="${eye}"/><path d="M6.2 187.4 l1.2 .3" stroke="#ddd" stroke-width=".3"/>${hat(3.2,183.4)}</g>
+      <g class="leap"><path d="M-8 189 q-5 -1 -7 -5" stroke="${c}" stroke-width="1.8" fill="none" stroke-linecap="round"/><rect class="leg la" x="-6.6" y="189.6" width="1.6" height="6" rx=".8" fill="${c}" transform="rotate(38 -5.8 189.6)"/><rect class="leg lb" x="-4.8" y="189.6" width="1.6" height="6" rx=".8" fill="${st}" transform="rotate(52 -4 189.6)"/><ellipse cx="0" cy="189" rx="8.4" ry="2.8" fill="${c}"/><rect class="leg la" x="4.4" y="189" width="1.6" height="6.4" rx=".8" fill="${c}" transform="rotate(-62 5.2 189)"/><rect class="leg lb" x="6" y="189" width="1.6" height="6" rx=".8" fill="${st}" transform="rotate(-50 6.8 189)"/><circle cx="9.4" cy="186.4" r="3" fill="${c}"/>${ear(8)}${ear(11)}<circle cx="10.6" cy="186" r=".55" fill="${eye}"/>${hat(9.4,183.6)}</g></g>`}
+    case "dog": {const c=["#8a5a2b","#1c1c1f","#d9b26a","#f2efe8","#6e4a2a"][Math.floor(r()*5)],e=sh(c,-.35);
+      const leg=(lx,cls)=>`<rect class="leg ${cls}" x="${lx-.8}" y="191.5" width="1.6" height="7.5" rx=".7" fill="${c}"/>`;
+      return `<g transform="translate(${x} 0) scale(${f} 1)">${leg(-4.4,"la")}${leg(4.6,"lb")}<path class="tail" d="M-7 189 q-3 -2 -2.4 -7" stroke="${c}" stroke-width="1.6" fill="none" stroke-linecap="round"/><ellipse cx="0" cy="189.6" rx="7.4" ry="3.6" fill="${c}"/>${leg(-2.8,"lb")}${leg(6.2,"la")}<path d="M5 188 L7 183.6 L10 185 L7.6 189 Z" fill="${c}"/><circle cx="7.8" cy="183.6" r="3" fill="${c}"/><ellipse cx="10.6" cy="184.8" rx="2.1" ry="1.3" fill="${c}"/><circle cx="12.4" cy="184.4" r=".65" fill="#111"/><circle cx="8.6" cy="182.8" r=".5" fill="#111"/><path d="M6.4 181.2 q-2.4 .4 -2.2 4.6 q1.6 -.6 2.8 -3.2z" fill="${e}"/><rect x="4.6" y="186" width="1.4" height="3" fill="#b3202a" transform="rotate(20 5.3 187.5)"/>${hat(7.8,181)}</g>`}
+    case "fox": {const c="#c8561e",w="#f4ece0",dk="#2a1a12";const leg=(lx,cls)=>`<rect class="leg ${cls}" x="${lx-.7}" y="191.5" width="1.4" height="7.5" rx=".6" fill="${dk}"/>`;
+      return `<g transform="translate(${x} 0) scale(${f} 1)">${leg(-4.6,"la")}${leg(4.4,"lb")}<path class="tail" d="M-7 189.6 Q-15 188 -14 182 Q-11 186 -6.4 188" fill="${c}"/><path d="M-14 182 q-1.4 -1 -1 -2.4 q1.6 .4 1.8 2.2z" fill="${w}"/><ellipse cx="0" cy="189.6" rx="7.4" ry="3.2" fill="${c}"/>${leg(-3,"lb")}${leg(6,"la")}<path d="M5 188 L7 184 L10 185.6 L8 189.6 Z" fill="${w}"/><path d="M5.6 186 L9.6 181.6 L14.6 185.4 L9.4 187.4 Z" fill="${c}"/><path d="M7.4 183.2 l-.2 -3.6 l2.2 2.2z M9.8 182.4 l.4 -3.6 l1.6 2.6z" fill="${dk}"/><circle cx="14.4" cy="185.4" r=".6" fill="${dk}"/><circle cx="10.6" cy="184.2" r=".5" fill="${dk}"/></g>`}
+    case "squirrel": {const c="#8d8d94",bl="#e9e6df";const leg=(lx,cls)=>`<rect class="leg ${cls}" x="${lx-.6}" y="194" width="1.2" height="5" rx=".6" fill="${c}"/>`;
+      return `<g transform="translate(${x} 0) scale(${f} 1)"><path class="tail" d="M-3 196 Q-11 196 -10 186 Q-9 180 -4 182 Q-8 186 -4 190 Z" fill="#a3a3aa"/>${leg(-1.8,"la")}${leg(2.4,"lb")}<ellipse cx="0" cy="193.4" rx="4" ry="3.4" fill="${c}"/><ellipse cx="1.2" cy="194.4" rx="1.8" ry="2" fill="${bl}"/><circle cx="3.6" cy="189.6" r="2.4" fill="${c}"/><path d="M2.8 187.6 l.2 -2 l1.2 1.6z" fill="${c}"/><circle cx="4.6" cy="189.2" r=".45" fill="#111"/><circle cx="5.2" cy="192.2" r="1.2" fill="#8a5a2b"/>${leg(3.6,"lb")}</g>`}
+    case "santaplate": return `<g><ellipse cx="${x}" cy="198" rx="8" ry="2" fill="#f4f1ea" stroke="#c9c4b8" stroke-width=".4"/><ellipse cx="${x-2}" cy="196.6" rx="3" ry="1.6" fill="#c98a3a"/><path d="M${x-4.4} 196.4 q2.4 -2 4.8 0" stroke="#e8c79a" stroke-width=".6" fill="none"/><path d="M${x+1} 197 l7 -1.6 l-.4 1.6 z" fill="#e8762a"/><path d="M${x+8} 195.4 l1.6 -1.6 M${x+8} 195.4 l2 -.4" stroke="#3a7a2a" stroke-width=".7"/><rect x="${x-8}" y="190" width="3.6" height="7.6" rx=".6" fill="#ffffff" opacity=".9" stroke="#c9d3d8" stroke-width=".4"/></g>`;
+    case "nibbled": return `<g><path d="M${x-3} 198 l6 -1.4 l-.4 1.4 z" fill="#e8762a"/><path d="M${x+3} 196.6 l.6 1.4" stroke="#e8762a" stroke-width=".4" stroke-dasharray=".4 .3"/></g>`;
+    case "sledgeup": {const wood=["#b3202a","#a8742f","#1f4d3a"][Math.floor(r()*3)];let g=`<g class="topple ${side?"tR":"tL"}"><g transform="rotate(${side?7:-7} ${x} 199)"><path d="M${x-5} 199 V172 q0 -4 3 -4" stroke="#3a3a40" stroke-width="1.4" fill="none"/><path d="M${x+5} 199 V172 q0 -4 -3 -4" stroke="#3a3a40" stroke-width="1.4" fill="none"/>`;
+      for(const y of [174,180,186,192]) g+=`<rect x="${x-7}" y="${y}" width="14" height="3.6" rx=".8" fill="${wood}"/><rect x="${x-7}" y="${y}" width="14" height=".8" fill="#fff" opacity=".25"/>`;
+      g+=`<path d="M${x-3} 169 q3 -5 6 0" stroke="#c9a46a" stroke-width=".8" fill="none"/>${X()?`<path d="M${x-7.4} 174 q7 -2.4 14.8 0 l0 1.2 q-7.4 -1.2 -14.8 0z" fill="#fff"/>`:""}</g></g>`;return g}
+    case "reindeer": return `<g fill="none" stroke="#b08a54" stroke-width=".9" stroke-linecap="round"><path d="M${x-7} 186 q7 -3 13 0 q2 -4 3 -8 M${x+9} 178 l1 -5 M${x+9} 178 l3 -4 M${x+10} 175 l-2 -2"/><path d="M${x-6} 186 l-1 13 M${x-3} 187 l0 12 M${x+3} 187 l1 12 M${x+6} 186 l1 13"/><ellipse cx="${x}" cy="186" rx="7.4" ry="3.2"/><path d="M${x-7.4} 185 q-2 -1 -2 -3"/><circle cx="${x+10.4}" cy="179" r="2" fill="#c8102e" stroke="none"/></g>`;
+    case "burlap": return [[-5,190,10,9],[5,192,8,7],[0,183,7,7]].map(([dx,y,w,h])=>`<g><rect x="${x+dx-w/2}" y="${y}" width="${w}" height="${h}" fill="#b89a6a"/><rect x="${x+dx-w/2}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#8a6f44" stroke-width=".4" stroke-dasharray=".6 .6"/><rect x="${x+dx-.6}" y="${y}" width="1.2" height="${h}" fill="#b00c26"/><rect x="${x+dx-w/2}" y="${y+h/2-.6}" width="${w}" height="1.2" fill="#b00c26"/><path d="M${x+dx} ${y} l-2.2 -1.8 l0 2.2z M${x+dx} ${y} l2.2 -1.8 l0 2.2z" fill="#b00c26"/></g>`).join("");
+    case "pigeon": {const c="#8c919b";return `<g transform="translate(${x} 0) scale(${f} 1)"><g class="ground"><g class="peck"><ellipse cx="0" cy="195" rx="5.6" ry="3.4" fill="${c}"/><path d="M-4 193.4 Q1 190.6 4 194 Q-1 196.6 -4 193.4Z" fill="#6f747e"/><path d="M-5 195.6 L-9 194.6 L-8.4 196.8 Z" fill="#5b5f68"/><ellipse cx="4.6" cy="191.6" rx="2" ry="2.6" fill="#6b8a7a"/><circle cx="5.6" cy="189.4" r="2" fill="#7d8290"/><path d="M7.4 189.2 l1.8 .5 l-1.8 .4z" fill="#3a3a3a"/><circle cx="6" cy="188.8" r=".5" fill="#d9532e"/></g><path d="M-1 198.4 v1.2 M1.6 198.4 v1.2" stroke="#d98a8a" stroke-width=".8"/></g>
+      <g class="fly"><path class="wingF" d="M-2 192 Q-6 180 2 176 Q4 184 3 192 Z" fill="#6f747e"/><path d="M-7 192.6 L-11 190.6 L-11 195 Z" fill="#5b5f68"/><ellipse cx="0" cy="192.4" rx="7" ry="2.6" fill="${c}"/><ellipse cx="5" cy="191.2" rx="2" ry="1.8" fill="#6b8a7a"/><circle cx="7" cy="190.4" r="1.8" fill="#7d8290"/><path d="M8.6 190.2 l1.8 .5 l-1.8 .4z" fill="#3a3a3a"/><path class="wingF wB" d="M-1 192.6 Q-3 202 3 205 Q4 198 3 192.6 Z" fill="#5f646e"/></g></g>`}
+    case "robin": return `<g transform="translate(${x} 0) scale(${f} 1)"><g class="ground"><g class="peck"><ellipse cx="0" cy="196" rx="3.6" ry="3" fill="#6b4a2a"/><circle cx="2.6" cy="193.4" r="2.2" fill="#6b4a2a"/><ellipse cx="1.6" cy="195.4" rx="2" ry="1.9" fill="#d9531e"/><path d="M4.6 193.4 l1.6 .4 l-1.6 .4z" fill="#333"/><circle cx="3.2" cy="192.8" r=".45" fill="#111"/><path d="M-3.4 195 l-3 -1.4 l.4 2.6z" fill="#5a3a1e"/></g><path d="M-.6 198.6 v1 M1 198.6 v1" stroke="#6b4a2a" stroke-width=".6"/></g>
+      <g class="fly"><path class="wingF" d="M-1.6 193 Q-4 185 1.4 182 Q2.6 188 2 193 Z" fill="#5a3a1e"/><ellipse cx="0" cy="193.4" rx="4.4" ry="2.2" fill="#6b4a2a"/><ellipse cx="2.4" cy="194" rx="1.8" ry="1.4" fill="#d9531e"/><circle cx="3.6" cy="192.2" r="1.7" fill="#6b4a2a"/><path d="M5.2 192.2 l1.4 .3 l-1.4 .3z" fill="#333"/><path d="M-4.2 193 l-2.6 -1.2 l.2 2.4z" fill="#5a3a1e"/><path class="wingF wB" d="M-1 193.6 Q-2.4 199 1.6 201 Q2.4 197 2 193.6 Z" fill="#4d3218"/></g></g>`;
+    case "butterfly": {const wing=(sx)=>`<g class="bw ${sx>0?"bwR":"bwL"}"><path d="M0 187 Q${sx*7} 180 ${sx*8} 184 Q${sx*7.4} 188 0 188 Z" fill="#1b1416"/><path d="M${sx*2} 185.6 Q${sx*5} 183 ${sx*6.4} 185.4" stroke="#d9461e" stroke-width="1.3" fill="none"/><circle cx="${sx*6.6}" cy="182.8" r=".55" fill="#f4f1ea"/><circle cx="${sx*7.4}" cy="183.8" r=".45" fill="#f4f1ea"/><path d="M0 188 Q${sx*6} 188 ${sx*5.6} 192 Q${sx*3} 193 0 189 Z" fill="#241a1c"/><path d="M${sx*2.4} 191.2 Q${sx*4.6} 191.6 ${sx*5.2} 190.4" stroke="#d9461e" stroke-width="1" fill="none"/></g>`;
+      return `<g transform="translate(${x} 0)"><g class="bfly">${wing(-1)}${wing(1)}<rect x="-.5" y="184.6" width="1" height="6.4" rx=".5" fill="#1b1416"/><path d="M-.2 184.8 q-1 -2.4 -2 -3 M.2 184.8 q1 -2.4 2 -3" stroke="#1b1416" stroke-width=".35" fill="none"/></g></g>`}
+    case "paper": return `<g><rect x="${x-5}" y="195" width="10" height="4" rx="2" fill="#e8e2d0"/><line x1="${x-2}" y1="195" x2="${x-2}" y2="199" stroke="#b9b2a0" stroke-width=".5"/></g>`;
+    case "lanternstep": return `<g><rect x="${x-4}" y="185" width="8" height="14" rx="1" fill="#1d1d1d"/><rect class="lamp" x="${x-2.6}" y="187" width="5.2" height="9" fill="#ffd98a"/><path class="flame" d="M${x} 189 q1.6 2.4 0 4 q-1.6 -1.6 0 -4z" fill="#ff9a3c"/><path d="M${x-3} 185 q3 -4 6 0" stroke="#1d1d1d" stroke-width=".8" fill="none"/></g>`;
+    case "pumpkins": return pumpkin(x,195,5.5,"#d9701e")+pumpkin(x+f*7,196.5,3.6,["#f0e6c8","#e8a33d","#6d8a3a"][Math.floor(r()*3)])+pumpkin(x-f*5,197,3,"#c45a14");
+    case "acorns": return [0,1,2,3,4].map(i=>acorn(x+(i-2)*3.4,197+(i%2),.7)).join("");
+    case "conkers": return [0,1,2,3].map(i=>conker(x+(i-1.5)*4,197.5-(i%2),.75)).join("")+`<path d="M${x+6} 199 q2 -4 5 -2 q-1 3 -5 2z" fill="#7a9a3a"/>`;
+    case "hedgehog": return `<g transform="translate(${x} 0) scale(${f} 1) translate(${-x} 0)"><path d="M${x-7} 199 Q${x-6} 189 ${x+1} 189 Q${x+6} 190 ${x+7} 196 L${x+9} 197 Q${x+8} 199 ${x+6} 199 Z" fill="#6b4a2a"/>${Array.from({length:12},(_,i)=>`<line x1="${x-6+i*1.1}" y1="${191+Math.abs(i-6)*.5}" x2="${x-7.6+i*1.1}" y2="${188.4+Math.abs(i-6)*.5}" stroke="#3d2a14" stroke-width=".6"/>`).join("")}<circle cx="${x+6.4}" cy="195" r=".5" fill="#111"/><circle cx="${x+8.8}" cy="197" r=".6" fill="#111"/></g>`;
+    case "toadstools": return [[-3,4.2],[3,3.2]].map(([dx,w])=>`<g><rect x="${x+dx-1}" y="${199-w*1.6}" width="2" height="${w*1.6}" fill="#f1ead8"/><path d="M${x+dx-w} ${199-w*1.4} Q${x+dx} ${199-w*3.2} ${x+dx+w} ${199-w*1.4} Z" fill="#c8102e"/><circle cx="${x+dx-w*.4}" cy="${199-w*2}" r=".6" fill="#fff"/><circle cx="${x+dx+w*.3}" cy="${199-w*2.2}" r=".5" fill="#fff"/></g>`).join("");
+    case "apples": return `<g><path d="M${x-8} 192 L${x+8} 192 L${x+6} 199 L${x-6} 199 Z" fill="#a07a44"/><path d="M${x-8} 192 Q${x} 180 ${x+8} 192" fill="none" stroke="#8a6a3a" stroke-width="1"/>${[-5,-1.6,1.8,5,-3.2,3.4].map((dx,i)=>`<circle cx="${x+dx}" cy="${i<4?191:188.6}" r="2" fill="${i%2?"#b3202a":"#7a9a2a"}"/>`).join("")}</g>`;
+    case "pinecones": return [0,1,2].map(i=>`<g transform="translate(${x+(i-1)*5} 197) rotate(${(i-1)*20})"><ellipse rx="2.2" ry="3.4" fill="#6b4a24"/>${[-2,-.7,.7,2].map(y=>`<path d="M-2 ${y} l2 1 l2 -1" stroke="#3d2a12" stroke-width=".5" fill="none"/>`).join("")}</g>`).join("");
+    case "leafpile": return Array.from({length:12},()=>{const px=x+(r()-.5)*14,py=196+r()*3;return `<ellipse cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" rx="2.6" ry="1.4" fill="${["#a4161a","#e06c1f","#c79a2b","#7a4520","#d1361b"][Math.floor(r()*5)]}" transform="rotate(${Math.floor(r()*180)} ${px.toFixed(1)} ${py.toFixed(1)})"/>`}).join("");
+    case "tree": return `<g><path d="M${x-5} 199 L${x-4} 192 L${x+4} 192 L${x+5} 199 Z" fill="#7a4a2a"/><path d="M${x} 150 L${x+11} 192 L${x-11} 192 Z" fill="#1f4f33"/><path d="M${x} 150 L${x+8} 175 L${x-8} 175 Z" fill="#2a6040"/><path d="M${x-9} 186 q9 -6 18 0 M${x-7} 172 q7 -5 14 0" stroke="#fff" stroke-width="1.4" fill="none" opacity=".85"/>${[[0,158,"#ffd34d"],[-4,170,"#ff6b5b"],[5,176,"#7ad0ff"],[-6,184,"#ffd34d"],[6,186,"#ff6b5b"],[1,180,"#9dff7a"]].map(([dx,y,c],i)=>`<circle class="twinkle" style="animation-delay:${i*.35}s" cx="${x+dx}" cy="${y}" r="1.3" fill="${c}"/>`).join("")}<path d="M${x} 147 l1 2.4 l2.6 .2 l-2 1.6 l.6 2.6 l-2.2 -1.4 l-2.2 1.4 l.6 -2.6 l-2 -1.6 l2.6 -.2z" fill="#f2c94c"/></g>`;
+    case "presents": return [[-6,190,10,9,"#b3202a","#f2c94c"],[4,192,8,7,"#1f6b3a","#f4f1ea"],[-1,184,7,6,"#2f5d7c","#f2c94c"]].map(([dx,y,w,h,c,rb])=>`<g><rect x="${x+dx-w/2}" y="${y}" width="${w}" height="${h}" fill="${c}"/><rect x="${x+dx-.7}" y="${y}" width="1.4" height="${h}" fill="${rb}"/><rect x="${x+dx-w/2}" y="${y+h/2-.7}" width="${w}" height="1.4" fill="${rb}"/><path d="M${x+dx} ${y} l-2.4 -2 l0 2.4z M${x+dx} ${y} l2.4 -2 l0 2.4z" fill="${rb}"/></g>`).join("");
+    case "snowman": return `<g><circle cx="${x}" cy="193" r="6.4" fill="#f7f9fc" stroke="#c9d6e6" stroke-width=".5"/><circle cx="${x}" cy="182.6" r="4.6" fill="#f7f9fc" stroke="#c9d6e6" stroke-width=".5"/><rect x="${x-3.6}" y="174" width="7.2" height="4.6" fill="#1c1c1f"/><rect x="${x-5}" y="178.4" width="10" height="1.2" fill="#1c1c1f"/><path d="M${x} 183 l3.6 1 l-3.6 .6z" fill="#e06c1f"/><circle cx="${x-1.6}" cy="181.4" r=".5" fill="#111"/><circle cx="${x+1.6}" cy="181.4" r=".5" fill="#111"/><path d="M${x-4.4} 186.4 q4.4 2 8.8 0 l1.4 4" stroke="#b3202a" stroke-width="1.6" fill="none"/></g>`;
+    case "sledge": return `<g><rect x="${x-8}" y="185" width="16" height="3" rx="1" fill="#a3262a" transform="rotate(${f*-12} ${x} 192)"/><path d="M${x-9} 196 q-2 0 -2 -2 M${x-9} 196 H${x+9} q2 0 2 -3" stroke="#3a3a40" stroke-width="1.2" fill="none" transform="rotate(${f*-12} ${x} 192)"/></g>`;
+    case "suitcase": return `<g><rect x="${x-8}" y="184" width="16" height="15" rx="2" fill="#7a2e2a"/><rect x="${x-3}" y="181" width="6" height="3.4" rx="1.2" fill="none" stroke="#3a1a14" stroke-width="1.2"/><rect x="${x-8}" y="190" width="16" height="1.2" fill="#5a1e1a"/><circle cx="${x-4}" cy="187" r="2" fill="#f2c94c"/><rect x="${x+1}" y="193" width="5" height="3.4" fill="#4aa3df"/><rect x="${x-6}" y="194" width="4" height="3" fill="#f4f1ea"/></g>`;
+    case "sheaf": return `<g>${Array.from({length:11},(_,i)=>`<line x1="${x-1+i*.2}" y1="199" x2="${x-6+i*1.2}" y2="176" stroke="#c9a24a" stroke-width=".9"/><ellipse cx="${x-6+i*1.2}" cy="175" rx=".8" ry="2.4" fill="#d9b45a"/>`).join("")}<rect x="${x-3}" y="188" width="6" height="2" fill="#7a2e2a"/></g>`;
+    case "boot": return `<g><path d="M${x-4} 199 L${x-4} 184 L${x+3} 184 L${x+3} 193 L${x+9} 194 Q${x+11} 199 ${x+7} 199 Z" fill="#b3202a"/><rect x="${x-5}" y="182" width="9" height="3.4" rx="1.5" fill="#f2f2f2"/><path d="M${x} 182 l-3 -6 M${x} 182 l4 -7" stroke="#c9963a" stroke-width="1.6"/><circle cx="${x+3.6}" cy="175" r="1.6" fill="#b3202a"/></g>`;
+    case "boxes": return `<g><rect x="${x-9}" y="188" width="12" height="11" fill="#c49a6c" stroke="#8a6a44" stroke-width=".5"/><path d="M${x-9} 188 l-3 -4 M${x+3} 188 l3 -4" stroke="#8a6a44" stroke-width=".8"/><path d="M${x+2} 199 q4 -6 8 -2 q3 2 -1 2z" fill="#b3202a"/><path d="M${x+4} 196 q3 -5 6 -1" fill="#1f6b3a"/></g>`;
+  }
+  return "";
+}
+
+/* ================= build ================= */
+const grid=document.getElementById("grid");
+function evOf(d){return M().ev[d]||[]}
+function stateOf(d){return d<today?"past":(d===today?"today":"locked")}
+function build(){
+  GID=0; grid.innerHTML="";
+  const days=M().days, order=shuffled(Array.from({length:days},(_,i)=>i+1),month*101+5);
+  order.forEach(day=>{
+    const L=look(day), st=stateOf(day), ev=evOf(day);
+    L.hy={cottage:92,stable:110}[L.style]||96;
+    const b=document.createElement("button");
+    b.className="bay "+(st==="past"?"ajar":st==="locked"?"locked":"today")+(L.style==="saloon"?" saloon":"");
+    b.dataset.day=day;
+    const sun=isSunday(day)?", Sunday":"";
+    b.setAttribute("aria-label",`Door ${day}, ${day} ${M().name}${sun}`+(ev.length?`, ${ev.map(e=>e.t).join(", ")}`:"")+(st==="locked"?", locked":st==="today"?", today, tap to open":", opened"));
+    const inside = L.style==="saloon" ? saloonInside(L) : `<div class="frame"><svg viewBox="0 0 56 44" aria-hidden="true"><rect x="2" y="2" width="52" height="40" rx="4" fill="none" stroke="#9c8a70" stroke-width="3"/><circle cx="18" cy="15" r="5" fill="#c9b38f"/><path d="M6 38 L22 22 L32 31 L40 24 L52 38 Z" fill="#c9b38f"/></svg></div>${st==="today"?'<span class="play">Play</span>':''}`;
+    const leaves = isDbl(L.style)
+      ? (()=>{const t=DBL_TOP[L.style]/170*100;return ["L","R"].map(sd=>`<div class="leaf dbl ${sd}" style="top:${t.toFixed(3)}%;height:${(100-t).toFixed(3)}%">${dblSVG(L,sd,st!=="locked")}<div class="back" style="background:${sh(L.col,-.4)}"></div></div>`).join("")})()
+      : L.style==="downing" ? (()=>{const t=LEAF_TOP.downing/170*100;return `<div class="leaf" style="top:${t.toFixed(3)}%;height:${(100-t).toFixed(3)}%">${downingLeaf(L)}<div class="back" style="background:#0b0b0c"></div></div>`})()
+      : L.style==="saloon"
+      ? `<div class="leaf wing L">${wingSVG(L,"L")}<div class="back" style="background:${sh(L.col,-.4)}"></div></div><div class="leaf wing R">${wingSVG(L,"R")}<div class="back" style="background:${sh(L.col,-.4)}"></div></div>`
+      : `<div class="leaf">${leafSVG(L,st)}<div class="back" style="background:linear-gradient(90deg,${sh(L.col,-.45)},${sh(L.col,-.25)})"></div></div>`;
+    const cap = ev.length ? ev.map(e=>e.t.replace(/ \(example\)/,"*")).join(" · ") : HOMES[day] ? HOMES[day] : (VERSES[day] ? VERSES[day] : (isSunday(day)?"Sunday":(L.style==="downing"?"Number 10":(st==="today"?"Today":""))));
+    b.innerHTML = surroundSVG(L,st)+`<div class="hole"><div class="inside">${inside}</div>${leaves}</div>`+frontSVG(L)+`<span class="cap">${cap}</span>`;
+    b.addEventListener("click",()=>tap(b,day));
+    grid.appendChild(b);
+  });
+  legend();
+}
+function legend(){
+  const ev=M().ev, lines=Object.keys(ev).map(d=>`<b>${d} ${M().name}</b>: ${ev[d].map(x=>x.t).join(" and ")}`).join("<br>");
+  document.getElementById("legend").innerHTML=(lines?`On the doors this ${M().name}:<br>${lines}<br><br>`:"")+(CFG.note||"");
+}
+
+/* ================= sound made in the page ================= */
+let AC=null;
+function ac(){if(!AC){try{AC=new (window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(AC&&AC.state==="suspended")AC.resume();return AC}
+function knockSound(t0){const a=ac();if(!a||!soundOn)return;const t=a.currentTime+(t0||0);const o=a.createOscillator(),g=a.createGain();o.type="sine";o.frequency.setValueAtTime(140,t);o.frequency.exponentialRampToValueAtTime(55,t+.12);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.7,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+.18);o.connect(g).connect(a.destination);o.start(t);o.stop(t+.2);const n=a.createBufferSource(),buf=a.createBuffer(1,a.sampleRate*.06,a.sampleRate),d=buf.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/d.length,3);n.buffer=buf;const f=a.createBiquadFilter();f.type="lowpass";f.frequency.value=900;const g2=a.createGain();g2.gain.value=.5;n.connect(f).connect(g2).connect(a.destination);n.start(t)}
+function clickSound(){const a=ac();if(!a||!soundOn)return;const t=a.currentTime;const o=a.createOscillator(),g=a.createGain();o.type="square";o.frequency.value=1400;g.gain.setValueAtTime(.12,t);g.gain.exponentialRampToValueAtTime(.0001,t+.04);o.connect(g).connect(a.destination);o.start(t);o.stop(t+.05)}
+function noiseBuf(a,sec){const b=a.createBuffer(1,Math.floor(a.sampleRate*sec),a.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;return b}
+function whoosh(){const a=ac();if(!a||!soundOn)return;const t=a.currentTime,n=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();n.buffer=noiseBuf(a,.7);f.type="bandpass";f.Q.value=3;f.frequency.setValueAtTime(500,t);f.frequency.exponentialRampToValueAtTime(3200,t+.6);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.12,t+.1);g.gain.exponentialRampToValueAtTime(.0001,t+.65);n.connect(f).connect(g).connect(a.destination);n.start(t);n.stop(t+.7)}
+function bang(){const a=ac();if(!a||!soundOn)return;const t=a.currentTime,n=a.createBufferSource(),f=a.createBiquadFilter(),g=a.createGain();n.buffer=noiseBuf(a,.6);f.type="lowpass";f.frequency.value=900;g.gain.setValueAtTime(.55,t);g.gain.exponentialRampToValueAtTime(.0001,t+.55);n.connect(f).connect(g).connect(a.destination);n.start(t);n.stop(t+.6);
+  for(let i=0;i<14;i++){const tt=t+.15+Math.random()*.7,c=a.createBufferSource(),cg=a.createGain(),hf=a.createBiquadFilter();c.buffer=noiseBuf(a,.02);hf.type="highpass";hf.frequency.value=3000;cg.gain.setValueAtTime(.08+Math.random()*.08,tt);cg.gain.exponentialRampToValueAtTime(.0001,tt+.02);c.connect(hf).connect(cg).connect(a.destination);c.start(tt);c.stop(tt+.03)}}
+function creakSound(){const a=ac();if(!a||!soundOn)return;const t=a.currentTime;const o=a.createOscillator(),f=a.createBiquadFilter(),g=a.createGain(),l=a.createOscillator(),lg=a.createGain();o.type="sawtooth";o.frequency.setValueAtTime(95,t);o.frequency.linearRampToValueAtTime(160,t+.5);o.frequency.linearRampToValueAtTime(120,t+1);l.frequency.value=22;lg.gain.value=18;l.connect(lg).connect(o.frequency);f.type="bandpass";f.frequency.value=700;f.Q.value=6;g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.07,t+.15);g.gain.linearRampToValueAtTime(.0001,t+1.05);o.connect(f).connect(g).connect(a.destination);o.start(t);l.start(t);o.stop(t+1.1);l.stop(t+1.1)}
+
+/* ================= tapping a door ================= */
+const toastEl=document.getElementById("toast");let toastT;
+function toast(m){toastEl.textContent=m;toastEl.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>toastEl.classList.remove("on"),2400)}
+let busy=false;
+function tap(b,day){
+  ac();const st=stateOf(day);b.classList.add("disturb");startle(b);
+  if(st==="locked"){b.classList.remove("jiggle");void b.offsetWidth;b.classList.add("jiggle");clickSound();setTimeout(clickSound,180);const n=CFG.demoControls?day-today:Math.round((new Date(M().year,month-1,day)-new Date(new Date().getFullYear(),new Date().getMonth(),new Date().getDate()))/864e5);toast(n===1?`Door ${day} is locked. It opens tomorrow.`:`Door ${day} is locked. It opens in ${n} days.`);return}
+  if(b.classList.contains("open")){showCard(day);return}
+  if(busy)return;busy=true;
+  const rm=RM.matches,hasKnocker=!!b.querySelector(".knocker"),pet=!!b.querySelector(".critter")||b.classList.contains("saloon"),fw=evOf(day).some(e=>FIREWORKS.includes(e.k));
+  const T=rm?{turn:0,shake:0,shed:0,open:0,card:250}:{turn:hasKnocker?750:0,shake:hasKnocker?1050:300,shed:hasKnocker?1150:400,open:hasKnocker?1650:900,card:(hasKnocker?2900:2150)+(pet?1300:0)+(fw||evOf(day).some(e=>e.k==="eve")?3400:0)};
+  if(!rm){if(hasKnocker){b.classList.add("knock");knockSound(.12);knockSound(.42)}else{knockSound(0);knockSound(.28)}}
+  setTimeout(()=>{b.classList.remove("knock");b.classList.add("turn");clickSound()},T.turn);
+  setTimeout(()=>{if(!rm)b.classList.add("shake")},T.shake);
+  setTimeout(()=>{if(!rm)shed(b)},T.shed);
+  setTimeout(()=>{b.classList.remove("shake","ajar");b.classList.add("open");creakSound();if(fw&&!rm)FX.fireworks(b.getBoundingClientRect());if(!rm&&allow("effects","sleigh")&&evOf(day).some(e=>e.k==="eve"))sleigh()},T.open);
+  setTimeout(()=>{b.classList.remove("turn");busy=false;showCard(day)},T.card);
+}
+function sleigh(){
+  const el=document.createElement("div");el.className="sleigh";el.setAttribute("aria-hidden","true");
+  const deer=(dx)=>`<g transform="translate(${dx} 0)"><path d="M0 20 q6 -5 14 -2 q3 -6 5 -6 l1 3 q-2 2 -2 5 q-3 6 -14 4 l-2 8 h-2 l1 -8 l-4 7 h-2 l3 -8 z" fill="#1b1d26"/><path d="M17 12 l-2 -6 M17 12 l3 -5 M15.6 8 l-3 -2 M19 9 l3 -2" stroke="#1b1d26" stroke-width="1.2"/></g>`;
+  el.innerHTML=`<svg viewBox="0 0 260 60" width="260" height="60">${deer(150)}${deer(122)}${deer(94)}${deer(66)}<path d="M66 24 L36 34" stroke="#1b1d26" stroke-width=".8"/><path d="M4 26 h30 q6 0 6 6 v4 h-34 z" fill="#1b1d26"/><path d="M0 44 h44 q6 0 6 -4" stroke="#1b1d26" stroke-width="2" fill="none"/><circle cx="18" cy="20" r="5" fill="#1b1d26"/><path d="M14 18 l4 -8 l4 8z" fill="#1b1d26"/><circle cx="174" cy="12" r="1.6" fill="#ff4d4d"/></svg>`;
+  document.body.appendChild(el);setTimeout(()=>el.remove(),7000);
+}
+function shed(b){const r=b.getBoundingClientRect(),x=X();for(let i=0;i<(x?34:16);i++){const p=FX.spawn(x?"snow":"leaf",true);p.x=r.left+r.width*(.06+Math.random()*.88);p.y=r.top+r.height*(.03+Math.random()*.05);p.vy=(x?20:15)+Math.random()*30;p.vx=(Math.random()-.5)*40;p.size*=x?.9:.7;p.life=0;p.ttl=1.6+Math.random()*1.2;p.floorY=r.top+r.height*.92}}
+const dlg=document.getElementById("dlg");
+/* only the next-door neighbours on the SAME row are startled (never the row above or below); their birds come back */
+function startle(b){
+  if(!allow("effects","startleNeighbours"))return;
+  const top=b.offsetTop;
+  [b.previousElementSibling,b.nextElementSibling].forEach(n=>{
+    if(!n||!n.classList.contains("bay")||n.offsetTop!==top||n.classList.contains("startle"))return;
+    if(!n.querySelector(".critter.bird,.critter.flutter"))return;
+    n.classList.remove("homing");n.classList.add("startle");
+    setTimeout(()=>{n.classList.remove("startle");void n.offsetWidth;n.classList.add("homing");setTimeout(()=>n.classList.remove("homing"),1400)},4200);
+  });
+}
+/* locked photos: the key comes from the family code in the link (#g=...), never from the page */
+const photoCache={};
+async function unlockPhoto(path){
+  if(photoCache[path])return photoCache[path];
+  const m=/[#&]g=([A-Za-z0-9-]{6,20})/.exec(location.hash);if(!m||!window.crypto||!crypto.subtle)return null;
+  try{const norm=m[1].toLowerCase().replace(/[^a-z0-9]/g,""),enc=new TextEncoder();
+    const key=await crypto.subtle.importKey("raw",await crypto.subtle.digest("SHA-256",enc.encode("key|"+norm)),"AES-GCM",false,["decrypt"]);
+    const buf=new Uint8Array(await (await fetch(path)).arrayBuffer());
+    const pt=await crypto.subtle.decrypt({name:"AES-GCM",iv:buf.slice(0,12)},key,buf.slice(12));
+    return photoCache[path]=URL.createObjectURL(new Blob([pt],{type:"image/jpeg"}));
+  }catch(e){return null}
+}
+function behindOf(day){const b=Object.assign({},CFG.behind||{},(CFG.behindDays||{})[dateOf(day)]||{});if(CFG.demoControls&&b.demoHref)b.href=b.demoHref;return b}
+function showCard(day){
+  const ev=evOf(day),b=behindOf(day),date=dateOf(day);
+  document.getElementById("dT").textContent=(b.cardTitle||"Door {day}").replace("{day}",day);
+  document.getElementById("dE").innerHTML=ev.map(e=>`<span class="ev">${e.t}</span>`).join("")+(isSunday(day)&&!ev.length&&allow("doorStyles","church")?`<span class="ev">Sunday</span>`:"")+(CAPTIONS[day]?`<span class="ev">${CAPTIONS[day]}</span>`:"")+(HOMES[day]?`<span class="ev">${HOMES[day]}</span>`:"");
+  const photo=(CFG.photos||{})[date], ph=document.getElementById("dPh");
+  if(photo&&photo.enc){ph.innerHTML=`<span style="opacity:.7">Opening the photo…</span>`;unlockPhoto(photo.enc).then(u=>{if(u)ph.innerHTML=`<img src="${u}" alt="" style="width:100%;height:100%;object-fit:contain">`;else ph.innerHTML=`<span>The photo opens with the family link</span>`})}
+  else ph.innerHTML= photo ? `<img src="${photo}" alt="" style="width:100%;height:100%;object-fit:contain">` : `<svg width="56" height="44" viewBox="0 0 56 44" aria-hidden="true"><rect x="2" y="2" width="52" height="40" rx="4" fill="none" stroke="#9c8a70" stroke-width="3"/><circle cx="18" cy="15" r="5" fill="#c9b38f"/><path d="M6 38 L22 22 L32 31 L40 24 L52 38 Z" fill="#c9b38f"/></svg><span>${b.photoPlaceholder||"A family photo goes here"}</span>`;
+  document.getElementById("dMsg").textContent=(b.message||"").replace("{day}",day);
+  const btn=document.getElementById("dPlay");
+  btn.style.display= b.type==="none" ? "none" : "";
+  btn.textContent=(day===today?(b.label||"Play"):(b.pastLabel||b.label||"Play")).replace("{day}",day);
+  btn.onclick=()=>{ if(b.type==="message"){ dlg.close(); return; } if(b.type==="link"&&b.href){ location.href=b.href.replace("{date}",date).replace("{day}",day)+(b.keepHash!==false&&location.hash?location.hash:""); } else { dlg.close(); toast(b.notReady||"The game for this door comes next."); } };
+  if(typeof dlg.showModal==="function")dlg.showModal();else dlg.setAttribute("open","");
+}
+document.getElementById("dClose").onclick=()=>dlg.close();
+dlg.addEventListener("click",e=>{if(e.target===dlg)dlg.close()});
+
+/* ================= falling leaves, acorns and snow ================= */
+const FX=(()=>{
+  const back=document.getElementById("fxBack"),front=document.getElementById("fxFront"),cb=back.getContext("2d"),cf=front.getContext("2d");
+  let W=0,H=0,parts=[],shedParts=[],last=0,running=true,wind=0,gust=0,rockets=[],sparks=[];
+  const FWC=["#ffd34d","#ff6b5b","#7ad0ff","#9dff7a","#ff8af0","#ffffff","#ffb347","#c9a0ff"];
+  function fireworks(r){
+    for(let i=0;i<10;i++) setTimeout(()=>{
+      const top=Math.max(30,Math.min(r.top-40,H*.45)), ty= top>80 ? 40+Math.random()*(top-40) : 30+Math.random()*90;
+      rockets.push({x:r.left+r.width*(.15+Math.random()*.7),y:r.top+r.height*.12,vx:(Math.random()-.5)*90,vy:-(420+Math.random()*200),ty,col:FWC[Math.floor(Math.random()*FWC.length)],kind:Math.random()<.3?"ring":(Math.random()<.5?"willow":"peony")});
+      whoosh();
+    },i*360+Math.random()*120);
+  }
+  function burst(rk){
+    const n=rk.kind==="ring"?48:80, two=Math.random()<.35?FWC[Math.floor(Math.random()*FWC.length)]:rk.col;
+    for(let i=0;i<n;i++){const a=rk.kind==="ring"?i/n*6.283:Math.random()*6.283, sp=rk.kind==="ring"?150:(40+Math.random()*170);
+      sparks.push({x:rk.x,y:rk.y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:0,ttl:rk.kind==="willow"?2.4:1.3+Math.random()*.6,col:i%2?rk.col:two,g:rk.kind==="willow"?40:70,px:rk.x,py:rk.y,tw:Math.random()<.3})}
+    bang();
+  }
+  const LEAFCOL=["#a4161a","#ba181b","#d1361b","#8d1e1e","#e06c1f","#e8892b","#e8a33d","#d9a520","#b5892a","#9c4a1a","#7a4520","#6e3b1b","#c25a1b","#b23a16","#c79a2b"];
+  const maple=new Path2D("M0 1 L.07 .52 L.55 .68 L.45 .44 L.96 .1 L.7 .02 L.82 -.36 L.46 -.25 L.42 -.52 L.2 -.3 L0 -1 L-.2 -.3 L-.42 -.52 L-.46 -.25 L-.82 -.36 L-.7 .02 L-.96 .1 L-.45 .44 L-.55 .68 L-.07 .52 Z");
+  function lobed(lobes,w,depth){const p=new Path2D();for(let i=0;i<=120;i++){const t=i/120*Math.PI*2,r=(1-depth)+depth*Math.abs(Math.sin(lobes*t/2)),x=w*r*Math.sin(t),y=-r*Math.cos(t);i?p.lineTo(x,y):p.moveTo(x,y)}p.closePath();return p}
+  const oak=lobed(7,.5,.22),birch=(()=>{const p=new Path2D();p.moveTo(0,-1);p.quadraticCurveTo(.62,-.2,0,1);p.quadraticCurveTo(-.62,-.2,0,-1);p.closePath();return p})(),beech=(()=>{const p=new Path2D();p.moveTo(0,-1);p.bezierCurveTo(.55,-.6,.5,.5,0,1);p.bezierCurveTo(-.5,.5,-.55,-.6,0,-1);p.closePath();return p})();
+  const SHAPES=[maple,maple,maple,oak,oak,birch,beech];
+  function size(){const DPR=Math.min(2,window.devicePixelRatio||1);W=innerWidth;H=innerHeight;for(const c of [back,front]){c.width=Math.round(W*DPR);c.height=Math.round(H*DPR)}cb.setTransform(DPR,0,0,DPR,0,0);cf.setTransform(DPR,0,0,DPR,0,0)}
+  function spawn(kind,isShed){
+    const near=isShed||Math.random()<.35;
+    const p={kind,near,x:Math.random()*W,y:-30-Math.random()*H,rot:Math.random()*6.28,vr:(Math.random()-.5)*2,flip:Math.random()*6.28,vf:1.5+Math.random()*3,sway:Math.random()*6.28,vs:.6+Math.random()*1.2};
+    if(kind==="leaf"){
+      const roll=Math.random();
+      if(roll<.06){p.acorn=true;p.size=near?7:4;p.vy=near?90:50;p.vr=(Math.random()-.5)*4;p.alpha=near?.95:.6}
+      else{p.shape=SHAPES[Math.floor(Math.random()*SHAPES.length)];p.col=LEAFCOL[Math.floor(Math.random()*LEAFCOL.length)];p.size=(near?14+Math.random()*16:6+Math.random()*8)*(p.shape===maple?1:.85);p.vy=near?38+Math.random()*30:18+Math.random()*18;p.alpha=near?.95:.6;
+        p.spinner=Math.random()<.07;if(p.spinner){p.shape=null;p.col="#b8893a";p.size=near?12:7;p.vr=8+Math.random()*6;p.vy*=1.25}}
+    } else {p.crystal=Math.random()<(near?.18:.06);p.size=near?2+Math.random()*3.6:.7+Math.random()*1.8;if(p.crystal)p.size=near?6+Math.random()*5:3+Math.random()*2.5;p.vy=near?40+Math.random()*35:16+Math.random()*20;p.alpha=near?.75+Math.random()*.25:.35+Math.random()*.4}
+    p.vx=0;(isShed?shedParts:parts).push(p);return p;
+  }
+  function fill(){parts=[];if(RM.matches||!allow("effects","falling"))return;const area=W*H/1e6,n=X()?Math.round(140*Math.min(1.6,area)+40):Math.round(34*Math.min(1.6,area)+12);for(let i=0;i<n;i++){const p=spawn(X()?"snow":"leaf");p.y=Math.random()*H}}
+  const memo={};const shade=(h,a)=>memo[h+a]||(memo[h+a]=sh(h,a));
+  function drawLeaf(c,p){
+    c.save();c.translate(p.x,p.y);c.rotate(p.rot);c.globalAlpha=p.alpha;
+    if(p.acorn){c.scale(p.size/4,p.size/4);c.fillStyle="#a8743a";c.beginPath();c.ellipse(0,1,2.2,3,0,0,7);c.fill();c.fillStyle="#6b4a24";c.beginPath();c.ellipse(0,-1.4,2.6,1.5,0,0,7);c.fill();c.fillRect(-.3,-4,.6,1.6);c.restore();return}
+    const fx=Math.cos(p.flip);c.scale(p.size*Math.max(.12,Math.abs(fx)),p.size);
+    if(p.spinner){c.fillStyle=p.col;c.beginPath();c.ellipse(0,0,.18,.18,0,0,7);c.fill();c.beginPath();c.moveTo(0,0);c.quadraticCurveTo(.9,-.25,1.3,.12);c.quadraticCurveTo(.7,.2,0,0);c.fill();c.restore();return}
+    c.fillStyle=fx<0?shade(p.col,-.25):p.col;c.fill(p.shape);c.strokeStyle=shade(p.col,-.45);c.lineWidth=.06;c.globalAlpha=p.alpha*.7;c.beginPath();c.moveTo(0,1.15);c.lineTo(0,-.8);
+    if(p.shape===maple){c.moveTo(0,.35);c.lineTo(.7,-.2);c.moveTo(0,.35);c.lineTo(-.7,-.2);c.moveTo(0,.45);c.lineTo(.5,.55);c.moveTo(0,.45);c.lineTo(-.5,.55)}else{for(let k=-.5;k<.7;k+=.3){c.moveTo(0,k);c.lineTo(.32,k-.22);c.moveTo(0,k);c.lineTo(-.32,k-.22)}}
+    c.stroke();c.restore()}
+  function drawSnow(c,p){c.globalAlpha=p.alpha;c.fillStyle="#fff";if(p.crystal){c.save();c.translate(p.x,p.y);c.rotate(p.rot);c.strokeStyle="rgba(255,255,255,.9)";c.lineWidth=Math.max(.6,p.size*.09);c.beginPath();for(let k=0;k<6;k++){const a=k*Math.PI/3,ex=Math.cos(a)*p.size,ey=Math.sin(a)*p.size;c.moveTo(0,0);c.lineTo(ex,ey);const mx=ex*.6,my=ey*.6;c.moveTo(mx,my);c.lineTo(mx+Math.cos(a+.6)*p.size*.3,my+Math.sin(a+.6)*p.size*.3);c.moveTo(mx,my);c.lineTo(mx+Math.cos(a-.6)*p.size*.3,my+Math.sin(a-.6)*p.size*.3)}c.stroke();c.restore()}else{c.beginPath();c.arc(p.x,p.y,p.size,0,7);c.fill()}}
+  function step(dt){gust+=(Math.random()<.004?(Math.random()*2-1)*60:0);gust*=.985;wind=Math.sin(performance.now()/7000)*12+gust;
+    for(const list of [parts,shedParts])for(const p of list){p.sway+=p.vs*dt;p.flip+=p.vf*dt;p.rot+=p.vr*dt*(p.kind==="leaf"?1:.3);const sw=p.acorn?0:Math.sin(p.sway)*(p.kind==="leaf"?(p.near?34:18):(p.near?14:7));p.x+=(sw+wind*(p.near?1:.5)*(p.acorn?.3:1)+(p.vx||0))*dt;p.y+=p.vy*dt*(p.kind==="leaf"&&!p.acorn?(.7+.5*Math.abs(Math.cos(p.flip))):1);if(list===shedParts){p.life+=dt;if(p.floorY&&p.y>p.floorY){p.y=p.floorY;p.vy=0;p.vx*=.8;p.vr*=.5}}}
+    for(const p of parts){if(p.y>H+40){p.y=-30-Math.random()*60;p.x=Math.random()*W}if(p.x>W+40)p.x=-30;if(p.x<-40)p.x=W+30}
+    shedParts=shedParts.filter(p=>p.life<p.ttl);
+    for(const rk of rockets){rk.vy+=230*dt;rk.x+=rk.vx*dt;rk.y+=rk.vy*dt;if(rk.y<=rk.ty||rk.vy>-60){rk.done=true;burst(rk)}}
+    rockets=rockets.filter(rk=>!rk.done);
+    for(const p of sparks){p.px=p.x;p.py=p.y;p.vx*=.982;p.vy=p.vy*.982+p.g*dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.life+=dt}
+    sparks=sparks.filter(p=>p.life<p.ttl)}
+  function draw(){cb.clearRect(0,0,W,H);cf.clearRect(0,0,W,H);for(const p of parts){const c=p.near?cf:cb;p.kind==="leaf"?drawLeaf(c,p):drawSnow(c,p)}for(const p of shedParts){const a=p.alpha;p.alpha=a*Math.max(0,1-Math.max(0,p.life-(p.ttl-.6))/.6);p.kind==="leaf"?drawLeaf(cf,p):drawSnow(cf,p);p.alpha=a}
+    if(rockets.length||sparks.length){cf.save();cf.globalCompositeOperation="lighter";cf.lineCap="round";
+      for(const rk of rockets){cf.globalAlpha=1;cf.strokeStyle="#ffe7b0";cf.lineWidth=2;cf.beginPath();cf.moveTo(rk.x,rk.y);cf.lineTo(rk.x-rk.vx*.05,rk.y-rk.vy*.05);cf.stroke()}
+      for(const p of sparks){const k=1-p.life/p.ttl;cf.globalAlpha=Math.max(0,k)*(p.tw&&Math.random()<.4?.3:1);cf.strokeStyle=p.col;cf.lineWidth=2.2*k+.6;cf.beginPath();cf.moveTo(p.px,p.py);cf.lineTo(p.x,p.y);cf.stroke()}
+      cf.restore()}
+    cb.globalAlpha=1;cf.globalAlpha=1}
+  function loop(t){if(!running)return;const dt=Math.min(.05,(t-(last||t))/1000);last=t;step(dt);draw();requestAnimationFrame(loop)}
+  addEventListener("resize",()=>{size();fill()});
+  document.addEventListener("visibilitychange",()=>{if(document.hidden)running=false;else if(!running){running=true;last=0;requestAnimationFrame(loop)}});
+  RM.addEventListener&&RM.addEventListener("change",fill);
+  size();fill();requestAnimationFrame(loop);
+  return {spawn,fill,fireworks};
+})();
+
+/* ================= lights and controls ================= */
+function lights(){const s=document.getElementById("lights");if(!allow("effects","topLights")){s.remove();return}let h=`<path d="M0 6 Q137 26 275 8 Q412 26 550 8 Q687 26 825 8 Q962 26 1100 6" stroke="#222" stroke-width="2" fill="none"/>`;const cols=["#ff4d4d","#ffd34d","#4dd2ff","#7dff6b","#ff8af0"];for(let i=0;i<40;i++){const x=12+i*27.2,seg=Math.floor(x/275),u=(x-seg*275)/275,y=6+(4*u*(1-u))*18+2,c=cols[i%5];h+=`<circle class="bulb" cx="${x.toFixed(1)}" cy="${(y+5).toFixed(1)}" r="4.4" fill="${c}" style="animation-delay:${(i%7)*.31}s;filter:drop-shadow(0 0 4px ${c})"/>`}s.innerHTML=h}
+const sel=document.getElementById("day");
+function fillDays(){sel.innerHTML="";for(let d=1;d<=M().days;d++){const o=document.createElement("option");o.value=d;o.textContent=`${d} ${M().name}`;if(d===today)o.selected=true;sel.appendChild(o)}}
+sel.onchange=()=>{today=+sel.value;build()};
+const mBox=document.getElementById("months");
+/* the real calendar: today comes from the phone's clock, never from the page, so no door opens early */
+function realToday(m){const now=new Date(),y=MONTHS[m].year,k=now.getFullYear()*12+now.getMonth(),t=y*12+(m-1);return k<t?0:k>t?MONTHS[m].days+1:now.getDate()}
+function setMonth(m){month=m;if(!CFG.demoControls)today=realToday(m);else if(CFG.openAll&&!new URLSearchParams(location.search).get("day"))today=M().days;else if(today>M().days)today=M().days;document.body.classList.toggle("xmas",X());mBox.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",+b.dataset.m===m));fillDays();build();FX.fill();document.getElementById("subtitle").textContent=(CFG.subtitle||"").replace("{month}",M().name)}
+if(MKEYS.length>1) MKEYS.forEach(k=>{const b=document.createElement("button");b.dataset.m=k;b.textContent=MONTHS[k].name;b.onclick=()=>setMonth(k);mBox.appendChild(b)});
+document.getElementById("snd").onclick=e=>{soundOn=!soundOn;e.currentTarget.setAttribute("aria-pressed",soundOn);e.currentTarget.textContent=soundOn?"Sound on":"Sound off"};
+if(!allow("effects","sound")){const b=document.getElementById("snd");b.remove()}
+if(!CFG.demoControls) document.getElementById("demo").remove();
+document.getElementById("title").textContent=CFG.title||"Advent";
+if(CFG.demoControls&&CFG.openAll)document.getElementById("testBanner").style.display="";
+/* "Today's door": switch to today's month if needed, scroll it into view and make it glow */
+{const gt=document.getElementById("goToday");
+ const homeMonth=()=>{if(CFG.demoControls)return month;const k=new Date().getMonth()+1;return MONTHS[k]&&MONTHS[k].year===new Date().getFullYear()?k:null};
+ const upd=()=>{gt.style.display=homeMonth()?"":"none"};
+ gt.onclick=()=>{const hm=homeMonth();if(!hm)return;if(hm!==month)setMonth(hm);const t=document.querySelector(".bay.today");if(!t)return;
+   t.scrollIntoView({behavior:RM.matches?"auto":"smooth",block:"center"});t.classList.remove("flash");void t.offsetWidth;t.classList.add("flash");setTimeout(()=>t.classList.remove("flash"),1500)};
+ upd();}
+lights();
+const q=new URLSearchParams(location.search);
+if(CFG.demoControls&&q.get("month")&&MONTHS[+q.get("month")]) month=+q.get("month");
+if(CFG.demoControls&&q.get("day")) today=Math.max(1,Math.min(31,+q.get("day")));
+else if(CFG.demoControls&&CFG.openAll) today=31;   /* test page: every door open */
+setMonth(month);
+/* splash */
+const sp=document.getElementById("splash"),SP=CFG.splash||{};
+document.getElementById("spT").textContent=SP.title||CFG.title||"Advent";
+document.getElementById("spL").textContent=SP.line||"";
+if(SP.cross===false)document.getElementById("spCross").remove();
+{const mt=document.getElementById("spMat");if(SP.mat)mt.textContent=SP.mat;else mt.remove();}
+const go=document.getElementById("spGo");go.textContent=SP.button||"Open the calendar";
+if(SP.show===false||q.get("nosplash")==="1"){sp.remove()}else{const enter=()=>{if(sp.classList.contains("opening"))return;ac();creakSound();sp.classList.add("opening");setTimeout(()=>{sp.classList.add("gone");setTimeout(()=>sp.remove(),900)},RM.matches?150:1000)};go.onclick=enter;document.getElementById("spLeafBtn").onclick=enter;if(SP.button===""||SP.button===false){go.remove()};setTimeout(()=>go.focus(),50)}
+}
+</script>
+</body>
+</html>
