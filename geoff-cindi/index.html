@@ -828,7 +828,7 @@ function showCard(day){
   const btn=document.getElementById("dPlay");
   btn.style.display= b.type==="none" ? "none" : "";
   btn.textContent=(day===today?(b.label||"Play"):(b.pastLabel||b.label||"Play")).replace("{day}",day);
-  btn.onclick=()=>{ if(b.type==="message"){ dlg.close(); return; } if(b.type==="link"&&b.href){ location.href=b.href.replace("{date}",date).replace("{day}",day); } else { dlg.close(); toast(b.notReady||"The game for this door comes next."); } };
+  btn.onclick=()=>{ if(b.type==="message"){ dlg.close(); return; } if(b.type==="link"&&b.href){ location.href=b.href.replace("{date}",date).replace("{day}",day)+(b.keepHash!==false&&location.hash?location.hash:""); } else { dlg.close(); toast(b.notReady||"The game for this door comes next."); } };
   if(typeof dlg.showModal==="function")dlg.showModal();else dlg.setAttribute("open","");
 }
 document.getElementById("dClose").onclick=()=>dlg.close();
