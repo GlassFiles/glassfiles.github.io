@@ -146,7 +146,7 @@ dialog::backdrop{background:rgba(20,5,10,.55)}
 </header>
 <nav id="nav">
   <button data-v="make" aria-current="true">Make</button>
-  <button data-v="bar">My bar</button>
+  <button data-v="bar">My shelf</button>
   <button data-v="map">Flavour map</button>
   <button data-v="evening">Evening</button>
   <button data-v="world">History</button>
@@ -159,7 +159,7 @@ dialog::backdrop{background:rgba(20,5,10,.55)}
     <input class="search" id="q" type="search" placeholder="Search drinks or ingredients" enterkeyhint="search" autocomplete="off">
     <label class="toggle"><input type="checkbox" id="onlyok"> Only what I can make</label>
   </div>
-  <div id="start" class="tip" hidden><b>Start in My bar.</b> Mark what you have, what you have only a little of, and what you don't have. This list then sorts itself.</div>
+  <div id="start" class="tip" hidden><b>Start in My shelf.</b> Mark what you have, what you have only a little of, and what you don't have. This list then sorts itself.</div>
   <p class="sum" id="sum"></p>
   <div id="shop"></div>
   <div class="list" id="list"></div>
@@ -235,7 +235,7 @@ let canSave = true;
 try { const raw = localStorage.getItem(KEY); if (raw) S = Object.assign(S, JSON.parse(raw)); } catch (e) { canSave = false; }
 S.extra.forEach(p => { P[p.id] = p; });
 function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { canSave = false; note(); } }
-function note() { document.getElementById("savenote").textContent = canSave ? "" : "This browser isn't letting the page remember your choices. Use Copy backup in My bar before you close it."; }
+function note() { document.getElementById("savenote").textContent = canSave ? "" : "This browser isn't letting the page remember your choices. Use Copy backup in My shelf before you close it."; }
 note();
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const SRC = {jordan:"Jordan's menu", classic:"Classic", mock:"Mocktail", hist:"Historical", geo:"Around the world", mine:"Yours", var:"Variation", xmas:"Christmas"};
@@ -319,7 +319,7 @@ function renderMake() {
   document.getElementById("shop").innerHTML = set && top.length ? `<div class="tip"><b>Worth buying:</b> ${top.map(([a,n]) => `${esc(nm(a))} (${n} more drink${n>1?"s":""})`).join(" · ")}</div>` : "";
   document.getElementById("list").innerHTML = ds.length ? ds.map(({d, st}) =>
     `<button class="drink${set && st.k === 0 ? " off" : ""}" data-id="${d.id}">${glass(d)}<span><h3>${esc(d.n)}${S.fav[d.id]?" ★":""}${S.rate[d.id]?` <span class="rt">${S.rate[d.id]}/10</span>`:""}</h3><small>${SRC[d.src]}${d.kind==="mocktail"&&d.src!=="mock"?" · mocktail":""} · ${set && st.k === 0 ? "missing " + st.miss.map(a => `<s>${esc(nm(a))}</s>`).join(", ") : esc(d.ing.map(i => i[1]).join(", "))}</small></span>${pill(st)}</button>`).join("")
-    : `<p class="meta">Nothing here yet${only ? ". Untick 'Only what I can make', or mark more in My bar" : ""}.</p>`;
+    : `<p class="meta">Nothing here yet${only ? ". Untick 'Only what I can make', or mark more in My shelf" : ""}.</p>`;
   document.getElementById("tandl").innerHTML = (fil==="all"||fil==="jordan") && DATA.test ? `<div class="tip"><b>Jordan's Test &amp; learn list:</b> ${DATA.test.map(esc).join(" · ")}</div>` : "";
 }
 document.getElementById("q").addEventListener("input", e => { fq = e.target.value; renderMake(); });
@@ -429,7 +429,7 @@ function renderEvening() {
   const before = course("before", ["bitter","fizz","wine","sour"]);
   const withf = course("with", styles);
   const after = course("after", food === "dessert" ? ["creamy"] : ["creamy","stirred"]);
-  const card = (title, why, d) => `<div class="course"><h3>${title}</h3><p class="why">${why}</p>${d ? `<button class="drink" data-id="${d.id}">${glass(d)}<span><h3>${esc(d.n)}</h3><small>${esc(DATA.styles[d.st][0])} · ${SRC[d.src]}</small></span>${pill(status(d))}</button><p class="meta" style="margin:8px 0 0">${esc(DATA.styles[d.st][1])}</p>` : `<p class="meta">Nothing fits yet${only ? ". Untick 'Only drinks I can make now', or mark more in My bar" : ""}.</p>`}</div>`;
+  const card = (title, why, d) => `<div class="course"><h3>${title}</h3><p class="why">${why}</p>${d ? `<button class="drink" data-id="${d.id}">${glass(d)}<span><h3>${esc(d.n)}</h3><small>${esc(DATA.styles[d.st][0])} · ${SRC[d.src]}</small></span>${pill(status(d))}</button><p class="meta" style="margin:8px 0 0">${esc(DATA.styles[d.st][1])}</p>` : `<p class="meta">Nothing fits yet${only ? ". Untick 'Only drinks I can make now', or mark more in My shelf" : ""}.</p>`}</div>`;
   document.getElementById("plan").innerHTML =
     card("Before dinner", "Light, dry, bitter or bubbly to wake the appetite.", before) +
     card("With " + DATA.foods.find(f => f.id === food).name.toLowerCase(), (withf && !styles.includes(withf.st) ? "Nothing to hand is a perfect match; this is the closest. Best styles: " : "Best styles for this food: ") + styles.map(s => DATA.styles[s][0].toLowerCase()).join(", ") + ".", withf) +
