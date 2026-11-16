@@ -115,6 +115,7 @@ table.sc td.n{text-align:right}
 .coach ul{margin:4px 0 0;padding-left:18px}.coach li{margin:2px 0}
 .tipline{font-size:14px;color:#81d4fa;margin-top:4px}
 .hand .card.tip{outline:3px dashed #81d4fa;outline-offset:1px}
+.hand .card.barred{box-shadow:inset 0 -5px 0 #e53935}
 .hand .card{touch-action:none}
 .hand .card.dragging{opacity:.35}
 .hand .card.drop-before{box-shadow:-5px 0 0 0 var(--gold)}
@@ -180,6 +181,7 @@ table.sc td.n{text-align:right}
     players: 4,
     decks: 2,
     jokers: 4,
+    jokersPerDeck: null,        // when a number, jokers = decks x this (so 2 per pack gives 4 with 2 packs, 6 with 3)
     twosWild: false,
     aceMode: 'both',            // 'low' (A-2-3), 'high' (Q-K-A), 'both' (either end, never round the corner)
     wildLimit: { mode: 'fewerThanNaturals', fixed: 1, bySize: { 3: 1, 4: 1, 5: 2, 7: 3, 10: 4 } },
@@ -190,6 +192,9 @@ table.sc td.n{text-align:right}
     buyPenalty: 1,              // extra cards from the stock with each buy
     buyAfterDown: false,        // may a player who has gone down still buy?
     jokerSwap: true,            // a player who is down may swap the natural card for a joker in a run
+    noPlayableDiscard: 'never', // may you throw a card that would go on a meld on the table? 'never' barred (anyone may),
+                                // 'untilDown' (barred until you have gone down), 'always' (barred for everyone).
+                                // If every card in your hand is barred, you may throw any of them.
     scoring: { low: 5, high: 10, ace: 15, joker: 50, wildTwo: 20, lowMax: 9 }, // low = 2..lowMax, high = above lowMax to K
     rounds: null,               // filled from a preset if absent
     stockOut: 'reshuffle',      // when the stock runs out: 'reshuffle' the dead discards, or 'end' the round (nobody out)
@@ -231,6 +236,22 @@ table.sc td.n{text-align:right}
         { contract: [R(), R(), R()], deal: 11, buys: 3, noDiscardOut: true, allAtOnce: true }
       ]
     },
+    family: {
+      name: 'Family rules',
+      decks: 2, jokersPerDeck: 2, aceMode: 'both',
+      wildLimit: { mode: 'fewerThanNaturals' },
+      noPlayableDiscard: 'untilDown',
+      buyPenalty: 2,
+      rounds: [
+        { contract: [S(), S()], deal: 7, buys: 2 },
+        { contract: [S(), R()], deal: 7, buys: 2 },
+        { contract: [R(), R()], deal: 7, buys: 2 },
+        { contract: [S(), S(), S()], deal: 7, buys: 2 },
+        { contract: [S(), S(), R()], deal: 7, buys: 2 },
+        { contract: [S(), R(), R()], deal: 7, buys: 2 },
+        { contract: [R(), R(), R()], deal: 7, buys: 2, noDiscardOut: true }
+      ]
+    },
     ten: {
       name: 'Shanghai 10 rounds',
       decks: 2, jokers: 4, aceMode: 'both',
@@ -267,6 +288,7 @@ table.sc td.n{text-align:right}
     if (p) merge(cfg, p);
     merge(cfg, overrides || {});
     if (!cfg.rounds) cfg.rounds = clone(PRESETS.classic7.rounds);
+    if (cfg.jokersPerDeck != null) cfg.jokers = cfg.decks * cfg.jokersPerDeck;
     validateConfig(cfg);
     return cfg;
   }
@@ -275,7 +297,9 @@ table.sc td.n{text-align:right}
     var errs = [];
     if (!(cfg.players >= 2 && cfg.players <= 8)) errs.push('players must be 2 to 8');
     if (!(cfg.decks >= 1 && cfg.decks <= 4)) errs.push('decks must be 1 to 4');
-    if (!(cfg.jokers >= 0 && cfg.jokers <= 8)) errs.push('jokers must be 0 to 8');
+    if (!(cfg.jokers >= 0 && cfg.jokers <= 12)) errs.push('jokers must be 0 to 12');
+    if (cfg.jokersPerDeck != null && !(cfg.jokersPerDeck >= 0 && cfg.jokersPerDeck <= 3)) errs.push('jokers per deck must be 0 to 3');
+    if (['never', 'untilDown', 'always'].indexOf(cfg.noPlayableDiscard) < 0) errs.push('noPlayableDiscard must be never, untilDown or always');
     if (['low', 'high', 'both'].indexOf(cfg.aceMode) < 0) errs.push('aceMode must be low, high or both');
     if (['reshuffle', 'end'].indexOf(cfg.stockOut) < 0) errs.push('stockOut must be reshuffle or end');
     if (!cfg.rounds.length) errs.push('at least one round');
@@ -526,6 +550,22 @@ table.sc td.n{text-align:right}
     return out;
   }
 
+  // Cards player pi may not throw under the noPlayableDiscard rule: every card that would go on a meld on the table
+  // (a lay-off, or a real card that a joker in a run stands for). If that is every card in the hand, none is barred.
+  function barredDiscards(st, pi) {
+    var cfg = st.cfg, p = st.players[pi], rule = cfg.noPlayableDiscard;
+    if (!rule || rule === 'never' || (rule === 'untilDown' && p.down) || !st.melds || !st.melds.length) return [];
+    var out = p.hand.filter(function (c) {
+      return st.melds.some(function (m) {
+        if (layOffSpots(c, m, cfg).length) return true;
+        if (m.t !== 'run' || isWild(c, cfg) || c.suit !== m.suit) return false;
+        for (var k = 0; k < m.cards.length; k++) if (isWild(m.cards[k], cfg) && c.rank === rankAtPos(m.start + k)) return true;
+        return false;
+      });
+    }).map(function (c) { return c.id; });
+    return out.length === p.hand.length ? [] : out;
+  }
+
   // ---------- game state ----------
   function newGame(cfg, seed, names) {
     var st = {
@@ -698,6 +738,7 @@ table.sc td.n{text-align:right}
       return st;
     }
     if (a.type === 'discard') {
+      if (barredDiscards(st, st.turn).indexOf(a.cardId) >= 0) err(cfg.noPlayableDiscard === 'always' ? 'that card goes on the table, so you may not throw it' : 'that card goes on the table, so you may not throw it until you are down');
       var dc = takeFromHand(p, a.cardId);
       if (!p.hand.length && rd.noDiscardOut) { p.hand.push(dc); err('this round you go out without discarding'); }
       st.top = dc;
@@ -755,7 +796,7 @@ table.sc td.n{text-align:right}
     rng: rng, shuffle: shuffle, buildDeck: buildDeck, isWild: isWild, cardName: cardName, cardPoints: cardPoints,
     posRange: posRange, rankAtPos: rankAtPos, maxWilds: maxWilds, validMeld: validMeld,
     indexHand: indexHand, candidates: candidates, contractDistance: contractDistance, findContract: findContract,
-    layOffSpots: layOffSpots, swapSpots: swapSpots,
+    layOffSpots: layOffSpots, swapSpots: swapSpots, barredDiscards: barredDiscards,
     newGame: newGame, startRound: startRound, apply: apply, tryApply: tryApply, buyers: buyers,
     current: current, roundInfo: roundInfo, allCards: allCards
   };
@@ -918,8 +959,10 @@ table.sc td.n{text-align:right}
   Bot.prototype.pickDiscard = function (st, pi) {
     var cfg = st.cfg, me = st.players[pi], rd = S.roundInfo(st), self = this;
     var contract = rd.contract;
-    var naturals = me.hand.filter(function (c) { return !S.isWild(c, cfg); });
-    var pool = naturals.length ? naturals : me.hand.slice();
+    var barred = S.barredDiscards(st, pi);
+    var allowed = me.hand.filter(function (c) { return barred.indexOf(c.id) < 0; });
+    var naturals = allowed.filter(function (c) { return !S.isWild(c, cfg); });
+    var pool = naturals.length ? naturals : allowed.slice();
     if (rd.noDiscardOut && me.hand.length === 1) return me.hand[0]; // will be refused; engine guards
     var danger = anyoneElseDown(st, pi) ? 1 : 0.3;
     var best = null, bestScore = Infinity, seen = {};
@@ -1117,6 +1160,12 @@ table.sc td.n{text-align:right}
     }
     var pts = S.cardPoints(c, cfg);
     if (pts >= 10) why.push('it would cost you ' + pts + ' points if someone goes out');
+    var barred = S.barredDiscards ? S.barredDiscards(st, pi) : [];
+    if (barred.length) {
+      var bn = me.hand.filter(function (x) { return barred.indexOf(x.id) >= 0; }).map(name);
+      bn = bn.filter(function (v, i) { return bn.indexOf(v) === i; });
+      why.push('you may not throw the ' + (bn.length > 1 ? bn.slice(0, -1).join(', ') + ' or the ' + bn[bn.length - 1] : bn[0]) + ': ' + (bn.length > 1 ? 'they go' : 'it goes') + ' on the table' + (cfg.noPlayableDiscard === 'always' ? '' : ' and you are not down yet'));
+    }
     var warn = danger(st, pi, c);
     return { card: c, label: name(c), why: why, warn: warn };
   }
@@ -1342,7 +1391,7 @@ var LEVEL_LABEL={easy:'easy',medium:'medium',hard:'hard'};
 function cardHTML(c,cfg,opts){
   opts=opts||{};
   var mini=opts.mini?' mini':'';
-  var cls='card'+mini+(opts.sel?' sel':'')+(opts.isNew?' new':'')+(opts.tip?' tip':'');
+  var cls='card'+mini+(opts.sel?' sel':'')+(opts.isNew?' new':'')+(opts.tip?' tip':'')+(opts.barred?' barred':'');
   var tag=opts.button?'button':'div', attrs=opts.button?' type="button" data-id="'+c.id+'"':'';
   var label;
   if(c.suit===4){
@@ -1391,10 +1440,10 @@ function textToRounds(txt){
 }
 
 // ---------- setup ----------
-var DEFAULT_SETUP={name:'You',bots:3,level:'medium',preset:'classic7',speed:'normal',seed:'',buyAsk:'helps',coach:'tap',goDownMode:'able'};
+var DEFAULT_SETUP={name:'You',bots:3,level:'medium',preset:'family',speed:'normal',seed:'',buyAsk:'helps',coach:'tap',goDownMode:'able'};
 function presetFields(name){
   var c=S.makeConfig(name);
-  return {decks:c.decks,jokers:c.jokers,twosWild:c.twosWild,aceMode:c.aceMode,wildMode:c.wildLimit.mode==='fixed'?'fixed'+c.wildLimit.fixed:c.wildLimit.mode,
+  return {decks:c.decks,jokers:c.jokersPerDeck!=null?c.jokersPerDeck:c.jokers,jokersPerDeck:c.jokersPerDeck!=null,noPlayableDiscard:c.noPlayableDiscard,twosWild:c.twosWild,aceMode:c.aceMode,wildMode:c.wildLimit.mode==='fixed'?'fixed'+c.wildLimit.fixed:c.wildLimit.mode,
     initialMeldRules:c.initialMeldRules,layOffSameTurn:c.layOffSameTurn,mustDiscardToGoOut:c.mustDiscardToGoOut,buyPenalty:c.buyPenalty,buyAfterDown:c.buyAfterDown,
     jokerSwap:c.jokerSwap,stockOut:c.stockOut==='end'?'end':'reshuffle'+c.maxReshuffles,
     ptLow:c.scoring.low,ptHigh:c.scoring.high,ptAce:c.scoring.ace,ptJoker:c.scoring.joker,lowMax:c.scoring.lowMax,rounds:roundsToText(c.rounds)};
@@ -1405,7 +1454,7 @@ function fieldsToConfig(su,f){
   var wl={mode:f.wildMode,fixed:1,bySize:{3:1,4:1,5:2,7:3,10:4}};
   if(/^fixed/.test(f.wildMode)){wl.mode='fixed';wl.fixed=+f.wildMode.slice(5);}
   var so=f.stockOut==='end'?{stockOut:'end',maxReshuffles:0}:{stockOut:'reshuffle',maxReshuffles:+f.stockOut.slice(9)};
-  var o={players:1+(+su.bots),decks:+f.decks,jokers:+f.jokers,twosWild:!!f.twosWild,aceMode:f.aceMode,wildLimit:wl,initialMeldRules:!!f.initialMeldRules,
+  var o={players:1+(+su.bots),decks:+f.decks,jokers:f.jokersPerDeck?(+f.decks)*(+f.jokers):+f.jokers,jokersPerDeck:f.jokersPerDeck?+f.jokers:null,noPlayableDiscard:f.noPlayableDiscard||'never',twosWild:!!f.twosWild,aceMode:f.aceMode,wildLimit:wl,initialMeldRules:!!f.initialMeldRules,
     layOffSameTurn:!!f.layOffSameTurn,mustDiscardToGoOut:!!f.mustDiscardToGoOut,buyPenalty:+f.buyPenalty,buyAfterDown:!!f.buyAfterDown,jokerSwap:!!f.jokerSwap,
     stockOut:so.stockOut,maxReshuffles:so.maxReshuffles,
     scoring:{low:+f.ptLow,high:+f.ptHigh,ace:+f.ptAce,joker:+f.ptJoker,wildTwo:20,lowMax:+f.lowMax},rounds:tr.rounds,
@@ -1430,12 +1479,14 @@ function renderSetup(){
   h+='<details id="more"><summary>Change the rules</summary>';
   h+='<div class="field"><label for="decks">Decks</label>'+num('decks',f.decks,1,4)+'</div>';
   h+='<div class="field"><label for="jokers">Jokers</label>'+num('jokers',f.jokers,0,8)+'</div>';
+  h+=chk('jokersPerDeck',f.jokersPerDeck,'Jokers are per deck (2 per deck: 4 jokers with 2 decks, 6 with 3)');
   h+=chk('twosWild',f.twosWild,'2s are wild too');
   h+='<div class="field"><label for="aceMode">Aces in runs</label>'+sel('aceMode',f.aceMode,[['both','High or low (not round the corner)'],['low','Low only (A-2-3)'],['high','High only (Q-K-A)']])+'</div>';
   h+='<div class="field"><label for="wildMode">Jokers per meld</label>'+sel('wildMode',f.wildMode,[['fewerThanNaturals','Fewer than the real cards'],['fixed1','At most 1'],['fixed2','At most 2'],['bySize','By size (1 in 3–4, 2 in 5, 3 in 7, 4 in 10)'],['any','Any (at least 1 real card)']])+'</div>';
   h+=chk('initialMeldRules',f.initialMeldRules,'First meld: no two sets of one rank, no touching runs of one suit');
   h+=chk('layOffSameTurn',f.layOffSameTurn,'May lay off in the turn you go down');
   h+=chk('mustDiscardToGoOut',f.mustDiscardToGoOut,'Your last card must be a discard');
+  h+='<div class="field"><label for="noPlayableDiscard">Throwing a card that goes on the table</label>'+sel('noPlayableDiscard',f.noPlayableDiscard||'never',[['never','Allowed'],['untilDown','Not until you are down'],['always','Never allowed']])+'</div>';
   h+=chk('jokerSwap',f.jokerSwap,'Swap a real card for a joker in a run (once you are down)');
   h+='<div class="field"><label for="buyPenalty">Penalty cards per buy</label>'+num('buyPenalty',f.buyPenalty,0,3)+'</div>';
   h+=chk('buyAfterDown',f.buyAfterDown,'May still buy after going down');
@@ -1456,7 +1507,7 @@ function renderSetup(){
   h+='<div class="field"><label for="seed">Deal number</label><input type="text" inputmode="numeric" id="seed" value="'+esc(su.seed)+'" placeholder="random" autocomplete="off" enterkeyhint="done" style="width:140px"><span class="muted">Same number, same cards: play a deal again.</span></div>';
   h+='<div id="warn"></div><div class="row"><button class="btn primary" id="start">Deal</button></div></div>';
   $app.innerHTML=h;
-  var ids=['decks','jokers','twosWild','aceMode','wildMode','initialMeldRules','layOffSameTurn','mustDiscardToGoOut','buyPenalty','buyAfterDown','jokerSwap','stockOut','ptLow','ptHigh','ptAce','ptJoker','lowMax','rounds'];
+  var ids=['decks','jokers','jokersPerDeck','noPlayableDiscard','twosWild','aceMode','wildMode','initialMeldRules','layOffSameTurn','mustDiscardToGoOut','buyPenalty','buyAfterDown','jokerSwap','stockOut','ptLow','ptHigh','ptAce','ptJoker','lowMax','rounds'];
   function readSu(){return {name:(document.getElementById('name').value||'You').trim().slice(0,16)||'You',bots:+document.getElementById('bots').value,level:document.getElementById('level').value,
     preset:document.getElementById('preset').value,speed:document.getElementById('speed').value,buyAsk:document.getElementById('buyAsk').value,coach:document.getElementById('coach').value,goDownMode:document.getElementById('goDownMode').value,seed:document.getElementById('seed').value.replace(/\D/g,'').slice(0,9)};}
   function readF(){var o={};ids.forEach(function(id){var el=document.getElementById(id);o[id]=el.type==='checkbox'?el.checked:el.value;});return o;}
@@ -1611,6 +1662,8 @@ function humanAct(action,okMsg){
 function friendly(e){
   var map={'keep a card to discard':'Keep one card to throw at the end of your turn.','go down first':'Go down with your contract before laying off.',
     'lay off from your next turn':'With these rules you lay off from your next turn.','this round you go out without discarding':'This round you go out without throwing a card: lay off your last cards together (try "Lay off all").',
+    'that card goes on the table, so you may not throw it until you are down':'That card goes on someone\'s meld, so you may not throw it until you are down. Cards marked red underneath are the ones you must keep.',
+    'that card goes on the table, so you may not throw it':'That card goes on someone\'s meld, so you may not throw it. Cards marked red underneath are the ones you must keep.',
     'this round you must go down and out in one go':'This round you must go down and out in one go: every card must fit.'};
   for(var k in map)if(e.indexOf(k)===0)return map[k];
   return e.charAt(0).toUpperCase()+e.slice(1)+'.';
@@ -1818,9 +1871,9 @@ function render(){
   h+='<button class="btn ghost" id="sort">'+sortLbl+'</button>';
   if(n)h+='<button class="btn ghost" id="clear">Clear</button>';
   h+='</div>';
-  var tipId=adv2&&adv2.discardId,layIds=(adv2&&adv2.layIds)||[];
+  var tipId=adv2&&adv2.discardId,layIds=(adv2&&adv2.layIds)||[],barIds=(st.phase==='play'||st.phase==='draw')?S.barredDiscards(st,G.human):[];
   h+='<div class="hand" id="hand">';
-  function cardBtn(c){return cardHTML(c,cfg,{button:true,sel:!!G.sel[c.id],isNew:c.id===G.lastDrawn,tip:c.id===tipId||layIds.indexOf(c.id)>=0});}
+  function cardBtn(c){return cardHTML(c,cfg,{button:true,sel:!!G.sel[c.id],isNew:c.id===G.lastDrawn,tip:c.id===tipId||layIds.indexOf(c.id)>=0,barred:barIds.indexOf(c.id)>=0});}
   if(G.sort==='lanes'){
     var ln=lanes();
     h=h.replace('<div class="hand" id="hand">','<div class="hand lanes" id="hand">');
