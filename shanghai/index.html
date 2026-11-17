@@ -155,6 +155,32 @@ table.sc td.n{text-align:right}
 #dbg{position:fixed;left:4px;bottom:4px;background:#000c;color:#0f0;font:11px monospace;padding:4px;z-index:9;pointer-events:none}
 @media (min-width:600px){.hand .card{width:54px;height:76px}.hand .card .r{font-size:22px}.hand .card .s{font-size:24px}}
 @media (prefers-reduced-motion:reduce){.hand .card.sel{transform:none}}
+#fx{position:fixed;inset:0;pointer-events:none;z-index:50}
+.toast{position:fixed;left:50%;top:14px;transform:translateX(-50%);background:#c62828;color:#fff;font-weight:700;font-size:17px;padding:10px 18px;border-radius:12px;box-shadow:0 4px 18px rgba(0,0,0,.45);animation:tin .25s ease-out;max-width:92vw;text-align:center}
+.toast+.toast{top:66px}
+@keyframes tin{from{opacity:0;transform:translate(-50%,-10px)}to{opacity:1;transform:translate(-50%,0)}}
+.oval .seat.one{border-color:#ff5252;animation:onepulse 1s ease-in-out infinite alternate}
+.oval .seat.one .onecard{color:#ff8a80;font-weight:700}
+@keyframes onepulse{from{box-shadow:0 0 0 0 rgba(255,82,82,.7)}to{box-shadow:0 0 0 6px rgba(255,82,82,0)}}
+#cele{position:fixed;inset:0;pointer-events:none;z-index:60;display:flex;align-items:center;justify-content:center;transition:opacity .6s}
+#cele canvas{position:absolute;inset:0;width:100%;height:100%}
+#cele .banner{position:relative;background:rgba(10,30,20,.9);border:4px solid var(--gold);border-radius:18px;padding:18px 26px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.6);animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
+#cele .banner .big{font-size:clamp(28px,8vw,48px);font-weight:800;line-height:1.1}
+#cele .banner .sub{font-size:16px;opacity:.85;margin-top:6px}
+@keyframes pop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+#rev{margin:0 0 6px;max-height:30vh;overflow:auto;background:rgba(14,40,28,.96);border:2px solid #81d4fa;border-radius:12px;padding:8px 10px;font-size:14px;line-height:1.35;box-shadow:0 4px 18px rgba(0,0,0,.5);z-index:55}
+@media (min-width:760px){#rev{position:fixed;right:8px;width:330px;max-height:42vh;margin:0}}
+#rev .rh{display:flex;align-items:center;gap:6px;font-weight:700;margin-bottom:4px}
+#rev .rh span{flex:1}
+#rev .rh button,#rev .ri button{min-height:44px;min-width:44px;background:transparent;color:inherit;border:1px solid rgba(255,255,255,.3);border-radius:8px;font-size:14px}
+#rev .ri{border-top:1px solid rgba(255,255,255,.15);padding:4px 0;display:flex;gap:6px;align-items:flex-start}
+#rev .ri .tx{flex:1}
+#rev .ri .tt{font-weight:700;font-size:13px;opacity:.85}
+#rev li{list-style:none;margin:2px 0}
+#rev li.ok::before{content:'✓ ';color:#81c784;font-weight:700}
+#rev li.no::before{content:'⚠ ';color:#ffb74d}
+#rev ul{margin:0;padding:0}
+@media (prefers-reduced-motion:reduce){.oval .seat.one{animation:none}#cele .banner{animation:none}.toast{animation:none}}
 </style>
 </head>
 <body>
@@ -1250,6 +1276,32 @@ table.sc td.n{text-align:right}
     return { head: head, lines: lines.concat(threat(st, pi)), pick: pick };
   }
 
+  // ---------- reviewing your own moves ----------
+  function sameCard(a, b) { return a && b && a.suit === b.suit && a.rank === b.rank; }
+  // After your turn: what you did against what the coach would have done. pre = {draw: adviseDraw result before you drew,
+  // from: 'discard'|'stock', drawnName, couldGoDown: bool, layable: [cards], thrown: card, advisedThrow: card|null, why: [..]}
+  // Returns [{ok, text}].
+  function reviewTurn(r) {
+    var out = [];
+    if (r.draw) {
+      var tookFace = r.from === 'discard', coachFace = r.draw.pick === 'discard';
+      if (tookFace === coachFace) out.push({ ok: true, text: (tookFace ? 'Took the ' + r.topName : 'Drew from the pile') + ': the coach agrees.' });
+      else out.push({ ok: false, text: (tookFace ? 'You took the ' + r.topName + '.' : 'You drew from the pile.') + ' Coach: ' + r.draw.head });
+    }
+    if (r.wentDown) out.push({ ok: true, text: 'You went down.' });
+    else if (r.couldGoDown) out.push({ ok: false, text: 'You could have gone down this turn. Going down early lets you lay off and shrinks your hand.' });
+    if (r.layable && r.layable.length) out.push({ ok: false, text: 'The ' + r.layable.map(name).join(', ') + (r.layable.length === 1 ? ' fits' : ' fit') + ' on the table and could have been laid off.' });
+    if (r.thrown) {
+      if (!r.advisedThrow || sameCard(r.thrown, r.advisedThrow)) out.push({ ok: true, text: 'Threw the ' + name(r.thrown) + ': the coach agrees.' });
+      else out.push({ ok: false, text: 'You threw the ' + name(r.thrown) + '. Coach: throw the ' + name(r.advisedThrow) + (r.why && r.why.length ? ' (' + r.why.join('; ') + ')' : '') + '.' });
+    }
+    return out;
+  }
+  function reviewBuy(adv, bought, topName) {
+    if (!!adv.pick === !!bought) return null;
+    return { ok: false, text: (bought ? 'You bought the ' + topName + '.' : 'You let the ' + topName + ' go.') + ' Coach: ' + adv.head };
+  }
+
   function advisePlay(st, pi) {
     var cfg = st.cfg, me = st.players[pi], rd = S.roundInfo(st), lines = [], head, kn = knowledge(st, pi);
     var dz = null, layable = [], pickIds = [];
@@ -1366,7 +1418,7 @@ table.sc td.n{text-align:right}
     return { sets: sets, runs: runs, spare: spare };
   }
 
-  return { arrange: arrange, knowledge: knowledge, outs: outs, pWithin: pWithin, readyChance: readyChance, discardAdvice: discardAdvice,
+  return { reviewTurn: reviewTurn, reviewBuy: reviewBuy, arrange: arrange, knowledge: knowledge, outs: outs, pWithin: pWithin, readyChance: readyChance, discardAdvice: discardAdvice,
     adviseDraw: adviseDraw, adviseBuy: adviseBuy, advisePlay: advisePlay, pct: pct };
 });
 
@@ -1385,6 +1437,7 @@ var $app=document.getElementById('app');
 function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 var SUITCH=['♣','♦','♥','♠'],RK=['','A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 var BOTNAMES=['Ada','Bert','Cleo','Dev','Effie','Fred','Gus'];
+var LVNAME={easy:'beginner',medium:'medium',hard:'top'};
 var LEVEL_LABEL={easy:'easy',medium:'medium',hard:'hard'};
 
 // ---------- card drawing ----------
@@ -1440,7 +1493,7 @@ function textToRounds(txt){
 }
 
 // ---------- setup ----------
-var DEFAULT_SETUP={name:'You',bots:3,level:'medium',preset:'family',speed:'normal',seed:'',buyAsk:'helps',coach:'tap',goDownMode:'able'};
+var DEFAULT_SETUP={name:'You',bots:3,level:'medium',preset:'family',speed:'normal',seed:'',buyAsk:'helps',coach:'tap',goDownMode:'able',review:'on'};
 function presetFields(name){
   var c=S.makeConfig(name);
   return {decks:c.decks,jokers:c.jokersPerDeck!=null?c.jokersPerDeck:c.jokers,jokersPerDeck:c.jokersPerDeck!=null,noPlayableDiscard:c.noPlayableDiscard,twosWild:c.twosWild,aceMode:c.aceMode,wildMode:c.wildLimit.mode==='fixed'?'fixed'+c.wildLimit.fixed:c.wildLimit.mode,
@@ -1474,7 +1527,7 @@ function renderSetup(){
   if(saved&&saved.st&&!saved.st.over)h+='<div class="prompt"><b>A game is in progress</b> (round '+(saved.st.round+1)+' of '+saved.st.cfg.rounds.length+').<div class="row" style="margin-top:8px"><button class="btn primary" id="cont">Carry on</button><button class="btn ghost" id="abandon">Start again</button></div></div>';
   h+='<div class="field"><label for="name">Your name</label><input type="text" id="name" value="'+esc(su.name)+'" maxlength="16" autocomplete="off" enterkeyhint="done"></div>';
   h+='<div class="field"><label for="bots">Computer players</label>'+sel('bots',su.bots,[1,2,3,4,5,6,7].map(function(n){return [n,n];}))+'</div>';
-  h+='<div class="field"><label for="level">How good</label>'+sel('level',su.level,[['easy','Easy'],['medium','Medium'],['hard','Hard'],['mixed','A mix']])+'</div>';
+  h+='<div class="field"><label for="level">How good</label>'+sel('level',su.level,[['easy','Beginner'],['medium','Medium'],['hard','Top'],['mixed','A mix']])+'</div>';
   h+='<div class="field"><label for="preset">Rules</label>'+sel('preset',su.preset,Object.keys(S.PRESETS).map(function(k){return [k,S.PRESETS[k].name];}))+'</div>';
   h+='<details id="more"><summary>Change the rules</summary>';
   h+='<div class="field"><label for="decks">Decks</label>'+num('decks',f.decks,1,4)+'</div>';
@@ -1502,13 +1555,14 @@ function renderSetup(){
   h+='</details>';
   h+='<div class="field"><label for="coach">Coach (advice and odds)</label>'+sel('coach',su.coach,[['tap','A Hint button when I want it'],['always','Always on'],['off','Off']])+'</div>';
   h+='<div class="field"><label for="goDownMode">Go down button</label>'+sel('goDownMode',su.goDownMode,[['able','Only lights up when I can go down'],['always','Always on (tells me how far off I am)']])+'</div>';
-  h+='<div class="field"><label for="buyAsk">Offer me a buy</label>'+sel('buyAsk',su.buyAsk,[['helps','Only when the card would help me'],['always','Every time I may buy'],['never','Never']])+'</div>';
+  h+='<div class="field"><label for="buyAsk">Offer me a buy</label>'+sel('buyAsk',su.buyAsk,[['helps','Only when the card would help me'],['always','Every time I may buy'],['never','Never']])+'<span class="muted">You can change this on the buy question during a game too.</span></div>';
+  h+='<div class="field"><label for="review">Review my moves</label>'+sel('review',su.review||'on',[['on','After each turn, a note in the corner says what the coach would have done'],['off','Off']])+'</div>';
   h+='<div class="field"><label for="speed">Computer speed</label>'+sel('speed',su.speed,[['slow','Slow'],['normal','Normal'],['fast','Fast']])+'</div>';
   h+='<div class="field"><label for="seed">Deal number</label><input type="text" inputmode="numeric" id="seed" value="'+esc(su.seed)+'" placeholder="random" autocomplete="off" enterkeyhint="done" style="width:140px"><span class="muted">Same number, same cards: play a deal again.</span></div>';
   h+='<div id="warn"></div><div class="row"><button class="btn primary" id="start">Deal</button></div></div>';
   $app.innerHTML=h;
   var ids=['decks','jokers','jokersPerDeck','noPlayableDiscard','twosWild','aceMode','wildMode','initialMeldRules','layOffSameTurn','mustDiscardToGoOut','buyPenalty','buyAfterDown','jokerSwap','stockOut','ptLow','ptHigh','ptAce','ptJoker','lowMax','rounds'];
-  function readSu(){return {name:(document.getElementById('name').value||'You').trim().slice(0,16)||'You',bots:+document.getElementById('bots').value,level:document.getElementById('level').value,
+  function readSu(){return {review:document.getElementById('review').value,name:(document.getElementById('name').value||'You').trim().slice(0,16)||'You',bots:+document.getElementById('bots').value,level:document.getElementById('level').value,
     preset:document.getElementById('preset').value,speed:document.getElementById('speed').value,buyAsk:document.getElementById('buyAsk').value,coach:document.getElementById('coach').value,goDownMode:document.getElementById('goDownMode').value,seed:document.getElementById('seed').value.replace(/\D/g,'').slice(0,9)};}
   function readF(){var o={};ids.forEach(function(id){var el=document.getElementById(id);o[id]=el.type==='checkbox'?el.checked:el.value;});return o;}
   function check(){
@@ -1542,7 +1596,7 @@ function newGame(cfg,seed,su){
   var names=[su.name],levels=[null];
   for(var i=0;i<su.bots;i++){var L=su.level==='mixed'?['easy','medium','hard'][i%3]:su.level;names.push(BOTNAMES[i]);levels.push(L);}
   var st=S.newGame(cfg,seed,names);
-  G={st:st,levels:levels,human:0,speed:su.speed,buyAsk:su.buyAsk||'helps',coach:su.coach||'tap',goDownMode:su.goDownMode||'able',sel:{},sort:'suit',dir:1,breaks:[],menu:false,order:[],last:[],msg:'',log:[],showScores:false,lastDrawn:null};
+  G={st:st,levels:levels,human:0,speed:su.speed,buyAsk:su.buyAsk||'helps',coach:su.coach||'tap',goDownMode:su.goDownMode||'able',review:su.review||'on',reviews:[],alerted:{},sel:{},sort:'suit',dir:1,breaks:[],menu:false,order:[],last:[],msg:'',log:[],showScores:false,lastDrawn:null};
   makeSeats();
   S.startRound(st);
   save();loop();
@@ -1551,10 +1605,10 @@ function makeSeats(){
   G.seats=G.levels.map(function(L,i){return L?new B.Bot(L,(G.st.seed+i*7919+G.st.round*31+(G.st.turnsThisRound||0))>>>0):null;});
   if(AUTO)G.seats[0]=new B.Bot('medium',99);
 }
-function save(){var r=G.st.rand;G.st.rand=null;store('game',{st:G.st,levels:G.levels,speed:G.speed,sort:G.sort,dir:G.dir,breaks:G.breaks,order:G.order,buyAsk:G.buyAsk,coach:G.coach,goDownMode:G.goDownMode});G.st.rand=r;}
+function save(){var r=G.st.rand;G.st.rand=null;store('game',{st:G.st,levels:G.levels,speed:G.speed,sort:G.sort,dir:G.dir,breaks:G.breaks,order:G.order,buyAsk:G.buyAsk,coach:G.coach,goDownMode:G.goDownMode,review:G.review,alerted:G.alerted,celebrated:G.celebrated});G.st.rand=r;}
 function resumeGame(saved){
   var st=saved.st;st.rand=S.rng((st.seed^((st.turnsThisRound+1)*2654435761)^(st.round*40503))>>>0);
-  G={st:st,levels:saved.levels,human:0,speed:saved.speed||'normal',buyAsk:saved.buyAsk||'helps',coach:saved.coach||'tap',goDownMode:saved.goDownMode||'able',sel:{},sort:saved.sort||'suit',dir:saved.dir||1,breaks:saved.breaks||[],menu:false,order:saved.order||[],last:[],msg:'Welcome back.',log:[],showScores:false,lastDrawn:null};
+  G={st:st,levels:saved.levels,human:0,speed:saved.speed||'normal',buyAsk:saved.buyAsk||'helps',coach:saved.coach||'tap',goDownMode:saved.goDownMode||'able',review:saved.review||'on',reviews:[],alerted:saved.alerted||{},celebrated:saved.celebrated,sel:{},sort:saved.sort||'suit',dir:saved.dir||1,breaks:saved.breaks||[],menu:false,order:saved.order||[],last:[],msg:'Welcome back.',log:[],showScores:false,lastDrawn:null};
   makeSeats();loop();
 }
 function nameOf(i){return i===G.human?G.st.players[i].name:G.st.players[i].name;}
@@ -1572,6 +1626,7 @@ function noteLog(from){
     else if(e.t==='swap')t=who+' swapped the '+cn+' for a joker.';
     else if(e.t==='discard')t=who+' threw the '+cn+'.';
     if(t)G.log.push(t);
+    if(e.t==='discard'&&st.players[e.p].hand.length===1){var ak=st.round+'-'+e.p;if(!G.alerted[ak]){G.alerted[ak]=1;toast(e.p===G.human?'You have one card left!':st.players[e.p].name+' has one card left!');}}
     var sh={take:'took '+cn,buy:'bought '+cn,stock:'drew',down:'went down',layoff:'laid off '+cn,swap:'won a joker',discard:'threw '+cn}[e.t];
     if(sh){G.last=G.last||[];G.last[e.p]=sh;}
   }
@@ -1590,6 +1645,7 @@ async function loop(){
   while(true){
     if(st.phase==='gameOver'||st.over){drop('game');render();return;}
     if(st.phase==='roundOver'){
+      if(!AUTO&&st.outPlayer!=null&&G.celebrated!==st.round){G.celebrated=st.round;var sd=standings();celebrate(st.outPlayer===G.human?'You went out!':st.players[st.outPlayer].name+' went out!',(sd?sd.who+'. ':'')+(sd&&sd.you?sd.you+'.':''),SEATCOL[st.outPlayer],'Round '+(st.round+1)+' of '+st.cfg.rounds.length);}
       save();render();
       if(AUTO){await sleep(0);}else await waitFor('next');
       if(gone())return;
@@ -1600,13 +1656,25 @@ async function loop(){
     if(st.phase==='draw'){
       var from,buyer=null;
       if(bot){if(pi!==G.human)await sleep(delay());if(gone())return;from=bot.chooseDraw(st,pi);}
-      else{G.msg='Your turn: take the face-up card or draw from the pile.';from=await waitFor('draw');if(gone())return;}
+      else{
+        G.msg='Your turn: take the face-up card or draw from the pile.';
+        G.turnRev=null;
+        if(G.review==='on'&&C){try{G.turnRev={draw:C.adviseDraw(st,G.human),topName:st.top?cardText(st.top):''};}catch(e){console.error(e);}}
+        from=await waitFor('draw');if(gone())return;
+        if(G.turnRev)G.turnRev.from=from;
+      }
       if(from==='stock'&&st.top){
         var bs=S.buyers(st);
         for(var b=0;b<bs.length;b++){
           var who=bs[b];
           if(G.seats[who]){if(G.seats[who].wantsBuy(st,who)){buyer=who;break;}}
-          else if(humanMayWantBuy()){var yes=await waitFor('buy');if(gone())return;if(yes){buyer=who;break;}}
+          else if(humanMayWantBuy()){
+            var badv=null,tn=cardText(st.top);
+            if(G.review==='on'&&C){try{badv=C.adviseBuy(st,G.human);}catch(e){console.error(e);}}
+            var yes=await waitFor('buy');if(gone())return;
+            if(badv){var rv=C.reviewBuy(badv,yes,tn);if(rv)addReview('Buy',[rv]);}
+            if(yes){buyer=who;break;}
+          }
         }
       }
       var handBefore=me.hand.map(function(c){return c.id;});
@@ -1629,8 +1697,33 @@ async function loop(){
   }
 }
 
+// What going out did to the leaderboard (lowest total wins). Returns {who, you} lines.
+function ordinal(n){return n+(n%100>=11&&n%100<=13?'th':['th','st','nd','rd'][n%10]||'th');}
+function standings(){
+  var st=G.st,r=st.history[st.history.length-1];if(!r||r.out==null)return null;
+  var after=st.scores.slice(),before=after.map(function(x,i){return x-r.points[i];}),n=after.length,o=r.out,me=G.human;
+  function rank(sc,i){return 1+sc.filter(function(x,j){return j!==i&&x<sc[i];}).length;}
+  function tied(sc,i){return sc.some(function(x,j){return j!==i&&x===sc[i];});}
+  function nm(i){return i===me?'You':st.players[i].name;}
+  function leader(sc){var b=Math.min.apply(null,sc);return sc.indexOf(b);}
+  var ra=rank(after,o),rb=rank(before,o),you=o===me,who;
+  var second=Math.min.apply(null,after.filter(function(x,j){return j!==o;}));
+  if(ra===1&&tied(after,o))who=(you?'You are':nm(o)+' is')+' level at the top';
+  else if(ra===1&&(st.round===0||rb!==1))who=(you?'You take':nm(o)+' takes')+' the lead';
+  else if(ra===1)who=(you?'You stay':nm(o)+' stays')+' top, '+(second-after[o])+' ahead';
+  else if(rb===n&&ra<n)who=(you?'You are':nm(o)+' is')+' no longer last';
+  else if(ra<rb)who=(you?'You move':nm(o)+' moves')+' up to '+ordinal(ra);
+  else{var L=leader(after);who=(you?'You are':nm(o)+' is')+' '+ordinal(ra)+', '+(after[o]-after[L])+' behind '+nm(L);}
+  var yl=null;
+  if(!you){var ry=rank(after,me),Ly=leader(after);
+    if(ry===1&&!tied(after,me))yl='You lead by '+(Math.min.apply(null,after.filter(function(x,j){return j!==me;}))-after[me]);
+    else if(ry===1)yl='You are level at the top';
+    else yl='You are '+ordinal(ry)+', '+(after[me]-after[Ly])+' behind '+nm(Ly);}
+  return {who:who,you:yl};
+}
 function humanMayWantBuy(){
   if(G.buyAsk==='never')return false;
+  if(G.noBuyRound===G.st.round)return false;
   if(G.buyAsk==='always')return true;
   var st=G.st,me=st.players[G.human],rd=S.roundInfo(st);
   if(S.isWild(st.top,st.cfg))return true;
@@ -1681,7 +1774,7 @@ function goDown(){
     if(!plan){G.msg='You have the contract, but this round every card must fit as you go down. Not yet.';render();return;}
     humanAct({type:'goDown',melds:melds,layoffs:plan},'');return;
   }
-  humanAct({type:'goDown',melds:melds},'You went down! Lay off anything that fits, then throw a card.');
+  if(humanAct({type:'goDown',melds:melds},'You went down! Lay off anything that fits, then throw a card.')&&G.turnRev)G.turnRev.wentDown=true;
 }
 function layOffAll(){
   var st=G.st,mark=st.roundLog.length,helper=new B.Bot('medium',1);
@@ -1704,7 +1797,17 @@ function tapMeld(mid){
 function discard(){
   var cs=selectedCards();
   if(cs.length!==1){G.msg='Pick exactly one card to throw.';render();return;}
-  humanAct({type:'discard',cardId:cs[0].id},'');
+  var rv=null,st=G.st,me=st.players[G.human],cfg=st.cfg;
+  if(G.review==='on'&&C&&G.turnRev&&S.barredDiscards(st,G.human).indexOf(cs[0].id)<0){
+    try{
+      rv=Object.assign({},G.turnRev,{thrown:cs[0],couldGoDown:!me.down&&!G.turnRev.wentDown&&canGoDown()});
+      if(me.down)rv.layable=me.hand.filter(function(c){return st.melds.some(function(m){return S.layOffSpots(c,m,cfg).length||S.swapSpots(c,m,cfg).length;});});
+      if(rv.layable&&rv.layable.length>=me.hand.length&&!S.roundInfo(st).noDiscardOut)rv.layable=rv.layable.slice(0,me.hand.length-1);
+      var da=C.discardAdvice(st,G.human);if(da){rv.advisedThrow=da.card;rv.why=da.why;}
+    }catch(e){console.error(e);rv=null;}
+  }
+  var round=st.round;
+  if(humanAct({type:'discard',cardId:cs[0].id},'')&&rv){var items=C.reviewTurn(rv);if(items.length)addReview('Your turn, round '+(round+1),items);G.turnRev=null;}
 }
 
 // ---------- drawing the table ----------
@@ -1780,10 +1883,12 @@ function seatHTML(i,spot){
   var st=G.st,p=st.players[i],you=i===G.human,turn=st.turn===i&&st.phase!=='roundOver';
   var n=p.hand.length,fan='';
   for(var k=0;k<Math.min(n,7);k++)fan+='<i></i>';
-  var h='<div class="seat'+(turn?' turn':'')+(you?' you':'')+'" style="left:'+spot.x.toFixed(1)+'%;top:'+spot.y.toFixed(1)+'%;--c:'+SEATCOL[i]+'">';
-  h+='<div class="nm"><b>'+esc(you?'You':p.name)+'</b>'+(G.levels[i]?' <span class="lv">'+esc(G.levels[i])+'</span>':'')+'</div>';
+  var one=n===1&&st.phase!=='roundOver';
+  var h='<div class="seat'+(turn?' turn':'')+(you?' you':'')+(one?' one':'')+'" style="left:'+spot.x.toFixed(1)+'%;top:'+spot.y.toFixed(1)+'%;--c:'+SEATCOL[i]+'">';
+  h+='<div class="nm"><b>'+esc(you?'You':p.name)+'</b>'+(G.levels[i]?' <span class="lv">'+esc(LVNAME[G.levels[i]]||G.levels[i])+'</span>':'')+'</div>';
   if(!you)h+='<div class="fan" aria-label="'+n+' cards">'+fan+'<span>'+n+'</span></div>';
   h+='<div class="st">'+(p.down?'<span class="badge">DOWN</span>':'buys '+p.buysLeft)+' · '+st.scores[i]+'</div>';
+  if(one)h+='<div class="onecard">1 card!</div>';
   if(G.last&&G.last[i])h+='<div class="said">'+esc(G.last[i])+'</div>';
   return h+'</div>';
 }
@@ -1845,14 +1950,16 @@ function render(){
       h+='</div>';
     }
     h+='<div class="log">'+G.log.map(esc).join('<br>')+'</div>';
+    if(!(waiter&&waiter.kind==='buy'))h+='<div class="field buyset"><label for="askbuy">Offer me a buy</label>'+sel('askbuy',G.noBuyRound===st.round?'round':G.buyAsk,[['helps','Only when the card would help me'],['always','Every time I may buy'],['round','Not again this round'],['never','Never']])+'</div>';
     if(!st.melds.length)h+='<div class="muted">Nobody is down yet.</div>';
   }
   h+='</div>';
   // hand panel
   var adv2=st.phase!=='roundOver'?coachState():null;
-  h+='<div class="handpanel">';
+  h+='<div class="handpanel">'+reviewHTML();
   if(waiter&&waiter.kind==='buy'){
-    h+='<div class="prompt"><b>Buy the '+esc(cardText(st.top))+'?</b> '+esc(buyReason())+' You also take '+cfg.buyPenalty+' card'+(cfg.buyPenalty===1?'':'s')+' from the pile. Buys left: '+me.buysLeft+'.'+(adv2?'<div class="tipline">Coach: '+esc(adv2.pick?'buy it':'let it go')+'</div>':'')+'<div class="row" style="margin-top:6px"><button class="btn primary" id="buyyes">Buy it</button><button class="btn" id="buyno">No thanks</button>'+hintBtn()+'</div></div>';
+    h+='<div class="prompt"><div class="muted">'+esc(st.players[st.turn].name)+' drew from the pile, so the '+esc(cardText(st.top))+' is up for grabs.</div><b>Buy the '+esc(cardText(st.top))+'?</b> '+esc(buyReason())+' You also take '+cfg.buyPenalty+' card'+(cfg.buyPenalty===1?'':'s')+' from the pile. Buys left: '+me.buysLeft+'.'+(adv2?'<div class="tipline">Coach: '+esc(adv2.pick?'buy it':'let it go')+'</div>':'')+'<div class="row" style="margin-top:6px"><button class="btn primary" id="buyyes">Buy it</button><button class="btn" id="buyno">No thanks</button>'+hintBtn()+'</div>'+
+      '<div class="field" style="margin:6px 0 0"><label for="askbuy">Ask me</label>'+sel('askbuy',G.noBuyRound===st.round?'round':G.buyAsk,[['helps','Only when the card would help me'],['always','Every time I may buy'],['round','Not again this round'],['never','Never']])+'</div></div>';
   }
   var msgText=esc(G.msg||(waiter&&waiter.kind==='play'?'':st.turn!==G.human&&st.phase!=='roundOver'?st.players[st.turn].name+' is playing…':''));
   var n=selectedCards().length,sortLbl=orderLabel()+' ▾';
@@ -1900,6 +2007,7 @@ function render(){
   h+='</div>';
   $app.innerHTML=h;
   wire();
+  wireReview();
   if(Q.get('debug')==='1')debugPanel();
 }
 // Can you go down now? Worked out once per position.
@@ -1916,7 +2024,11 @@ function wire(){
   function on(id,fn){var el=document.getElementById(id);if(el)el.addEventListener('click',fn);}
   on('stock',function(){if(waiter&&waiter.kind==='draw')resolve('stock');});
   on('faceup',function(){if(waiter&&waiter.kind==='draw')resolve('discard');});
-  on('buyyes',function(){if(waiter&&waiter.kind==='buy')resolve(true);});on('buyno',function(){if(waiter&&waiter.kind==='buy')resolve(false);});
+  on('buyyes',function(){if(waiter&&waiter.kind==='buy')resolve(true);});
+  var ab=document.getElementById('askbuy');if(ab)ab.addEventListener('change',function(){
+    var v=this.value;if(v==='round'){G.noBuyRound=G.st.round;}else{G.noBuyRound=null;G.buyAsk=v;var su=Object.assign({},DEFAULT_SETUP,load('setup')||{});su.buyAsk=v;store('setup',su);}
+    save();if(waiter&&waiter.kind==='buy'&&(v==='round'||v==='never'))resolve(false);else render();
+  });on('buyno',function(){if(waiter&&waiter.kind==='buy')resolve(false);});
   on('godown',goDown);on('layall',layOffAll);on('discard',discard);
   on('hint',function(){G.hintFor=posKey();render();var t=document.querySelector('.coach');if(t)t.scrollIntoView({block:'nearest'});});
   on('sort',function(){G.menu=!G.menu;render();});
@@ -2009,7 +2121,8 @@ function scoresHTML(){
 function roundOverHTML(){
   var st=G.st,cfg=st.cfg,r=st.history[st.history.length-1],h='<h2>';
   h+=r.out==null?'Round over: nobody went out':(r.out===G.human?'You went out!':esc(st.players[r.out].name)+' went out');
-  h+='</h2><table class="sc"><tr><th>Player</th><th>Left in hand</th><th class="n">Points</th></tr>';
+  h+='</h2>';var sd=standings();if(sd)h+='<p class="standing"><b>'+esc(sd.who)+'.</b>'+(sd.you?' '+esc(sd.you)+'.':'')+'</p>';
+  h+='<table class="sc"><tr><th>Player</th><th>Left in hand</th><th class="n">Points</th></tr>';
   st.players.forEach(function(p,i){
     h+='<tr><td>'+esc(i===G.human?'You':p.name)+'</td><td><div class="left">'+p.hand.map(function(c){return cardHTML(c,cfg,{mini:true});}).join('')+'</div></td><td class="n">'+r.points[i]+'</td></tr>';
   });
@@ -2022,9 +2135,10 @@ function roundOverHTML(){
 function renderGameOver(){
   var st=G.st,order=st.players.map(function(p,i){return {i:i,s:st.scores[i]};}).sort(function(a,b){return a.s-b.s;});
   var best=order[0].s,winners=order.filter(function(o){return o.s===best;});
+  if(!AUTO&&!G.celebratedGame){G.celebratedGame=true;var wy=winners.some(function(w){return w.i===G.human;});celebrate(wy?'You win!':st.players[winners[0].i].name+' wins!','Final score '+best+' (lowest wins)',SEATCOL[winners[0].i]);}
   var h='<div class="setup"><h1>'+(winners.some(function(w){return w.i===G.human;})?(winners.length>1?'You tied for the win!':'You won!'):esc(st.players[winners[0].i].name)+' won')+'</h1>';
   h+='<table class="sc"><tr><th>Place</th><th>Player</th><th class="n">Points</th></tr>';
-  order.forEach(function(o,k){h+='<tr><td>'+(k+1)+'</td><td>'+esc(o.i===G.human?'You':st.players[o.i].name+(G.levels[o.i]?' ('+G.levels[o.i]+')':''))+'</td><td class="n">'+o.s+'</td></tr>';});
+  order.forEach(function(o,k){h+='<tr><td>'+(k+1)+'</td><td>'+esc(o.i===G.human?'You':st.players[o.i].name+(G.levels[o.i]?' ('+(LVNAME[G.levels[o.i]]||G.levels[o.i])+')':''))+'</td><td class="n">'+o.s+'</td></tr>';});
   h+='</table><p class="muted">Deal number '+st.seed+': enter it again to replay the same cards.</p>';
   h+='<div class="row"><button class="btn primary" id="again">Same deal again</button><button class="btn" id="newgame">New game</button></div>';
   h+=scoresHTML()+'</div>';
@@ -2040,7 +2154,53 @@ window.addEventListener('unhandledrejection',function(e){
   var r=e.reason;console.error('Shanghai error: '+(r&&r.stack?r.stack:r));
   if(G){G.msg='Sorry, something went wrong. Your game was saved before it: tap ☰ twice, then Carry on.';try{render();}catch(x){}}
 });
-window.__shanghai={get G(){return G;},S:S,B:B};
+// ---------- alerts, the going-out moment, and the move review ----------
+function fxLayer(){return document.getElementById('fx')||document.body.appendChild(Object.assign(document.createElement('div'),{id:'fx'}));}
+function toast(text){
+  var t=document.createElement('div');t.className='toast';t.setAttribute('role','alert');t.textContent=text;fxLayer().appendChild(t);
+  window.__toasts=(window.__toasts||[]).concat([text]);
+  setTimeout(function(){t.remove();},3500);
+}
+var REDUCED=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+function celebrate(big,sub,colour,small){
+  var old=document.getElementById('cele');if(old)old.remove();
+  var d=document.createElement('div');d.id='cele';d.setAttribute('role','alert');
+  d.innerHTML=(REDUCED?'':'<canvas></canvas>')+'<div class="banner" style="border-color:'+colour+'"><div class="big">'+esc(big)+'</div><div class="sub">'+esc(sub)+'</div>'+(small?'<div class="sub" style="font-size:13px;opacity:.65">'+esc(small)+'</div>':'')+'</div>';
+  document.body.appendChild(d);window.__celebrations=(window.__celebrations||[]).concat([big]);
+  if(!REDUCED)fireworks(d.querySelector('canvas'),colour);
+  setTimeout(function(){d.style.opacity='0';},4200);setTimeout(function(){d.remove();},4900);
+}
+function fireworks(cv,colour){
+  var dpr=Math.min(2,window.devicePixelRatio||1),W=cv.width=innerWidth*dpr,H=cv.height=innerHeight*dpr,x=cv.getContext('2d'),parts=[],t0=performance.now();
+  var cols=[colour,'#f2c14e','#ef5350','#81d4fa','#a5d6a7','#ce93d8','#ffffff'];
+  function burst(){var cx=W*(.15+.7*Math.random()),cy=H*(.12+.4*Math.random()),c=cols[Math.floor(Math.random()*cols.length)];
+    for(var i=0;i<90;i++){var a=Math.random()*Math.PI*2,v=(1.5+Math.random()*4)*dpr;parts.push({x:cx,y:cy,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:1,c:c});}}
+  var next=0;
+  (function frame(now){
+    var el=now-t0;if(el>3400||!cv.isConnected)return;
+    if(el>next&&el<2400){burst();next=el+300+Math.random()*250;}
+    x.clearRect(0,0,W,H);
+    parts=parts.filter(function(p){p.x+=p.vx;p.y+=p.vy;p.vy+=.06*dpr;p.vx*=.985;p.l-=.013;if(p.l<=0)return false;x.globalAlpha=p.l;x.fillStyle=p.c;x.beginPath();x.arc(p.x,p.y,(1.5+2.5*p.l)*dpr,0,6.283);x.fill();return true;});
+    requestAnimationFrame(frame);
+  })(t0);
+}
+var revSeq=0;
+function addReview(title,items){G.reviews=(G.reviews||[]);G.reviews.unshift({id:++revSeq,title:title,items:items});G.reviews=G.reviews.slice(0,3);if(G.st.phase!=='gameOver'&&!G.st.over)render();}
+function reviewHTML(){
+  if(!G||!G.reviews||!G.reviews.length||G.review!=='on')return '';
+  var h='<div id="rev" aria-live="polite"><div class="rh"><span>Move review</span><button type="button" id="revoff" aria-label="Turn move reviews off">Off</button><button type="button" id="revall" aria-label="Dismiss all reviews">✕ all</button></div>';
+  G.reviews.forEach(function(r){h+='<div class="ri"><div class="tx"><div class="tt">'+esc(r.title)+'</div><ul>'+r.items.map(function(it){return '<li class="'+(it.ok?'ok':'no')+'">'+esc(it.text)+'</li>';}).join('')+'</ul></div><button type="button" class="revx" data-rev="'+r.id+'" aria-label="Dismiss">✕</button></div>';});
+  return h+'</div>';
+}
+function wireReview(){
+  var a=document.getElementById('revall');if(a)a.onclick=function(){G.reviews=[];render();};
+  var o=document.getElementById('revoff');if(o)o.onclick=function(){G.review='off';G.reviews=[];var su=Object.assign({},DEFAULT_SETUP,load('setup')||{});su.review='off';store('setup',su);save();render();};
+  Array.prototype.forEach.call(document.querySelectorAll('#rev .revx'),function(b){b.onclick=function(){var id=+b.getAttribute('data-rev');G.reviews=G.reviews.filter(function(r){return r.id!==id;});render();};});
+  placeReview();
+}
+function placeReview(){var el=document.getElementById('rev'),hp=document.querySelector('.handpanel');if(el&&hp&&getComputedStyle(el).position==='fixed')el.style.bottom=(hp.getBoundingClientRect().height+8)+'px';}
+window.addEventListener('resize',placeReview);
+window.__shanghai={get G(){return G;},S:S,B:B,celebrate:celebrate,toast:toast};
 renderSetup();
 if(AUTO){document.getElementById('start').click();}
 })();
