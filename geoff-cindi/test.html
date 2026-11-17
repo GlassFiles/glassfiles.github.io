@@ -641,7 +641,7 @@ function frontSVG(L){
   /* things on the step and pavement, chosen per door */
   const common=["milk","parcels","bay","wellies","boots","paper","lanternstep"], aut=["pumpkins","pumpkins","acorns","conkers","toadstools","apples","pinecones","leafpile"], xm=["tree","snowman","sledgeup","lanternstep","lanternstep","milk","bay","wellies"];
   const pool=(x? xm.concat(common) : aut.concat(common)).filter(k=>allow("doorstep",k));
-  const pick=shuffled(pool,L.day*13+month).slice(0,2+Math.floor(r()*2));
+  const pick=kinds.includes("poppy")?[]:shuffled(pool,L.day*13+month).slice(0,2+Math.floor(r()*2));   /* Remembrance: a clear step */
   if(kinds.includes("arrive")) pick[0]="suitcase";
   if(kinds.includes("thanks")) {pick[0]="sheaf";pick[1]="pumpkins"}
   if(kinds.includes("christmas")) {pick[0]="presents";pick[1]="tree";pick[2]="nibbled"}
@@ -693,6 +693,11 @@ function frontSVG(L){
   if(L.style==="saloon") s+=numberSVG({day:L.day,num:"brass"},60,14);
   const ballooned = allow("effects","balloons") && ev.length && !ev.every(e=>NO_BALLOONS.includes(e.k));
   if(ballooned){const k=ev.find(e=>!NO_BALLOONS.includes(e.k)).k;s+=balloonsSVG(103,22+L.hy,BALLOON_COLS[k]||BALLOON_COLS.birthday)}
+  /* Remembrance (Guy, 17 Nov): on Remembrance Sunday a soldier's helmet and rifle leant by the doorway, on Remembrance Day a bugle hung by the door */
+  if(kinds.includes("poppy")){
+    if(isSunday(L.day)) s+=`<g aria-hidden="true"><g transform="translate(6 -4) rotate(-7 108 206)"><rect x="106.7" y="122" width="1.5" height="50" fill="#2a2a2a"/><rect x="106.2" y="119" width="2.5" height="4" fill="#3a3a3a"/><rect x="105.7" y="146" width="3.4" height="26" rx=".8" fill="#7a4e2a"/><rect x="106.1" y="171" width="2.8" height="3.2" fill="#333"/><path d="M108.9 174 q3 2 .6 5.4" stroke="#222" fill="none" stroke-width=".7"/><path d="M105.4 175 L109.6 175 L110.8 199 L107.6 206.5 L104.4 199 Z" fill="#6b4423"/></g><g transform="translate(101 201.5) rotate(-12) scale(1.45)"><ellipse cx="0" cy="0" rx="9.5" ry="2.8" fill="#46462c"/><path d="M-6.4 0 Q-6.4 -7.6 0 -8 Q6.4 -7.6 6.4 0 Z" fill="#5b5a3a"/><path d="M-6.4 0 Q0 1.8 6.4 0" stroke="#34341f" fill="none" stroke-width=".7"/><circle cx="-2.6" cy="-5" r="1.7" fill="#c8102e"/><circle cx="-2.6" cy="-5" r=".6" fill="#111"/></g></g>`;
+    else s+=`<g aria-hidden="true" transform="translate(-2.5 -52) scale(1.5)"><circle cx="5" cy="98" r=".9" fill="#555"/><path d="M5 98 L3 106 M5 98 L7.5 106" stroke="#a3171c" stroke-width=".7"/><g transform="translate(5 106)"><path d="M-1.4 0 C-4.5 6 -4.5 13 0 16 C4.5 19 4.5 25 0.6 28" stroke="#c99a2e" stroke-width="1.5" fill="none"/><path d="M1.4 0 C4 5 3.4 10 0.4 12" stroke="#d9b04a" stroke-width="1.1" fill="none"/><path d="M0.6 28 L-3.6 34 L4.8 34 Z" fill="#d9b04a"/><ellipse cx="0.6" cy="34" rx="4.2" ry="1" fill="#a87a1e"/><rect x="0.6" y="-2.4" width="1.4" height="2.6" fill="#8a6a1f"/></g><circle cx="5" cy="111" r="1.6" fill="#c8102e"/><circle cx="5" cy="111" r=".55" fill="#111"/></g>`;
+  }
   return s+`</svg>`;
 }
 const hat=(hx,hy,flip)=>X()?`<g transform="translate(${hx} ${hy}) rotate(${flip?18:-18})"><path d="M-3 0 Q-1 -6 3.6 -5.4 Q2 -3 3 0 Z" fill="#c8102e"/><rect x="-3.4" y="-.6" width="6.8" height="1.6" rx=".8" fill="#f4f1ea"/><circle cx="3.8" cy="-5.4" r="1" fill="#f4f1ea"/></g>`:"";
@@ -811,7 +816,7 @@ function tap(b,day){
   setTimeout(()=>{b.classList.remove("knock");b.classList.add("turn");clickSound()},T.turn);
   setTimeout(()=>{if(!rm)b.classList.add("shake")},T.shake);
   setTimeout(()=>{if(!rm)shed(b)},T.shed);
-  setTimeout(()=>{b.classList.remove("shake","ajar");b.classList.add("open");creakSound();if(fw&&!rm)FX.fireworks(b.getBoundingClientRect());if(!rm&&allow("effects","sleigh")&&evOf(day).some(e=>e.k==="eve"))sleigh()},T.open);
+  setTimeout(()=>{b.classList.remove("shake","ajar");b.classList.add("open");creakSound();if(fw&&!rm)FX.fireworks(b.getBoundingClientRect());if(!rm&&allow("effects","sleigh")&&evOf(day).some(e=>e.k==="eve"))sleigh();if(soundOn&&allow("effects","sound")&&evOf(day).some(e=>e.k==="poppy"))lastPost()},T.open);
   setTimeout(()=>{b.classList.remove("turn");busy=false;showCard(day)},T.card);
 }
 function sleigh(){
@@ -869,6 +874,11 @@ function showCard(day){
   if(typeof dlg.showModal==="function")dlg.showModal();else dlg.setAttribute("open","");
 }
 document.getElementById("dClose").onclick=()=>dlg.close();
+/* the Last Post (bugle call): a public domain recording on Wikimedia Commons (Adam Cuerden, 2008); it plays when a Remembrance door opens and stops when the card is closed */
+const LAST_POST="https://upload.wikimedia.org/wikipedia/commons/transcoded/2/23/Last_post.ogg/Last_post.ogg.mp3";
+let lpAudio=null;
+function lastPost(){try{if(!lpAudio){lpAudio=new Audio(LAST_POST);lpAudio.preload="auto"}lpAudio.currentTime=0;lpAudio.volume=.85;lpAudio.play().catch(()=>{})}catch(e){}}
+dlg.addEventListener("close",()=>{if(lpAudio){lpAudio.pause()}});
 dlg.addEventListener("click",e=>{if(e.target===dlg)dlg.close()});
 
 /* ================= falling leaves, acorns and snow ================= */
