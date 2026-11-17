@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Games Room</title>
+<meta name="description" content="Every game in one place: cards, quizzes, French practice, revision, cocktails and more. No ads, no logins.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://glassfiles.github.io/">
+<meta property="og:title" content="The Games Room">
+<meta property="og:description" content="Every game in one place. No ads, no logins.">
+<meta property="og:image" content="https://glassfiles.github.io/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#12482f">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root {
+    --felt: #12482f; --felt-2: #1c6b45; --cream: #fcf6e8; --ink: #20251f;
+    --muted: #5d665e; --gold: #e8b45a; --radius: 18px;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; min-height: 100vh; min-height: 100dvh; color: var(--cream);
+    font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background:
+      radial-gradient(ellipse 90% 60% at 50% -10%, var(--felt-2), transparent 70%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, transparent 2px 5px),
+      var(--felt);
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 0 18px 40px; }
+  header { text-align: center; padding: 44px 8px 28px; }
+  .logo { width: 64px; height: 64px; border-radius: 15px; box-shadow: 0 6px 18px rgba(0,0,0,.3); }
+  h1 {
+    font-family: Georgia, "Iowan Old Style", "Times New Roman", serif;
+    font-size: clamp(2.1rem, 7vw, 3.4rem); line-height: 1.1; margin: 14px 0 8px; letter-spacing: -.5px;
+  }
+  .tagline { margin: 0; color: #c9e6d3; font-size: 1.05rem; }
+
+  .grid { list-style: none; margin: 0; padding: 0; display: grid; gap: 22px;
+          grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+  .card {
+    display: flex; flex-direction: column; height: 100%; text-decoration: none; color: var(--ink);
+    background: var(--cream); border-radius: var(--radius); overflow: hidden;
+    box-shadow: 0 2px 0 rgba(0,0,0,.08), 0 10px 26px rgba(0,0,0,.28);
+    transition: transform .18s ease, box-shadow .18s ease;
+    touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  }
+  .card:active { transform: scale(.985); }
+  .card:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+  @media (hover: hover) {
+    .card:hover { transform: translateY(-5px) rotate(-.4deg); box-shadow: 0 4px 0 rgba(0,0,0,.08), 0 18px 36px rgba(0,0,0,.36); }
+    .card:hover .play { background: var(--felt-2); }
+  }
+  .splash { display: block; width: 100%; height: auto; aspect-ratio: 1200 / 630; object-fit: cover; background: #ddd; }
+  .body { display: flex; flex-direction: column; flex: 1; padding: 16px 18px 18px; }
+  .card h2 { font-family: Georgia, "Iowan Old Style", serif; font-size: 1.4rem; line-height: 1.2; margin: 0 0 6px; }
+  .card p { margin: 0 0 14px; color: var(--muted); font-size: .97rem; }
+  .foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font-size: .78rem; padding: 3px 9px; border-radius: 999px; background: #ece4d0; color: #4a4636; }
+  .play {
+    min-height: 44px; display: inline-flex; align-items: center; gap: 6px; padding: 0 16px;
+    border-radius: 999px; background: var(--felt); color: var(--cream); font-weight: 600; font-size: .95rem;
+    transition: background .18s ease;
+  }
+  footer { text-align: center; color: #a9cdb6; font-size: .88rem; padding: 34px 10px 0; }
+  footer p { margin: 4px 0; }
+  @media (prefers-reduced-motion: reduce) { .card, .play { transition: none; } .card:hover { transform: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <img class="logo" src="icon-512.png" alt="" width="64" height="64">
+    <h1>The Games Room</h1>
+    <p class="tagline">Every game in one place. Tap a picture to play.</p>
+  </header>
+
+  <main>
+  <!--
+    TO ADD A GAME: copy one <li>…</li> block below and change four things:
+      href  – the game's address
+      src   – a 720x378 picture in cards/ (shrink the game's own 1200x630 og image)
+      h2/p  – its name and one line about it
+      tags  – two or three short words
+    Newest games go at the top.
+  -->
+  <ul class="grid">
+
+    <li><a class="card" href="/shanghai/">
+      <img class="splash" src="cards/shanghai.jpg" alt="Shanghai" width="720" height="378">
+      <div class="body">
+        <h2>Shanghai</h2>
+        <p>The family card game against the computer, every house rule an option, with an odds coach.</p>
+        <div class="foot"><span class="tags"><span class="tag">Cards</span><span class="tag">vs computer</span></span><span class="play">Play &rarr;</span></div>
+      </div></a></li>
+
+    <li><a class="card" href="/deep-dive/">
+      <img class="splash" src="cards/deep-dive.jpg" alt="Deep Dive" width="720" height="378">
+      <div class="body">
+        <h2>Deep Dive</h2>
+        <p>Every good answer takes you deeper. A daily quiz, free dives and party mode.</p>
+        <div class="foot"><span class="tags"><span class="tag">Quiz</span><span class="tag">Party</span></span><span class="play">Play &rarr;</span></div>
+      </div></a></li>
+
+    <li><a class="card" href="/pas-a-pas/">
+      <img class="splash" src="cards/pas-a-pas.jpg" alt="Pas à pas" width="720" height="378">
+      <div class="body">
+        <h2>Pas à pas</h2>
+        <p>Practise French at your own pace, A1 to C2: no lives, no ads, and a jigsaw picture for every topic.</p>
+        <div class="foot"><span class="tags"><span class="tag">French</span><span class="tag">Learn</span></span><span class="play">Play &rarr;</span></div>
+      </div></a></li>
+
+    <li><a class="card" href="/Subjects/">
+      <img class="splash" src="cards/rep-max.jpg" alt="Rep Max" width="720" height="378" loading="lazy">
+      <div class="body">
+        <h2>Rep Max</h2>
+        <p>A revision gym for A-level and GCSE: timed sprints, a daily challenge and live quiz nights with friends.</p>
+        <div class="foot"><span class="tags"><span class="tag">Revision</span><span class="tag">Quiz nights</span></span><span class="play">Play &rarr;</span></div>
+      </div></a></li>
+
+    <li><a class="card" href="/jordans-bar/">
+      <img class="splash" src="cards/jordans-bar.jpg" alt="Cocktail bar" width="720" height="378" loading="lazy">
+      <div class="body">
+        <h2>Cocktail bar</h2>
+        <p>Cocktails and mocktails: what you can make from your own bar, a flavour map and their history.</p>
+        <div class="foot"><span class="tags"><span class="tag">Cocktails</span><span class="tag">Mocktails</span></span><span class="play">Open &rarr;</span></div>
+      </div></a></li>
+
+    <li><a class="card" href="/nose-knows/">
+      <img class="splash" src="cards/nose-knows.jpg" alt="Nose Knows" width="720" height="378" loading="lazy">
+      <div class="body">
+        <h2>Nose Knows</h2>
+        <p>The beer sensory challenge: smell it, name it, and play live against your friends.</p>
+        <div class="foot"><span class="tags"><span class="tag">Quiz</span><span class="tag">Party</span></span><span class="play">Play &rarr;</span></div>
+      </div></a></li>
+
+    <li><a class="card" href="/geoff-cindi/">
+      <img class="splash" src="cards/advent.jpg" alt="Advent calendar" width="720" height="378" loading="lazy">
+      <div class="body">
+        <h2>Advent calendar &amp; sudoku</h2>
+        <p>A door a day through November and December, and a two-player sudoku race.</p>
+        <div class="foot"><span class="tags"><span class="tag">Advent</span><span class="tag">Sudoku</span></span><span class="play">Open &rarr;</span></div>
+      </div></a></li>
+
+  </ul>
+  </main>
+
+  <footer>
+    <p>No ads, no logins, nothing to install.</p>
+    <p>On a phone: Share &rarr; Add to Home Screen to keep this page one tap away.</p>
+  </footer>
+</div>
+</body>
+</html>
