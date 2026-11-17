@@ -10,8 +10,9 @@
 <meta property="og:image" content="https://glassfiles.github.io/shanghai/og-image.jpg">
 <meta property="og:url" content="https://glassfiles.github.io/shanghai/">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
-<link rel="icon" href="favicon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=e0e9c553">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png?v=3894f16a">
+<link rel="apple-touch-icon" href="apple-touch-icon.png?v=be20023b">
 
 <style>
 :root{--felt:#0d4a2f;--felt2:#0a3b25;--ink:#f4f1e8;--gold:#f2c14e;--red:#c62828;--blk:#1b1b1b;--card:#fffdf7;--sel:#ffd54f;--ok:#7bd88f;--warn:#ffb74d;
@@ -179,8 +180,55 @@ table.sc td.n{text-align:right}
 #rev li{list-style:none;margin:2px 0}
 #rev li.ok::before{content:'✓ ';color:#81c784;font-weight:700}
 #rev li.no::before{content:'⚠ ';color:#ffb74d}
+#rev li.wait{opacity:.8}
+#rev li.wait::before{content:'… ';font-weight:700}
 #rev ul{margin:0;padding:0}
 @media (prefers-reduced-motion:reduce){.oval .seat.one{animation:none}#cele .banner{animation:none}.toast{animation:none}}
+#splash{position:fixed;inset:0;z-index:100;background:#08160f;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:16px;padding-bottom:max(16px,env(safe-area-inset-bottom));transition:opacity .4s;cursor:pointer}
+#splash img{max-width:100%;max-height:calc(100% - 90px);object-fit:contain;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+#splash .btn{min-width:160px;font-size:20px}
+/* round label */
+.top .title .rnd{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap}
+.top .title .rnd b{font-size:22px;color:var(--gold)}
+.top .title .rnd .of{font-size:15px;opacity:.85}
+.top .title .dots{font-size:12px;letter-spacing:2px;opacity:.9}
+.top .title .dots i{font-style:normal;color:rgba(255,255,255,.3)}
+.top .title .dots i.done{color:rgba(255,255,255,.75)}
+.top .title .dots i.now{color:var(--gold)}
+.top .contract{font-size:16px;font-weight:600}
+/* your turn to draw */
+.oval.mydraw .centre{transform:translate(-50%,-50%) scale(1.1);z-index:6}
+.oval.mydraw .pile.live{animation:drawpulse 1.1s ease-in-out infinite alternate}
+@keyframes drawpulse{from{filter:drop-shadow(0 0 0 rgba(242,193,78,0))}to{filter:drop-shadow(0 0 10px rgba(242,193,78,.95))}}
+.drawcue{background:var(--gold);color:#1b1b1b !important;font-weight:800;font-size:16px;padding:8px 12px;border-radius:12px;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+/* chances and open hands */
+.chances{font-size:12px;line-height:1.35;background:rgba(0,0,0,.22);border-radius:10px;padding:4px 8px;margin-bottom:4px}
+.chances b{font-weight:700}
+.chances .muted{font-size:12px}
+.hands{margin-top:6px;display:grid;gap:4px;background:rgba(0,0,0,.18);border-radius:10px;padding:6px}
+.hands .hrow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:13px}
+.hands .hrow .who{min-width:52px;font-weight:700}
+@media (prefers-reduced-motion:reduce){.oval.mydraw .pile.live{animation:none;filter:drop-shadow(0 0 8px rgba(242,193,78,.9))}}
+#intro{position:fixed;inset:0;z-index:80;background:rgba(5,15,10,.72);display:flex;align-items:center;justify-content:center;padding:16px}
+#intro .box{background:#0f2c1f;border:3px solid var(--gold);border-radius:16px;padding:16px 18px;max-width:420px;width:100%;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+#intro .rno{color:var(--gold);font-weight:700;font-size:16px}
+#intro .big{font-size:clamp(26px,7vw,36px);font-weight:800;margin:4px 0 10px}
+#intro .ex{margin:8px 0;font-size:15px}
+#intro .ex .left{justify-content:center;margin-top:4px}
+#intro .btn{margin-top:12px;min-width:170px}
+.oval .seat .pc{pointer-events:none;position:absolute;top:-10px;right:-8px;background:var(--gold);color:#1b1b1b;border-radius:999px;padding:1px 6px;font-size:12px;font-weight:800;line-height:1.3;z-index:6;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+/* the round's chance chart */
+.chancechart{margin:8px 0;background:rgba(0,0,0,.2);border-radius:12px;padding:8px}
+.chancechart .ct{font-weight:700;margin-bottom:4px}
+.chancechart svg{width:100%;max-width:520px;height:auto;display:block}
+.chancechart .grid{stroke:rgba(255,255,255,.14);stroke-width:1}
+.chancechart .ax{fill:rgba(255,255,255,.65);font-size:10px}
+.chancechart .lab{fill:var(--ink);font-size:11px;font-weight:700}
+.chancechart .legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:13px;margin-top:4px}
+.chancechart .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.chancechart .drops{font-size:13px;margin-top:6px}
+.chancechart .drops ul{margin:4px 0 0 18px;padding:0}
+.chancechart .tbl summary{min-height:44px;display:flex;align-items:center;cursor:pointer;font-size:13px}
 </style>
 </head>
 <body>
@@ -268,13 +316,14 @@ table.sc td.n{text-align:right}
       wildLimit: { mode: 'fewerThanNaturals' },
       noPlayableDiscard: 'untilDown',
       buyPenalty: 2,
+      // you cannot go out on a discard, in any round (Guy, 17 Nov 2026): the last cards are laid down together
       rounds: [
-        { contract: [S(), S()], deal: 11, buys: 2 },
-        { contract: [S(), R()], deal: 11, buys: 2 },
-        { contract: [R(), R()], deal: 11, buys: 2 },
-        { contract: [S(), S(), S()], deal: 11, buys: 2 },
-        { contract: [S(), S(), R()], deal: 11, buys: 2 },
-        { contract: [S(), R(), R()], deal: 11, buys: 2 },
+        { contract: [S(), S()], deal: 11, buys: 2, noDiscardOut: true },
+        { contract: [S(), R()], deal: 11, buys: 2, noDiscardOut: true },
+        { contract: [R(), R()], deal: 11, buys: 2, noDiscardOut: true },
+        { contract: [S(), S(), S()], deal: 11, buys: 2, noDiscardOut: true },
+        { contract: [S(), S(), R()], deal: 11, buys: 2, noDiscardOut: true },
+        { contract: [S(), R(), R()], deal: 11, buys: 2, noDiscardOut: true },
         { contract: [R(), R(), R()], deal: 11, buys: 2, noDiscardOut: true }
       ]
     },
@@ -674,14 +723,18 @@ table.sc td.n{text-align:right}
       if (a.from === 'discard') {
         if (!st.top) err('no face-up card');
         var tk = st.top; p.hand.push(tk); p.picked.push(tk); st.top = null;
-        st.roundLog.push({ t: 'take', p: st.turn, c: tk.id });
+        st.roundLog.push({ t: 'take', p: st.turn, c: tk.id, down: !!p.down });
       } else {
+        // for reading hands later: the face-up card this player passed on, and who was offered it and said no
+        var passed = st.top ? st.top.id : null, offered = buyers(st), declined = [];
+        for (var o = 0; o < offered.length && offered[o] !== a.buyer; o++) declined.push(offered[o]);
+        if (passed != null) st.roundLog.push({ t: 'pass', p: st.turn, c: passed, down: !!p.down, no: declined.filter(function (i) { return !st.players[i].down; }) });
         if (a.buyer != null && st.top) {
           var b = st.players[a.buyer];
           if (buyers(st).indexOf(a.buyer) < 0) err('that player may not buy');
           var bc = st.top; b.hand.push(bc); b.picked.push(bc); st.top = null; b.buysLeft--;
           for (var q = 0; q < cfg.buyPenalty; q++) { var pc = drawStock(st); if (pc) b.hand.push(pc); }
-          st.roundLog.push({ t: 'buy', p: a.buyer, c: bc.id, n: cfg.buyPenalty });
+          st.roundLog.push({ t: 'buy', p: a.buyer, c: bc.id, n: cfg.buyPenalty, down: !!b.down });
         }
         if (st.top) { st.dead.push(st.top); st.top = null; }
         var c = drawStock(st);
@@ -766,9 +819,10 @@ table.sc td.n{text-align:right}
     if (a.type === 'discard') {
       if (barredDiscards(st, st.turn).indexOf(a.cardId) >= 0) err(cfg.noPlayableDiscard === 'always' ? 'that card goes on the table, so you may not throw it' : 'that card goes on the table, so you may not throw it until you are down');
       var dc = takeFromHand(p, a.cardId);
+      var wasDown = !!p.down;
       if (!p.hand.length && rd.noDiscardOut) { p.hand.push(dc); err('this round you go out without discarding'); }
       st.top = dc;
-      st.roundLog.push({ t: 'discard', p: st.turn, c: dc.id });
+      st.roundLog.push({ t: 'discard', p: st.turn, c: dc.id, down: wasDown });
       if (!p.hand.length) { endRound(st, st.turn); return st; }
       st.turn = (st.turn + 1) % cfg.players;
       st.phase = 'draw'; st.wentDownThisTurn = false;
@@ -982,17 +1036,26 @@ table.sc td.n{text-align:right}
     }
   };
 
-  Bot.prototype.pickDiscard = function (st, pi) {
+  // How many runs of four a card could sit in (aces count at either end when the rules allow). A king or an ace fits
+  // 2, a jack or a seven fits 4: of two cards worth the same points, the one that fits fewer runs is less use to anyone.
+  function runFlex(c, cfg) {
+    if (c.suit === 4 || S.isWild(c, cfg)) return 0;
+    var pr = S.posRange(cfg), lo = pr[0], hi = pr[1], ps = [], n = 0;
+    if (c.rank === 1) { if (lo === 1) ps.push(1); if (hi === 14) ps.push(14); } else ps.push(c.rank);
+    ps.forEach(function (p) { for (var s = Math.max(lo, p - 3); s <= p && s + 3 <= hi; s++) n++; });
+    return n;
+  }
+
+  // Every card you may throw, with its score (lower = better to throw).
+  Bot.prototype.discardScores = function (st, pi) {
     var cfg = st.cfg, me = st.players[pi], rd = S.roundInfo(st), self = this;
     var contract = rd.contract;
     var barred = S.barredDiscards(st, pi);
     var allowed = me.hand.filter(function (c) { return barred.indexOf(c.id) < 0; });
     var naturals = allowed.filter(function (c) { return !S.isWild(c, cfg); });
     var pool = naturals.length ? naturals : allowed.slice();
-    if (rd.noDiscardOut && me.hand.length === 1) return me.hand[0]; // will be refused; engine guards
     var danger = anyoneElseDown(st, pi) ? 1 : 0.3;
-    var best = null, bestScore = Infinity, seen = {};
-    var scored = [];
+    var seen = {}, scored = [];
     pool.forEach(function (c) {
       var key = c.suit * 16 + c.rank; if (seen[key]) return; seen[key] = 1;
       var score;
@@ -1003,9 +1066,17 @@ table.sc td.n{text-align:right}
         score = d * 1000 + usefulness(c, me.hand, contract, cfg) * 60 - S.cardPoints(c, cfg) * self.p.dumpWeight * danger * 4;
       }
       if (self.p.safety) score += wantedByNext(c, st, pi) * 80 + (fitsTable(c, st) ? 150 : 0);
+      score += runFlex(c, cfg) * 2; // tie-break: of equal cards, throw the one that fits fewer runs
       scored.push({ c: c, s: score });
-      if (score < bestScore) { bestScore = score; best = c; }
     });
+    return scored;
+  };
+
+  Bot.prototype.pickDiscard = function (st, pi) {
+    var me = st.players[pi], rd = S.roundInfo(st), self = this;
+    if (rd.noDiscardOut && me.hand.length === 1) return me.hand[0]; // will be refused; engine guards
+    var scored = this.discardScores(st, pi), best = null, bestScore = Infinity;
+    scored.forEach(function (x) { if (x.s < bestScore) { bestScore = x.s; best = x.c; } });
     if (self.p.mistake && self.rand() < self.p.mistake && scored.length > 1) {
       scored.sort(function (a, b) { return a.s - b.s; });
       return scored[1 + Math.floor(self.rand() * Math.min(2, scored.length - 1))].c;
@@ -1069,7 +1140,144 @@ table.sc td.n{text-align:right}
     return st;
   }
 
-  return { LEVELS: LEVELS, Bot: Bot, playRound: playRound, playGame: playGame, usefulness: usefulness, planAllOut: planAllOut };
+  return { LEVELS: LEVELS, Bot: Bot, runFlex: runFlex, playRound: playRound, playGame: playGame, usefulness: usefulness, planAllOut: planAllOut };
+});
+
+</script>
+<script>
+/* Card-game odds toolkit — FNF-20. Game-agnostic: nothing in this file knows about Shanghai.
+ * The lessons of The Mathematics of Poker (Chen & Ankenman) that carry to any card game with hidden cards,
+ * written once so Shanghai, a poker game or any other game can use them:
+ *
+ *  1. Read hands, don't guess them (chapters 3 and 5). Deal the hidden cards many ways, then weight each deal by how
+ *     likely the players' own actions were if that deal were true (Bayes' rule), with a floor so no deal is ever ruled
+ *     out on one action: weight = product of [(1 - eps) * P(action | deal) + eps * (1 / choices)].
+ *       readHands({sample, logLik, candidates, keep, rand, minEss}) -> {worlds, ess, tempered}
+ *  2. Results are noisy (chapter 2). Say a range, not a point; a share seen 0 times in n tries is "under 3/n"
+ *     (the rule of three), never 0%.  wilson(k, n), underBound(n), share(k, n), realDrop(a, na, b, nb)
+ *  3. Judge a move by expected value, comparing options on the same deals (chapters 1 and 8): paired differences
+ *     cancel the luck both options share, so far fewer tries are needed.  paired(diffs, minGap)
+ *
+ * A game supplies only: how to deal a possible world, how likely each observed action was in it, and how to play
+ * the rest out. See the README section "The odds toolkit" for the poker example the tests run.
+ */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.CardOdds = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  // ---------- 2. honest ranges ----------
+  // Wilson score interval for k successes in n tries (z = 1.96 for 95%). Good at small n and near 0 or 1.
+  function wilson(k, n, z) {
+    z = z || 1.96;
+    if (!(n > 0)) return { p: 0, lo: 0, hi: 1 };
+    var p = k / n, z2 = z * z, den = 1 + z2 / n;
+    var mid = (p + z2 / (2 * n)) / den, half = z * Math.sqrt(p * (1 - p) / n + z2 / (4 * n * n)) / den;
+    return { p: p, lo: Math.max(0, mid - half), hi: Math.min(1, mid + half) };
+  }
+  // Rule of three: seen 0 times in n tries, the true chance is under 3/n with 95% confidence.
+  function underBound(n) { return n > 0 ? Math.min(1, 3 / n) : 1; }
+  // A share with its range and a label: '34%', or 'under 2%' when it never happened.
+  function share(k, n, z) {
+    var w = wilson(k, n, z);
+    w.n = n; w.zero = k <= 0;
+    w.under = underBound(n);
+    w.label = w.zero ? 'under ' + Math.ceil(w.under * 100) + '%' : Math.round(w.p * 100) + '%';
+    w.range = Math.round(w.lo * 100) + '–' + Math.round(w.hi * 100) + '%';
+    return w;
+  }
+  // Effective number of tries when the tries came from re-sampling worlds of effective size ess:
+  // conservative combination of both sources of noise (equals n when there was no weighting).
+  function effectiveN(n, ess) { return ess && isFinite(ess) ? n * ess / (n + ess) : n; }
+  // Is a fall from a (measured on na tries) to b (on nb tries) bigger than the noise? It must be at least minDrop
+  // and more than z standard errors of the difference.
+  function realDrop(a, na, b, nb, minDrop, z) {
+    minDrop = minDrop == null ? 0.10 : minDrop; z = z || 2;
+    var se = Math.sqrt(a * (1 - a) / Math.max(1, na) + b * (1 - b) / Math.max(1, nb));
+    return { drop: a - b, se: se, real: a - b >= minDrop && a - b > z * se };
+  }
+
+  // ---------- 1. reading hands ----------
+  // Probability of an action under a model that says how likely it is, with the floor: (1 - eps) * p + eps / choices.
+  function floored(p, eps, choices) { eps = eps == null ? 0.1 : eps; return (1 - eps) * p + eps / (choices || 2); }
+  function ess(w) {
+    var s = 0, s2 = 0;
+    for (var i = 0; i < w.length; i++) { s += w[i]; s2 += w[i] * w[i]; }
+    return s2 > 0 ? s * s / s2 : 0;
+  }
+  // From log-weights to weights, scaled so the largest is 1 (no overflow), optionally tempered by power a.
+  function expWeights(logw, a) {
+    var m = -Infinity, out = new Array(logw.length);
+    for (var i = 0; i < logw.length; i++) if (logw[i] > m) m = logw[i];
+    for (var j = 0; j < logw.length; j++) out[j] = Math.exp((a == null ? 1 : a) * (logw[j] - m));
+    return out;
+  }
+  // If the weights lean on too few worlds, soften them (w^a, 0 < a < 1) until the effective size reaches minEss:
+  // the reading is then deliberately less sure of itself rather than resting on a handful of deals.
+  function temper(logw, minEss) {
+    var w = expWeights(logw, 1);
+    if (!minEss || ess(w) >= minEss) return { w: w, a: 1 };
+    var lo = 0, hi = 1;
+    for (var it = 0; it < 30; it++) { var mid = (lo + hi) / 2; if (ess(expWeights(logw, mid)) >= minEss) lo = mid; else hi = mid; }
+    return { w: expWeights(logw, lo), a: lo };
+  }
+  // Systematic resampling: k picks, each world chosen in proportion to its weight.
+  function resample(w, k, rand) {
+    var tot = 0, i, out = [];
+    for (i = 0; i < w.length; i++) tot += w[i];
+    if (!(tot > 0)) { for (i = 0; i < k; i++) out.push(Math.floor(rand() * w.length)); return out; }
+    var step = tot / k, u = rand() * step, c = w[0], j = 0;
+    for (i = 0; i < k; i++) {
+      var t = u + i * step;
+      while (t > c && j < w.length - 1) { j++; c += w[j]; }
+      out.push(j);
+    }
+    // shuffle so that any prefix (e.g. the first 40 for a slower kind of play-out) is a fair sample too
+    for (i = out.length - 1; i > 0; i--) { var r = Math.floor(rand() * (i + 1)), x = out[i]; out[i] = out[r]; out[r] = x; }
+    return out;
+  }
+  // Read hands: draw `candidates` possible worlds, weight each by exp(logLik(world)), keep `keep` of them by
+  // weight. Work can be done in slices: reader.step(n) handles n more candidates; reader.done(); reader.result().
+  function handReader(o) {
+    var cands = [], logw = [], target = o.candidates || 300, res = null;
+    return {
+      step: function (n) {
+        for (var i = 0; i < n && cands.length < target; i++) {
+          var w = o.sample(o.rand);
+          cands.push(w); logw.push(o.logLik ? o.logLik(w) : 0);
+        }
+      },
+      done: function () { return cands.length >= target; },
+      result: function () {
+        if (res) return res;
+        var t = temper(logw, o.minEss || 30), idx = resample(t.w, o.keep || 150, o.rand);
+        res = { worlds: idx.map(function (i) { return cands[i]; }), ess: ess(t.w), tempered: t.a < 1, power: t.a, candidates: cands.length };
+        return res;
+      }
+    };
+  }
+  function readHands(o) { var r = handReader(o); while (!r.done()) r.step(50); return r.result(); }
+
+  // ---------- 3. paired comparison ----------
+  // diffs: for each world played out under both options (same deal, same luck), value(B) - value(A).
+  // Returns the mean, its standard error, and whether it clears both z standard errors and a minimum gap worth saying.
+  function paired(diffs, minGap, z) {
+    z = z || 2; minGap = minGap || 0;
+    var n = diffs.length, m = 0, v = 0, i;
+    if (!n) return { n: 0, mean: 0, se: Infinity, clear: false };
+    for (i = 0; i < n; i++) m += diffs[i];
+    m /= n;
+    for (i = 0; i < n; i++) v += (diffs[i] - m) * (diffs[i] - m);
+    var se = n > 1 ? Math.sqrt(v / (n - 1) / n) : Infinity;
+    return { n: n, mean: m, se: se, clear: Math.abs(m) > z * se && Math.abs(m) >= minGap, sign: m > 0 ? 1 : m < 0 ? -1 : 0 };
+  }
+
+  return {
+    wilson: wilson, underBound: underBound, share: share, effectiveN: effectiveN, realDrop: realDrop,
+    floored: floored, ess: ess, temper: temper, resample: resample, handReader: handReader, readHands: readHands,
+    paired: paired
+  };
 });
 
 </script>
@@ -1081,9 +1289,9 @@ table.sc td.n{text-align:right}
  * which is exact for the pile and an estimate once other players are choosing what to keep.
  */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./engine.js'), require('./bots.js'));
-  else root.ShanghaiCoach = factory(root.Shanghai, root.ShanghaiBots);
-})(typeof self !== 'undefined' ? self : this, function (S, B) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./engine.js'), require('./bots.js'), require('./odds.js'));
+  else root.ShanghaiCoach = factory(root.Shanghai, root.ShanghaiBots, root.CardOdds);
+})(typeof self !== 'undefined' ? self : this, function (S, B, O) {
   'use strict';
   var SUITCH = ['♣', '♦', '♥', '♠'], RK = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
   function name(c) { return c.suit === 4 ? 'joker' : RK[c.rank] + SUITCH[c.suit]; }
@@ -1185,7 +1393,12 @@ table.sc td.n{text-align:right}
       if (u === 0) why.push('it has no partner in your hand');
     }
     var pts = S.cardPoints(c, cfg);
-    if (pts >= 10) why.push('it would cost you ' + pts + ' points if someone goes out');
+    if (pts >= 10) why.push('it would cost you ' + pts + ' points if someone wins the round');
+    // the same points as another card you could throw: say why this one
+    var scores = bot.discardScores(st, pi), mine = scores.filter(function (x) { return x.c.id === c.id; })[0];
+    var twin = scores.filter(function (x) { return x.c.id !== c.id && !S.isWild(x.c, cfg) && S.cardPoints(x.c, cfg) === pts && mine && x.s - mine.s < 30; })
+      .sort(function (a, b) { return B.runFlex(b.c, cfg) - B.runFlex(a.c, cfg); })[0];
+    if (twin && B.runFlex(twin.c, cfg) > B.runFlex(c, cfg)) why.push('the ' + name(twin.c) + ' costs the same, but the ' + name(c) + ' fits fewer runs (' + B.runFlex(c, cfg) + ' against ' + B.runFlex(twin.c, cfg) + '), so it is less use to anyone who picks it up');
     var barred = S.barredDiscards ? S.barredDiscards(st, pi) : [];
     if (barred.length) {
       var bn = me.hand.filter(function (x) { return barred.indexOf(x.id) >= 0; }).map(name);
@@ -1193,7 +1406,8 @@ table.sc td.n{text-align:right}
       why.push('you may not throw the ' + (bn.length > 1 ? bn.slice(0, -1).join(', ') + ' or the ' + bn[bn.length - 1] : bn[0]) + ': ' + (bn.length > 1 ? 'they go' : 'it goes') + ' on the table' + (cfg.noPlayableDiscard === 'always' ? '' : ' and you are not down yet'));
     }
     var warn = danger(st, pi, c);
-    return { card: c, label: name(c), why: why, warn: warn };
+    var equal = scores.filter(function (x) { return mine && x.s - mine.s <= 8; }).map(function (x) { return x.c; });
+    return { card: c, label: name(c), why: why, warn: warn, equal: equal };
   }
 
   // Would this discard help the next players? (from what they have picked up)
@@ -1228,7 +1442,7 @@ table.sc td.n{text-align:right}
     var close = st.players.map(function (p, i) { return { p: p, i: i }; }).filter(function (o) { return o.i !== pi && o.p.down && o.p.hand.length <= 3; });
     if (close.length) {
       var o = close.sort(function (a, b) { return a.p.hand.length - b.p.hand.length; })[0];
-      lines.push(o.p.name + ' is down with ' + plural(o.p.hand.length, 'card') + ' and could go out soon. Your hand would cost you ' + mine + ' points now.');
+      lines.push(o.p.name + ' is down with ' + plural(o.p.hand.length, 'card') + ' and could win the round soon. Your hand would cost you ' + mine + ' points now.');
     }
     return lines;
   }
@@ -1269,11 +1483,222 @@ table.sc td.n{text-align:right}
     if (S.isWild(top, cfg)) { head = 'Buy it: a wild card is worth the extra card' + (cost === 1 ? '' : 's') + '.'; pick = true; }
     else if (d1 < d0) { head = 'Buy it: the ' + name(top) + ' takes you from ' + d0 + ' short to ' + (d1 === 0 ? 'ready' : d1 + ' short') + '.'; pick = true; }
     else { head = 'Let it go: the ' + name(top) + ' does not bring you closer.'; pick = false; }
-    if (rd.allAtOnce && pick) { head = 'Careful: this round every card must fit when you go out, and a buy adds ' + plural(1 + cost, 'card') + '.'; pick = false; }
+    if (rd.allAtOnce && pick) { head = 'Careful: this round every card must be laid down to win, and a buy adds ' + plural(1 + cost, 'card') + '.'; pick = false; }
     lines.push('A buy gives you ' + plural(1 + cost, 'card') + ' (' + (cost ? 'the ' + name(top) + ' and ' + plural(cost, 'from the pile') : 'just the card') + ') and leaves ' + plural(me.buysLeft - 1, 'buy') + '.');
     var anyDown = st.players.some(function (p, i) { return i !== pi && p.down; });
     if (anyDown) lines.push('Someone is already down: extra cards in your hand are more likely to count against you.');
     return { head: head, lines: lines.concat(threat(st, pi)), pick: pick };
+  }
+
+  // ---------- reading hands: what each player's own moves say about the cards they hold ----------
+  // The Mathematics of Poker, chapters 3 and 5, through the game-agnostic toolkit (odds.js). For every other player
+  // who is not yet down, their last few moves this round are read: passing on the face-up card, saying no to a buy,
+  // and throwing a card all suggest the card did not help their hand; taking or buying one suggests it did.
+  // A possible deal of the hidden cards is weighted by how likely those moves were if it were true. The chances
+  // below are the playing policy's, softened by a floor (odds.floored, eps 0.2) because people are not computers:
+  //   [chance of the move if the card helps that hand, chance if it does not]
+  // OFF by default (17 Nov 2026): measured on 340-400 real positions per rule set, reading made the round-winner
+  // predictions no better (Brier, family rules +0.008 ± 0.006, classic -0.005 ± 0.006), although it judged how close
+  // each opponent was 10-15% better. Kept, tested and one switch away; see README, 17 Nov 2026 19:00.
+  var READ_ON = false;
+  var READ_LAST = 6, EPS = 0.2;
+  var POLICY = { pass: [0.1, 1], nobuy: [0.4, 1], discard: [0.05, 1], take: [1, 0.2], buy: [1, 0.2] };
+  var PROB = {}, ONLY = null;
+  function tuneReading(eps, last, only, on) {
+    if (on != null) READ_ON = !!on;
+    if (eps != null) EPS = eps; if (last != null) READ_LAST = last; ONLY = only || null;
+    Object.keys(POLICY).forEach(function (k) { PROB[k] = POLICY[k].map(function (p) { return O.floored(p, EPS, 2); }); });
+  }
+  tuneReading();
+  function observations(st, pi) {
+    var by = {};
+    function add(j, kind, c, k) { if (j === pi) return; (by[j] = by[j] || []).push({ kind: kind, c: c, k: k }); }
+    (st.roundLog || []).forEach(function (e, k) {
+      if (e.down) return;
+      if (ONLY && ONLY.indexOf(e.t) < 0) return;
+      if (e.t === 'pass') { add(e.p, 'pass', e.c, k); (e.no || []).forEach(function (j) { add(j, 'nobuy', e.c, k); }); }
+      else if (e.t === 'take' || e.t === 'buy' || e.t === 'discard') add(e.p, e.t, e.c, k);
+    });
+    Object.keys(by).forEach(function (j) { if (st.players[j].down) delete by[j]; else by[j] = by[j].slice(-READ_LAST); });
+    return by;
+  }
+  // The hidden cards as this player sees them: how to deal one possible world, how likely the others' moves were in
+  // it, and how to put it into a copy of the game. With open hands only the order of the pile is unknown.
+  function hiddenWorlds(st0, pi, open) {
+    var cfg = st0.cfg, n = st0.players.length;
+    if (open) return { open: true, obs: 0, sample: function () { return null; }, logLik: null,
+      apply: function (st, w, rand) { S.shuffle(st.stock, rand); } };
+    var kn = knowledge(st0, pi), keep = {}, hold = [], need = [], pool = st0.stock.slice(), byId = {};
+    kn.known.forEach(function (k) { keep[k.c.id] = 1; });
+    st0.players.forEach(function (p, i) {
+      if (i === pi) { hold.push(null); need.push(0); return; }
+      var h = p.hand.filter(function (c) { return keep[c.id]; });
+      hold.push(h); need.push(p.hand.length - h.length);
+      p.hand.forEach(function (c) { if (!keep[c.id]) pool.push(c); });
+    });
+    S.allCards(st0).forEach(function (c) { byId[c.id] = c; });
+    var obs = observations(st0, pi), nObs = 0, contract = S.roundInfo(st0).contract;
+    Object.keys(obs).forEach(function (j) { nObs += obs[j].length; });
+    function d(h) { return S.contractDistance(h, contract, cfg); }
+    return {
+      open: false, obs: nObs,
+      sample: function (rand) {
+        var p = pool.slice(), hands = [], k = 0;
+        S.shuffle(p, rand);
+        for (var i = 0; i < n; i++) { if (i === pi) { hands.push(null); continue; } hands.push(hold[i].concat(p.slice(k, k + need[i]))); k += need[i]; }
+        return { hands: hands };
+      },
+      logLik: function (w) {
+        var L = 0;
+        Object.keys(obs).forEach(function (j) {
+          var H = w.hands[j], base = d(H);
+          obs[j].forEach(function (o) {
+            var c = byId[o.c], helps;
+            if (!c || S.isWild(c, cfg)) return;
+            if (o.kind === 'take' || o.kind === 'buy') {
+              var rest = H.filter(function (x) { return x.id !== c.id; });
+              if (rest.length === H.length) return;
+              helps = base < d(rest);
+            } else helps = d(H.concat([c])) < base;
+            L += Math.log(PROB[o.kind][helps ? 0 : 1]);
+          });
+        });
+        return L;
+      },
+      apply: function (st, w, rand) {
+        var cards = {}, inHands = {};
+        S.allCards(st).forEach(function (c) { cards[c.id] = c; });
+        st.players.forEach(function (p, i) {
+          if (i === pi) return;
+          p.hand = w.hands[i].map(function (c) { return cards[c.id]; });
+          p.hand.forEach(function (c) { inHands[c.id] = 1; });
+        });
+        st.stock = pool.filter(function (c) { return !inHands[c.id]; }).map(function (c) { return cards[c.id]; });
+        S.shuffle(st.stock, rand);
+      }
+    };
+  }
+  function stateJSON(st0) { var r = st0.rand; st0.rand = null; var j = JSON.stringify(st0); st0.rand = r; return j; }
+  // Play the current round to its end with computer players at the given levels (the asking player as medium).
+  function finishRound(st, levels, seed) {
+    var srand = S.rng(seed >>> 0);
+    var seats = st.players.map(function (p, i) { return new B.Bot(levels[i] || 'medium', Math.floor(srand() * 4294967296)); });
+    while (st.phase !== 'roundOver') {
+      var t = st.turn, bot = seats[t];
+      if (st.phase === 'draw') {
+        var from = bot.chooseDraw(st, t), buyer = null;
+        if (from === 'stock') { var bs = S.buyers(st); for (var b = 0; b < bs.length; b++) if (seats[bs[b]].wantsBuy(st, bs[b])) { buyer = bs[b]; break; } }
+        S.apply(st, { type: 'draw', from: from, buyer: buyer });
+      } else bot.play(st, t);
+    }
+    return seats;
+  }
+  // Read hands once, in slices, then hand out the chosen worlds in turn. Without moves to read (or with open hands)
+  // every trial deals a fresh world at random.
+  function worldSource(HW, rand, keep, opts) {
+    var reading = !HW.open && HW.obs > 0 && (opts.read != null ? !!opts.read : READ_ON);
+    var reader = reading ? O.handReader({ rand: rand, candidates: opts.candidates || 300, keep: keep, minEss: opts.minEss || 30, sample: HW.sample, logLik: HW.logLik }) : null;
+    var res = null, k = 0;
+    return {
+      ready: function () { return !reader || !!res; },
+      work: function (units) { if (reader && !res) { reader.step(units * 25); if (reader.done()) res = reader.result(); } },
+      next: function () { if (HW.open) return null; if (res) return res.worlds[k++ % res.worlds.length]; return HW.sample(rand); },
+      info: function () { return { on: reading, moves: HW.obs, ess: res ? res.ess : null, tempered: res ? res.tempered : false, candidates: res ? res.candidates : 0 }; }
+    };
+  }
+
+  // ---------- win chances: the rest of the game played out many times ----------
+  // Each trial: a possible world for the cards you cannot see (read from the others' moves, see above; with open
+  // hands nothing is hidden and only the pile is shuffled), the rest of this round played out by computer players at
+  // the seats' levels (you at medium), then for some trials the remaining rounds with fresh random deals.
+  // result(): round/game = point shares (round shares add up to 1 over the trials where someone went out), and
+  // roundRange/gameRange = an honest range for each (Wilson, 95%; a share never seen is "under 3/n").
+  function chanceRunner(st0, pi, levels, open, seed, opts) {
+    opts = opts || {};
+    var rand = S.rng(seed >>> 0), n = st0.players.length;
+    var roundTarget = opts.roundTrials || 150, gameTarget = opts.gameTrials || 40;
+    var outs = new Array(n + 1).fill(0), wins = new Array(n).fill(0), rTrials = 0, gTrials = 0;
+    var HW = hiddenWorlds(st0, pi, open), src = worldSource(HW, rand, roundTarget, opts), snap = stateJSON(st0);
+    function playRound() {
+      var st = JSON.parse(snap), sd = Math.floor(rand() * 4294967296);
+      st.rand = S.rng(sd);
+      HW.apply(st, src.next(), st.rand);
+      var seats = finishRound(st, levels, sd ^ 0x9e3779b9);
+      outs[st.outPlayer == null ? n : st.outPlayer]++; rTrials++;
+      return { st: st, seats: seats };
+    }
+    function one() {
+      var r = playRound();
+      if (gTrials >= gameTarget) return;
+      var st = r.st;
+      st.seed = Math.floor(rand() * 4294967296);
+      while (st.round < st.cfg.rounds.length - 1) B.playRound(st, r.seats);
+      var best = Math.min.apply(null, st.scores), w = [];
+      st.scores.forEach(function (x, i) { if (x === best) w.push(i); });
+      w.forEach(function (i) { wins[i] += 1 / w.length; });
+      gTrials++;
+    }
+    function ranges(counts, total) {
+      var info = src.info(), nE = O.effectiveN(total, info.on ? info.ess : Infinity);
+      return counts.map(function (k) { return O.share(total ? k / total * nE : 0, nE); });
+    }
+    return {
+      step: function (k) {
+        if (!src.ready()) { src.work(k); return; }
+        for (var i = 0; i < k; i++) { if (rTrials >= roundTarget && gTrials >= gameTarget) return; if (gTrials < gameTarget) one(); else playRound(); }
+      },
+      done: function () { return rTrials >= roundTarget && gTrials >= gameTarget; },
+      result: function () {
+        var someone = rTrials - outs[n], rc = outs.slice(0, n);
+        return { trials: rTrials, roundTrials: rTrials, gameTrials: gTrials,
+          round: rc.map(function (x) { return someone ? x / someone : 0; }), rawRound: rc, noOut: outs[n] / Math.max(1, rTrials),
+          roundRange: ranges(rc, someone), roundN: O.effectiveN(someone, src.info().on ? src.info().ess : Infinity),
+          game: wins.map(function (x) { return gTrials ? x / gTrials : 0; }), rawGame: wins.slice(),
+          gameRange: ranges(wins, gTrials), read: src.info() };
+      }
+    };
+  }
+
+  // ---------- comparing two throws on the same deals (paired play-outs, chapters 1 and 8) ----------
+  // From the moment before your discard: in each of `trials` possible worlds, throw card A and play the round out;
+  // then the same world with the same luck, throwing card B. The difference per world is what the choice is worth.
+  // Measured in your penalty points for this round; in the last round, in your chance of winning the game.
+  // result(): {n, unit:'points'|'game', mean: B minus A (points: positive = B costs more), se, clear, better:'A'|'B'|null}
+  function compareThrows(st0, pi, cardA, cardB, levels, open, seed, opts) {
+    opts = opts || {};
+    var rand = S.rng(seed >>> 0), target = opts.trials || 40, diffs = [], valsA = [], valsB = [], failed = false;
+    var last = st0.round >= st0.cfg.rounds.length - 1, before = st0.scores[pi];
+    var HW = hiddenWorlds(st0, pi, open), src = worldSource(HW, rand, target, Object.assign({ candidates: 200 }, opts)), snap = stateJSON(st0);
+    function value(card, w, sd) {
+      var st = JSON.parse(snap);
+      st.rand = S.rng(sd);
+      HW.apply(st, w, st.rand);
+      var r = S.tryApply(st, { type: 'discard', cardId: card.id });
+      if (!r.ok) return null;
+      if (st.phase !== 'roundOver') finishRound(st, levels, sd ^ 0x85ebca6b);
+      if (!last) return st.scores[pi] - before;
+      var best = Math.min.apply(null, st.scores), w2 = st.scores.filter(function (x) { return x === best; }).length;
+      return st.scores[pi] === best ? 1 / w2 : 0;
+    }
+    function verdict() {
+      // in points lower is better; for the game, higher is better. Express "how much better B is than A".
+      var d = diffs.map(function (x) { return last ? x : -x; }), p = O.paired(d, last ? 0.03 : 1);
+      return { n: p.n, unit: last ? 'game' : 'points', gain: p.mean, se: p.se, clear: p.clear, better: p.clear ? (p.mean > 0 ? 'B' : 'A') : null,
+        meanA: valsA.length ? valsA.reduce(function (a, b) { return a + b; }, 0) / valsA.length : 0,
+        meanB: valsB.length ? valsB.reduce(function (a, b) { return a + b; }, 0) / valsB.length : 0, read: src.info() };
+    }
+    return {
+      step: function (k) {
+        if (!src.ready()) { src.work(k); return; }
+        for (var i = 0; i < k && diffs.length < target && !failed; i++) {
+          var w = src.next(), sd = Math.floor(rand() * 4294967296), a = value(cardA, w, sd), b = value(cardB, w, sd);
+          if (a == null || b == null) { failed = true; return; }
+          valsA.push(a); valsB.push(b); diffs.push(b - a);
+        }
+      },
+      done: function () { return failed || diffs.length >= target; },
+      result: function () { var v = verdict(); v.failed = failed; return v; }
+    };
   }
 
   // ---------- reviewing your own moves ----------
@@ -1292,7 +1717,9 @@ table.sc td.n{text-align:right}
     else if (r.couldGoDown) out.push({ ok: false, text: 'You could have gone down this turn. Going down early lets you lay off and shrinks your hand.' });
     if (r.layable && r.layable.length) out.push({ ok: false, text: 'The ' + r.layable.map(name).join(', ') + (r.layable.length === 1 ? ' fits' : ' fit') + ' on the table and could have been laid off.' });
     if (r.thrown) {
+      var eq = (r.equal || []).some(function (x) { return sameCard(x, r.thrown); });
       if (!r.advisedThrow || sameCard(r.thrown, r.advisedThrow)) out.push({ ok: true, text: 'Threw the ' + name(r.thrown) + ': the coach agrees.' });
+      else if (eq) out.push({ ok: true, text: 'Threw the ' + name(r.thrown) + ': as good as the coach\'s ' + name(r.advisedThrow) + '.' });
       else out.push({ ok: false, text: 'You threw the ' + name(r.thrown) + '. Coach: throw the ' + name(r.advisedThrow) + (r.why && r.why.length ? ' (' + r.why.join('; ') + ')' : '') + '.' });
     }
     return out;
@@ -1310,7 +1737,7 @@ table.sc td.n{text-align:right}
       if (f) {
         head = 'You can go down now: tap Go down.';
         if (rd.allAtOnce) head = 'You have the contract; this round every card must also fit before you go down.';
-        lines.push('Going down early is usually right: you can then lay off, and your hand shrinks before someone else goes out.');
+        lines.push('Going down early is usually right: you can then lay off, and your hand shrinks before someone else wins the round.');
       } else {
         var o = outs(st, pi, kn), rc = o.base >= 2 ? readyChance(st, pi, 3, 160, kn) : null;
         head = 'You are ' + plural(o.base, 'card') + ' short of ' + contractShort(rd.contract) + '.';
@@ -1418,7 +1845,7 @@ table.sc td.n{text-align:right}
     return { sets: sets, runs: runs, spare: spare };
   }
 
-  return { reviewTurn: reviewTurn, reviewBuy: reviewBuy, arrange: arrange, knowledge: knowledge, outs: outs, pWithin: pWithin, readyChance: readyChance, discardAdvice: discardAdvice,
+  return { chanceRunner: chanceRunner, tuneReading: tuneReading, compareThrows: compareThrows, observations: observations, hiddenWorlds: hiddenWorlds, reviewTurn: reviewTurn, reviewBuy: reviewBuy, arrange: arrange, knowledge: knowledge, outs: outs, pWithin: pWithin, readyChance: readyChance, discardAdvice: discardAdvice,
     adviseDraw: adviseDraw, adviseBuy: adviseBuy, advisePlay: advisePlay, pct: pct };
 });
 
@@ -1426,7 +1853,7 @@ table.sc td.n{text-align:right}
 <script>
 (function(){
 'use strict';
-var S=window.Shanghai,B=window.ShanghaiBots,C=window.ShanghaiCoach;
+var S=window.Shanghai,B=window.ShanghaiBots,C=window.ShanghaiCoach,O=window.CardOdds;
 var Q=new URLSearchParams(location.search);
 var AUTO=Q.get('autoplay')==='1', FAST=Q.get('fast')==='1'||AUTO;
 var KEY='shanghai.v1.';
@@ -1493,7 +1920,7 @@ function textToRounds(txt){
 }
 
 // ---------- setup ----------
-var DEFAULT_SETUP={name:'You',bots:3,level:'medium',preset:'family',speed:'normal',seed:'',buyAsk:'helps',coach:'tap',goDownMode:'able',review:'on'};
+var DEFAULT_SETUP={name:'You',bots:3,level:'medium',preset:'family',speed:'normal',seed:'',buyAsk:'helps',coach:'tap',goDownMode:'able',review:'on',chances:'on',openHands:'off'};
 function presetFields(name){
   var c=S.makeConfig(name);
   return {decks:c.decks,jokers:c.jokersPerDeck!=null?c.jokersPerDeck:c.jokers,jokersPerDeck:c.jokersPerDeck!=null,noPlayableDiscard:c.noPlayableDiscard,twosWild:c.twosWild,aceMode:c.aceMode,wildMode:c.wildLimit.mode==='fixed'?'fixed'+c.wildLimit.fixed:c.wildLimit.mode,
@@ -1550,19 +1977,21 @@ function renderSetup(){
   h+='<div class="field"><label for="ptHigh">Higher cards to K</label>'+num('ptHigh',f.ptHigh,0,100)+'</div>';
   h+='<div class="field"><label for="ptAce">Ace</label>'+num('ptAce',f.ptAce,0,100)+'</div>';
   h+='<div class="field"><label for="ptJoker">Joker</label>'+num('ptJoker',f.ptJoker,0,200)+'</div>';
-  h+='<h2>Rounds</h2><div class="muted">One round per line: contract | cards dealt | buys | extras. S = set of 3, R = run of 4, S4 or R7 for longer. Extras: <i>nodiscard</i> (go out without a discard), <i>allatonce</i> (go down and out in one go).</div>';
+  h+='<h2>Rounds</h2><div class="muted">One round per line: contract | cards dealt | buys | extras. S = set of 3, R = run of 4, S4 or R7 for longer. Extras: <i>nodiscard</i> (win without a discard: the last cards are laid down), <i>allatonce</i> (go down and out in one go).</div>';
   h+='<textarea id="rounds" autocapitalize="off" autocorrect="off" spellcheck="false">'+esc(f.rounds)+'</textarea>';
   h+='</details>';
   h+='<div class="field"><label for="coach">Coach (advice and odds)</label>'+sel('coach',su.coach,[['tap','A Hint button when I want it'],['always','Always on'],['off','Off']])+'</div>';
   h+='<div class="field"><label for="goDownMode">Go down button</label>'+sel('goDownMode',su.goDownMode,[['able','Only lights up when I can go down'],['always','Always on (tells me how far off I am)']])+'</div>';
   h+='<div class="field"><label for="buyAsk">Offer me a buy</label>'+sel('buyAsk',su.buyAsk,[['helps','Only when the card would help me'],['always','Every time I may buy'],['never','Never']])+'<span class="muted">You can change this on the buy question during a game too.</span></div>';
+  h+='<div class="field"><label for="chances">Win chances</label>'+sel('chances',su.chances||'on',[['on','Show each player\'s chance to win this round (at their seat) and the game'],['off','Off']])+'</div>';
+  h+='<div class="field"><label for="openHands">Open hands (for learning)</label>'+sel('openHands',su.openHands||'off',[['off','Off: you see only your own cards'],['on','On: see every player\'s cards; chances use them too']])+'</div>';
   h+='<div class="field"><label for="review">Review my moves</label>'+sel('review',su.review||'on',[['on','After each turn, a note in the corner says what the coach would have done'],['off','Off']])+'</div>';
   h+='<div class="field"><label for="speed">Computer speed</label>'+sel('speed',su.speed,[['slow','Slow'],['normal','Normal'],['fast','Fast']])+'</div>';
   h+='<div class="field"><label for="seed">Deal number</label><input type="text" inputmode="numeric" id="seed" value="'+esc(su.seed)+'" placeholder="random" autocomplete="off" enterkeyhint="done" style="width:140px"><span class="muted">Same number, same cards: play a deal again.</span></div>';
   h+='<div id="warn"></div><div class="row"><button class="btn primary" id="start">Deal</button></div></div>';
   $app.innerHTML=h;
   var ids=['decks','jokers','jokersPerDeck','noPlayableDiscard','twosWild','aceMode','wildMode','initialMeldRules','layOffSameTurn','mustDiscardToGoOut','buyPenalty','buyAfterDown','jokerSwap','stockOut','ptLow','ptHigh','ptAce','ptJoker','lowMax','rounds'];
-  function readSu(){return {review:document.getElementById('review').value,name:(document.getElementById('name').value||'You').trim().slice(0,16)||'You',bots:+document.getElementById('bots').value,level:document.getElementById('level').value,
+  function readSu(){return {chances:document.getElementById('chances').value,openHands:document.getElementById('openHands').value,review:document.getElementById('review').value,name:(document.getElementById('name').value||'You').trim().slice(0,16)||'You',bots:+document.getElementById('bots').value,level:document.getElementById('level').value,
     preset:document.getElementById('preset').value,speed:document.getElementById('speed').value,buyAsk:document.getElementById('buyAsk').value,coach:document.getElementById('coach').value,goDownMode:document.getElementById('goDownMode').value,seed:document.getElementById('seed').value.replace(/\D/g,'').slice(0,9)};}
   function readF(){var o={};ids.forEach(function(id){var el=document.getElementById(id);o[id]=el.type==='checkbox'?el.checked:el.value;});return o;}
   function check(){
@@ -1596,19 +2025,19 @@ function newGame(cfg,seed,su){
   var names=[su.name],levels=[null];
   for(var i=0;i<su.bots;i++){var L=su.level==='mixed'?['easy','medium','hard'][i%3]:su.level;names.push(BOTNAMES[i]);levels.push(L);}
   var st=S.newGame(cfg,seed,names);
-  G={st:st,levels:levels,human:0,speed:su.speed,buyAsk:su.buyAsk||'helps',coach:su.coach||'tap',goDownMode:su.goDownMode||'able',review:su.review||'on',reviews:[],alerted:{},sel:{},sort:'suit',dir:1,breaks:[],menu:false,order:[],last:[],msg:'',log:[],showScores:false,lastDrawn:null};
+  G={st:st,levels:levels,human:0,speed:su.speed,buyAsk:su.buyAsk||'helps',coach:su.coach||'tap',goDownMode:su.goDownMode||'able',review:su.review||'on',chances:su.chances||'on',openHands:su.openHands||'off',reviews:[],alerted:{},sel:{},sort:'suit',dir:1,breaks:[],menu:false,order:[],last:[],msg:'',log:[],showScores:false,lastDrawn:null};
   makeSeats();
   S.startRound(st);
-  save();loop();
+  save();loop();roundIntro();
 }
 function makeSeats(){
   G.seats=G.levels.map(function(L,i){return L?new B.Bot(L,(G.st.seed+i*7919+G.st.round*31+(G.st.turnsThisRound||0))>>>0):null;});
   if(AUTO)G.seats[0]=new B.Bot('medium',99);
 }
-function save(){var r=G.st.rand;G.st.rand=null;store('game',{st:G.st,levels:G.levels,speed:G.speed,sort:G.sort,dir:G.dir,breaks:G.breaks,order:G.order,buyAsk:G.buyAsk,coach:G.coach,goDownMode:G.goDownMode,review:G.review,alerted:G.alerted,celebrated:G.celebrated});G.st.rand=r;}
+function save(){var r=G.st.rand;G.st.rand=null;store('game',{st:G.st,levels:G.levels,speed:G.speed,sort:G.sort,dir:G.dir,breaks:G.breaks,order:G.order,buyAsk:G.buyAsk,coach:G.coach,goDownMode:G.goDownMode,review:G.review,chances:G.chances,openHands:G.openHands,alerted:G.alerted,celebrated:G.celebrated});G.st.rand=r;}
 function resumeGame(saved){
   var st=saved.st;st.rand=S.rng((st.seed^((st.turnsThisRound+1)*2654435761)^(st.round*40503))>>>0);
-  G={st:st,levels:saved.levels,human:0,speed:saved.speed||'normal',buyAsk:saved.buyAsk||'helps',coach:saved.coach||'tap',goDownMode:saved.goDownMode||'able',review:saved.review||'on',reviews:[],alerted:saved.alerted||{},celebrated:saved.celebrated,sel:{},sort:saved.sort||'suit',dir:saved.dir||1,breaks:saved.breaks||[],menu:false,order:saved.order||[],last:[],msg:'Welcome back.',log:[],showScores:false,lastDrawn:null};
+  G={st:st,levels:saved.levels,human:0,speed:saved.speed||'normal',buyAsk:saved.buyAsk||'helps',coach:saved.coach||'tap',goDownMode:saved.goDownMode||'able',review:saved.review||'on',chances:saved.chances||'on',openHands:saved.openHands||'off',reviews:[],alerted:saved.alerted||{},celebrated:saved.celebrated,sel:{},sort:saved.sort||'suit',dir:saved.dir||1,breaks:saved.breaks||[],menu:false,order:saved.order||[],last:[],msg:'Welcome back.',log:[],showScores:false,lastDrawn:null};
   makeSeats();loop();
 }
 function nameOf(i){return i===G.human?G.st.players[i].name:G.st.players[i].name;}
@@ -1645,12 +2074,12 @@ async function loop(){
   while(true){
     if(st.phase==='gameOver'||st.over){drop('game');render();return;}
     if(st.phase==='roundOver'){
-      if(!AUTO&&st.outPlayer!=null&&G.celebrated!==st.round){G.celebrated=st.round;var sd=standings();celebrate(st.outPlayer===G.human?'You went out!':st.players[st.outPlayer].name+' went out!',(sd?sd.who+'. ':'')+(sd&&sd.you?sd.you+'.':''),SEATCOL[st.outPlayer],'Round '+(st.round+1)+' of '+st.cfg.rounds.length);}
+      if(!AUTO&&st.outPlayer!=null&&G.celebrated!==st.round){G.celebrated=st.round;var sd=standings();celebrate(st.outPlayer===G.human?'You won the round!':st.players[st.outPlayer].name+' won the round!',(sd?sd.who+'. ':'')+(sd&&sd.you?sd.you+'.':''),SEATCOL[st.outPlayer],'Round '+(st.round+1)+' of '+st.cfg.rounds.length);}
       save();render();
       if(AUTO){await sleep(0);}else await waitFor('next');
       if(gone())return;
       if(st.round>=st.cfg.rounds.length-1){st.over=true;st.phase='gameOver';drop('game');render();return;}
-      G.log=[];G.last=[];G.sel={};G.msg='';G.order=[];G.breaks=[];S.startRound(st);makeSeats();save();continue;
+      G.log=[];G.last=[];G.sel={};G.msg='';G.order=[];G.breaks=[];S.startRound(st);makeSeats();save();roundIntro();continue;
     }
     var pi=st.turn,me=st.players[pi],bot=G.seats[pi],mark=st.roundLog.length;
     if(st.phase==='draw'){
@@ -1659,6 +2088,7 @@ async function loop(){
       else{
         G.msg='Your turn: take the face-up card or draw from the pile.';
         G.turnRev=null;
+        startChances();
         if(G.review==='on'&&C){try{G.turnRev={draw:C.adviseDraw(st,G.human),topName:st.top?cardText(st.top):''};}catch(e){console.error(e);}}
         from=await waitFor('draw');if(gone())return;
         if(G.turnRev)G.turnRev.from=from;
@@ -1695,6 +2125,90 @@ async function loop(){
       G.lastDrawn=null;
     }
   }
+}
+
+// ---------- win chances (worked out in small steps so the game never stalls) ----------
+var CH_TRIALS=40;
+function startChances(){
+  if(!G||G.chances!=='on'||!C||!C.chanceRunner||AUTO)return;
+  var st=G.st,key=st.round+'|'+st.turnsThisRound+'|'+st.turn;
+  if(G.ch&&G.ch.key===key)return;
+  var levels=G.levels.map(function(L){return L||'medium';});
+  var job={turn:st.turnsThisRound,key:key,runner:C.chanceRunner(st,G.human,levels,G.openHands==='on',(st.seed^(st.turnsThisRound*2654435761)^(st.round*97))>>>0),res:null,done:false,round:st.round};
+  G.ch=job;
+  (function tick(){
+    if(!G||G.ch!==job)return;
+    try{job.runner.step(2);}catch(e){console.error(e);job.done=true;return;}
+    job.res=job.runner.result();if(job.runner.done()){job.done=true;var hh=(G.chHist=G.chHist||{})[job.round]=(G.chHist[job.round]||[]);hh.push({turn:job.turn,pc:job.res.round.slice(),rg:job.res.roundRange.map(function(r){return {lo:r.lo,hi:r.hi,zero:r.zero,under:r.under};}),n:job.res.roundN,flags:[]});}
+    var el=document.getElementById('chances');if(el)el.innerHTML=chancesHTML();
+    var sp=seatPct();if(sp)Array.prototype.forEach.call(document.querySelectorAll('.seat .pc'),function(e){var i=+e.getAttribute('data-i');e.textContent=pcText(sp[i],seatRange(i));e.title=seatTitle(i);});
+    if(job.done&&!document.querySelector('.seat .pc'))render();
+    if(!job.done)setTimeout(tick,0);
+  })();
+}
+// Whole percentages that add up to exactly 100 (largest remainder).
+function pct100(arr){
+  var sum=arr.reduce(function(a,b){return a+b;},0);if(!sum)return arr.map(function(){return 0;});
+  var raw=arr.map(function(x){return x/sum*100;}),fl=raw.map(Math.floor),left=100-fl.reduce(function(a,b){return a+b;},0);
+  raw.map(function(x,i){return {i:i,r:x-fl[i]};}).sort(function(a,b){return b.r-a.r;}).slice(0,left).forEach(function(o){fl[o.i]++;});
+  return fl;
+}
+// A share nobody won in the trials is shown as "under 3/n" (the rule of three), never 0%.
+function pcText(v,rg){if(rg&&rg.zero)return '<'+Math.ceil(rg.under*100)+'%';return v<1?'<1%':v+'%';}
+function seatRange(i){var j=G.ch;return j&&j.res&&j.res.roundRange?j.res.roundRange[i]:null;}
+function seatTitle(i){var r=seatRange(i);return r?'Chance to win this round: '+(r.zero?'under '+Math.ceil(r.under*100)+'%':'likely between '+r.range):'Chance to win this round';}
+function margin(r){return Math.round((r.hi-r.lo)*50);}
+function seatPct(){var st=G.st,j=G.ch;if(G.chances!=='on'||!j||!j.res||!j.res.trials||j.round!==st.round||st.phase==='roundOver')return null;return pct100(j.res.round);}
+function chancesHTML(){
+  var st=G.st,j=G.ch;
+  if(!j||!j.res||j.round!==st.round)return '<span class="muted">Win chances appear at the start of your turn.</span>';
+  if(!j.res.trials)return '<span class="muted">Win chances: '+(j.res.read&&j.res.read.on?'reading the others\' moves…':'working…')+'</span>';
+  var gr=j.res.gameRange||[];
+  function line(arr){var pc=pct100(arr);return st.players.map(function(p,i){return esc(i===G.human?'You':p.name)+' '+pcText(pc[i],gr[i]);}).join(' · ');}
+  var mine=gr[G.human],rr=j.res.roundRange&&j.res.roundRange[G.human],rd=j.res.read||{};
+  var how=G.openHands==='on'?'all hands seen':rd.on?'hands read from '+rd.moves+' move'+(rd.moves===1?'':'s'):'hidden cards dealt at random';
+  return '<b>Win the game:</b> '+line(j.res.game)+' <span class="muted">· give or take '+(mine?margin(mine):'?')+' points with '+j.res.gameTrials+' games played out · seats: win this round, give or take '+(rr?margin(rr):'?')+' · '+how+(j.done?'':' · working…')+'</span>';
+}
+function handsHTML(){
+  var st=G.st,cfg=st.cfg,h='<div class="hands" aria-label="Every player\'s cards">';
+  st.players.forEach(function(p,i){if(i===G.human)return;
+    var cs=p.hand.slice().sort(function(a,b){return a.suit-b.suit||a.rank-b.rank;});
+    h+='<div class="hrow"><span class="who" style="color:'+SEATCOL[i]+'">'+esc(p.name)+'</span><div class="left">'+cs.map(function(c){return cardHTML(c,cfg,{mini:true});}).join('')+'</div></div>';});
+  return h+'</div>';
+}
+// ---------- the round's win chances as a line chart, with big drops after a flagged move ----------
+function chanceChartHTML(round,out){
+  var hist=(G.chHist||{})[round];if(G.chances!=='on'||!hist||hist.length<2)return '';
+  var st=G.st,n=st.players.length,me=G.human,pts=hist.map(function(e){return {pc:e.pc,rg:e.rg,n:e.n||150,flags:e.flags,label:'turn '+(e.turn+1)};});
+  if(out!=null){var fin=[];for(var i=0;i<n;i++)fin.push(i===out?1:0);pts.push({pc:fin,n:1e9,flags:[],label:'end'});}
+  var W=340,H=170,L=34,R=out!=null&&n<=4?60:12,T=10,Bm=26,iw=W-L-R,ih=H-T-Bm;
+  function x(k){return L+(pts.length===1?0:iw*k/(pts.length-1));}
+  function y(v){return T+ih*(1-v);}
+  var svg='<svg class="chart" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Chance to win this round, at each of your turns">';
+  [0,0.5,1].forEach(function(v){svg+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y(v)+'" y2="'+y(v)+'" class="grid"/><text x="'+(L-6)+'" y="'+(y(v)+4)+'" class="ax" text-anchor="end">'+Math.round(v*100)+'%</text>';});
+  svg+='<text x="'+L+'" y="'+(H-6)+'" class="ax">your turns →</text><text x="'+(W-R)+'" y="'+(H-6)+'" class="ax" text-anchor="end">'+esc(pts[pts.length-1].label)+'</text>';
+  // your likely range (95%) as a shaded band behind the lines
+  var band=pts.map(function(q,k){var r=q.rg&&q.rg[me];return {k:k,lo:r?r.lo:q.pc[me],hi:r?r.hi:q.pc[me]};});
+  svg+='<path d="'+band.map(function(b,i){return (i?'L':'M')+x(b.k).toFixed(1)+' '+y(b.hi).toFixed(1);}).join(' ')+' '+band.slice().reverse().map(function(b){return 'L'+x(b.k).toFixed(1)+' '+y(b.lo).toFixed(1);}).join(' ')+' Z" fill="'+SEATCOL[me]+'" fill-opacity="0.18" stroke="none"><title>Your likely range</title></path>';
+  var order=[];for(var p=0;p<n;p++)if(p!==me)order.push(p);order.push(me);
+  order.forEach(function(p){
+    var d=pts.map(function(q,k){return (k?'L':'M')+x(k).toFixed(1)+' '+y(q.pc[p]).toFixed(1);}).join(' ');
+    svg+='<path d="'+d+'" fill="none" stroke="'+SEATCOL[p]+'" stroke-width="'+(p===me?3:2)+'" stroke-linejoin="round" stroke-linecap="round"/>';
+    pts.forEach(function(q,k){svg+='<circle cx="'+x(k).toFixed(1)+'" cy="'+y(q.pc[p]).toFixed(1)+'" r="'+(p===me?4:3)+'" fill="'+SEATCOL[p]+'" stroke="#0f2c1f" stroke-width="2"><title>'+esc((p===me?'You':st.players[p].name)+', '+q.label+': '+pcText(Math.round(q.pc[p]*100)))+'</title></circle>';});
+    if(out!=null&&n<=4){var lv=pts[pts.length-1].pc[p];svg+='<text x="'+(W-R+6)+'" y="'+(y(lv)+4)+'" class="lab">'+esc(p===me?'You':st.players[p].name)+'</text>';}
+  });
+  // big drops: your chance fell by 10 points or more after a move the coach flagged
+  var drops=[];
+  // a fall counts only if it is at least 10 points and bigger than the play-outs' own noise (twice its standard error)
+  for(var k=0;k+1<pts.length;k++){var a=pts[k].pc[me],b=pts[k+1].pc[me];if(pts[k].flags.length&&O.realDrop(a,pts[k].n,b,pts[k+1].n).real)drops.push({k:k,a:a,b:b,flags:pts[k].flags});}
+  drops.forEach(function(dp){svg+='<circle cx="'+x(dp.k).toFixed(1)+'" cy="'+y(dp.a).toFixed(1)+'" r="8" fill="none" stroke="#ff5252" stroke-width="2.5"><title>A big drop followed this move</title></circle>';});
+  svg+='</svg>';
+  var lg='<div class="legend">'+st.players.map(function(p,i){return '<span><i style="background:'+SEATCOL[i]+'"></i>'+esc(i===me?'You':p.name)+'</span>';}).join('')+'</div>';
+  var notes='';
+  if(drops.length)notes='<div class="drops"><b>Game-changing moments</b> (after a move the coach would have made differently, your chance fell by at least 10 points and by more than the play-outs\' own margin of error; the cards others drew play a part too):<ul>'+drops.map(function(dp){return '<li>At '+esc(pts[dp.k].label)+', '+Math.round(dp.a*100)+'% → '+Math.round(dp.b*100)+'%: '+esc(dp.flags.join(' '))+'</li>';}).join('')+'</ul></div>';
+  else notes='<div class="drops muted">No game-changing mistakes this round: no move the coach flagged was followed by a fall bigger than the margin of error.</div>';
+  var tbl='<details class="tbl"><summary>As a table</summary><table class="sc"><tr><th></th>'+pts.map(function(q){return '<th class="n">'+esc(q.label)+'</th>';}).join('')+'</tr>'+st.players.map(function(p,i){return '<tr><td>'+esc(i===me?'You':p.name)+'</td>'+pts.map(function(q){return '<td class="n">'+pcText(Math.round(q.pc[i]*100),q.rg&&q.rg[i])+(q.rg&&q.rg[i]&&!q.rg[i].zero?' <span class="muted">±'+margin(q.rg[i])+'</span>':'')+'</td>';}).join('')+'</tr>';}).join('')+'</table></details>';
+  return '<div class="chancechart"><div class="ct">Chance to win this round, turn by turn <span class="muted">(shaded: your likely range)</span></div>'+svg+lg+notes+tbl+'</div>';
 }
 
 // What going out did to the leaderboard (lowest total wins). Returns {who, you} lines.
@@ -1754,7 +2268,7 @@ function humanAct(action,okMsg){
 }
 function friendly(e){
   var map={'keep a card to discard':'Keep one card to throw at the end of your turn.','go down first':'Go down with your contract before laying off.',
-    'lay off from your next turn':'With these rules you lay off from your next turn.','this round you go out without discarding':'This round you go out without throwing a card: lay off your last cards together (try "Lay off all").',
+    'lay off from your next turn':'With these rules you lay off from your next turn.','this round you go out without discarding':'You cannot win on a throw: lay down your last cards together to win (try "Lay off all").',
     'that card goes on the table, so you may not throw it until you are down':'That card goes on someone\'s meld, so you may not throw it until you are down. Cards marked red underneath are the ones you must keep.',
     'that card goes on the table, so you may not throw it':'That card goes on someone\'s meld, so you may not throw it. Cards marked red underneath are the ones you must keep.',
     'this round you must go down and out in one go':'This round you must go down and out in one go: every card must fit.'};
@@ -1803,15 +2317,47 @@ function discard(){
       rv=Object.assign({},G.turnRev,{thrown:cs[0],couldGoDown:!me.down&&!G.turnRev.wentDown&&canGoDown()});
       if(me.down)rv.layable=me.hand.filter(function(c){return st.melds.some(function(m){return S.layOffSpots(c,m,cfg).length||S.swapSpots(c,m,cfg).length;});});
       if(rv.layable&&rv.layable.length>=me.hand.length&&!S.roundInfo(st).noDiscardOut)rv.layable=rv.layable.slice(0,me.hand.length-1);
-      var da=C.discardAdvice(st,G.human);if(da){rv.advisedThrow=da.card;rv.why=da.why;}
+      var da=C.discardAdvice(st,G.human);if(da){rv.advisedThrow=da.card;rv.why=da.why;rv.equal=da.equal;}
     }catch(e){console.error(e);rv=null;}
   }
-  var round=st.round;
-  if(humanAct({type:'discard',cardId:cs[0].id},'')&&rv){var items=C.reviewTurn(rv);if(items.length)addReview('Your turn, round '+(round+1),items);G.turnRev=null;}
+  var round=st.round,pre=null;
+  // the coach's first pick differs and the quick test does not call them equal: check both throws on the same deals
+  if(rv&&rv.advisedThrow&&C.compareThrows&&!sameC(rv.thrown,rv.advisedThrow)&&!(rv.equal||[]).some(function(x){return sameC(x,rv.thrown);})){var r0=st.rand;st.rand=null;pre=JSON.stringify(st);st.rand=r0;}
+  if(humanAct({type:'discard',cardId:cs[0].id},'')&&rv){
+    var items=C.reviewTurn(rv),ti=-1,orig=null;
+    if(pre)items.forEach(function(it,k){if(!it.ok&&it.text.indexOf('You threw the')===0)ti=k;});
+    if(ti>=0){orig=items[ti];items[ti]={ok:true,pending:true,text:'You threw the '+cardText(rv.thrown)+'; the coach\'s first pick was the '+cardText(rv.advisedThrow)+'. Checking both on the same '+THROW_TRIALS+' possible deals…'};}
+    var rev=items.length?addReview('Your turn, round '+(round+1),items):null;G.turnRev=null;
+    if(rev&&ti>=0)checkThrow(rev,ti,pre,rv,orig);
+  }
+}
+function sameC(a,b){return a&&b&&a.suit===b.suit&&a.rank===b.rank;}
+// ---------- checking a throw: both cards played out on the same deals (paired), in the background ----------
+var THROW_TRIALS=40;
+function checkThrow(rev,ti,pre,rv,orig){
+  var owner=G,st0=JSON.parse(pre),levels=G.levels.map(function(L){return L||'medium';});
+  var job=C.compareThrows(st0,G.human,rv.thrown,rv.advisedThrow,levels,G.openHands==='on',(st0.seed^(st0.turnsThisRound*40503)^(st0.round*131))>>>0,{trials:THROW_TRIALS});
+  function finish(r){
+    if(G!==owner)return;
+    var it=throwVerdict(r,rv,orig);rev.items[ti]=it;
+    if(!it.ok&&rev.ref)rev.ref.flags=rev.ref.flags.concat([it.text]);
+    if(G.st.phase!=='gameOver'&&!G.st.over)render();
+  }
+  (function tick(){if(G!==owner)return;try{job.step(2);}catch(e){console.error(e);finish(null);return;}if(job.done())finish(job.result());else setTimeout(tick,0);})();
+}
+function throwVerdict(r,rv,orig){
+  if(!r||r.failed||!r.n)return orig;
+  var A=cardText(rv.thrown),Bc=cardText(rv.advisedThrow),n=r.n,g=r.unit==='game';
+  function num(v){v=Math.abs(v);return g?String(Math.round(v*100)):v<2?v.toFixed(1):String(Math.round(v));}
+  var deals='played out on the same '+n+' possible deals';
+  if(r.better==='B')return {ok:false,text:orig.text.replace(/\.$/,'')+'. Checked: '+deals+', the '+Bc+(g?' raised your chance of winning the game by about '+num(r.gain)+' points':' saved about '+num(r.gain)+' penalty points on average')+' (give or take '+num(r.se)+').'};
+  if(r.better==='A')return {ok:true,text:'Threw the '+A+': the coach\'s first pick was the '+Bc+', but '+deals+' the '+A+' did better'+(g?', by about '+num(r.gain)+' points of game-winning chance':', by about '+num(r.gain)+' penalty points')+'.'};
+  return {ok:true,text:'Threw the '+A+': the coach\'s first pick was the '+Bc+', but '+deals+' the two come out about the same.'};
 }
 
 // ---------- drawing the table ----------
-var SEATCOL=['#ffffff','#ef9a9a','#90caf9','#a5d6a7','#ce93d8','#ffcc80','#80deea','#f48fb1'];
+// Seat colours: the dataviz reference palette's dark steps, validated on this felt (#0f2c1f): every check passes.
+var SEATCOL=['#3987e5','#d95926','#199e70','#c98500','#d55181','#0ca30c','#9085e9','#e66767'];
 function sortHand(hand,cfg){
   var hiAce=cfg.aceMode==='high',dir=G.dir||1;
   function rv(c){return c.rank===1&&hiAce?14:c.rank;}
@@ -1889,6 +2435,7 @@ function seatHTML(i,spot){
   if(!you)h+='<div class="fan" aria-label="'+n+' cards">'+fan+'<span>'+n+'</span></div>';
   h+='<div class="st">'+(p.down?'<span class="badge">DOWN</span>':'buys '+p.buysLeft)+' · '+st.scores[i]+'</div>';
   if(one)h+='<div class="onecard">1 card!</div>';
+  var sp=seatPct();if(sp)h+='<div class="pc" data-i="'+i+'" title="'+esc(seatTitle(i))+'">'+pcText(sp[i],seatRange(i))+'</div>';
   if(G.last&&G.last[i])h+='<div class="said">'+esc(G.last[i])+'</div>';
   return h+'</div>';
 }
@@ -1914,13 +2461,15 @@ function render(){
   var st=G.st,cfg=st.cfg,me=st.players[G.human],rd=S.roundInfo(st)||cfg.rounds[cfg.rounds.length-1];
   var h='';
   if(st.phase==='gameOver'||st.over){renderGameOver();return;}
-  h+='<div class="top"><div class="title"><b>Round '+(st.round+1)+' of '+cfg.rounds.length+'</b><div class="contract">'+esc(contractText(rd.contract))+(rd.allAtOnce?' · all at once':rd.noDiscardOut?' · no discard to go out':'')+'</div></div>';
+  var dots='';for(var di=0;di<cfg.rounds.length;di++)dots+='<i class="'+(di<st.round?'done':di===st.round?'now':'')+'">●</i>';
+  h+='<div class="top"><div class="title"><div class="rnd"><b>Round '+(st.round+1)+'</b><span class="of">of '+cfg.rounds.length+'</span><span class="dots" aria-hidden="true">'+dots+'</span>'+(G.openHands==='on'?'<span class="of">· open hands</span>':'')+'</div><div class="contract">'+esc(contractText(rd.contract))+(rd.allAtOnce?' · all at once':rd.noDiscardOut?' · no discard to win':'')+'</div></div>';
   h+='<button class="btn ghost" id="scores">Scores</button><button class="btn ghost" id="menu" aria-label="Menu">☰</button></div>';
   h+='<div class="table" id="table">';
   if(G.showScores)h+=scoresHTML();
   if(st.phase==='roundOver')h+=roundOverHTML();
   else{
     var adv=coachState(),myDraw=waiter&&waiter.kind==='draw';
+    if(G.chances==='on')h+='<div class="chances" id="chances">'+chancesHTML()+'</div>';
     if(adv)h+='<div class="coach" role="status"><b>'+esc(adv.head)+'</b>'+(adv.lines.length?'<ul>'+adv.lines.map(function(l){return '<li>'+esc(l)+'</li>';}).join('')+'</ul>':'')+'</div>';
     // the oval table: seats round it, each player's melds on the felt in front of them, the pile and face-up card in the middle
     var spots=seatSpots(st.players.length),k=0,where={};
@@ -1928,7 +2477,7 @@ function render(){
     where[G.human]={x:50,y:97};
     var one=selectedCards(),pick=one.length===1&&me.down&&waiter&&waiter.kind==='play'?one[0]:null;
     function fits(m){return pick&&(S.layOffSpots(pick,m,cfg).length||S.swapSpots(pick,m,cfg).length);}
-    h+='<div class="oval n'+st.players.length+(st.melds.length?' has-melds':'')+'"><div class="felt"></div>';
+    h+='<div class="oval n'+st.players.length+(st.melds.length?' has-melds':'')+(myDraw?' mydraw':'')+'"><div class="felt"></div>';
     st.players.forEach(function(p,i){
       h+=seatHTML(i,where[i]);
       var ms=st.melds.filter(function(m){return m.owner===i;});if(!ms.length)return;
@@ -1950,6 +2499,7 @@ function render(){
       h+='</div>';
     }
     h+='<div class="log">'+G.log.map(esc).join('<br>')+'</div>';
+    if(G.openHands==='on')h+=handsHTML();
     if(!(waiter&&waiter.kind==='buy'))h+='<div class="field buyset"><label for="askbuy">Offer me a buy</label>'+sel('askbuy',G.noBuyRound===st.round?'round':G.buyAsk,[['helps','Only when the card would help me'],['always','Every time I may buy'],['round','Not again this round'],['never','Never']])+'</div>';
     if(!st.melds.length)h+='<div class="muted">Nobody is down yet.</div>';
   }
@@ -1971,7 +2521,8 @@ function render(){
     h+='<button class="btn" id="discard"'+(n===1?'':' disabled')+'>Throw</button>';
     h+=hintBtn();
   }else{
-    h+='<div class="actions" style="align-items:center"><div class="msg" aria-live="polite" style="flex:1 1 140px;margin:0">'+msgText+'</div>';
+    var drawNow=waiter&&waiter.kind==='draw';
+    h+='<div class="actions" style="align-items:center"><div class="msg'+(drawNow?' drawcue':'')+'" aria-live="polite" style="flex:1 1 140px;margin:0">'+(drawNow?'Your turn: draw a card':msgText)+'</div>';
     if(waiter&&waiter.kind==='draw')h+=hintBtn();
   }
   if(n===1)h+='<button class="btn ghost" id="mvl" aria-label="Move card left">◀</button><button class="btn ghost" id="mvr" aria-label="Move card right">▶</button>';
@@ -2120,8 +2671,9 @@ function scoresHTML(){
 }
 function roundOverHTML(){
   var st=G.st,cfg=st.cfg,r=st.history[st.history.length-1],h='<h2>';
-  h+=r.out==null?'Round over: nobody went out':(r.out===G.human?'You went out!':esc(st.players[r.out].name)+' went out');
+  h+=r.out==null?'Round over: nobody won':(r.out===G.human?'You won the round!':esc(st.players[r.out].name)+' won the round');
   h+='</h2>';var sd=standings();if(sd)h+='<p class="standing"><b>'+esc(sd.who)+'.</b>'+(sd.you?' '+esc(sd.you)+'.':'')+'</p>';
+  h+=chanceChartHTML(st.round,r.out);
   h+='<table class="sc"><tr><th>Player</th><th>Left in hand</th><th class="n">Points</th></tr>';
   st.players.forEach(function(p,i){
     h+='<tr><td>'+esc(i===G.human?'You':p.name)+'</td><td><div class="left">'+p.hand.map(function(c){return cardHTML(c,cfg,{mini:true});}).join('')+'</div></td><td class="n">'+r.points[i]+'</td></tr>';
@@ -2185,11 +2737,15 @@ function fireworks(cv,colour){
   })(t0);
 }
 var revSeq=0;
-function addReview(title,items){G.reviews=(G.reviews||[]);G.reviews.unshift({id:++revSeq,title:title,items:items});G.reviews=G.reviews.slice(0,3);if(G.st.phase!=='gameOver'&&!G.st.over)render();}
+function addReview(title,items){
+  var bad=items.filter(function(it){return !it.ok;});
+  var ref=null;if(G.chHist&&G.chHist[G.st.round]&&G.chHist[G.st.round].length){var hh=G.chHist[G.st.round];ref=hh[hh.length-1];}
+  bad=bad.filter(function(it){return !it.pending;});if(bad.length&&ref)ref.flags=ref.flags.concat(bad.map(function(it){return it.text;}));
+  var rv={id:++revSeq,title:title,items:items,ref:ref};G.reviews=(G.reviews||[]);G.reviews.unshift(rv);G.reviews=G.reviews.slice(0,3);if(G.st.phase!=='gameOver'&&!G.st.over)render();return rv;}
 function reviewHTML(){
   if(!G||!G.reviews||!G.reviews.length||G.review!=='on')return '';
   var h='<div id="rev" aria-live="polite"><div class="rh"><span>Move review</span><button type="button" id="revoff" aria-label="Turn move reviews off">Off</button><button type="button" id="revall" aria-label="Dismiss all reviews">✕ all</button></div>';
-  G.reviews.forEach(function(r){h+='<div class="ri"><div class="tx"><div class="tt">'+esc(r.title)+'</div><ul>'+r.items.map(function(it){return '<li class="'+(it.ok?'ok':'no')+'">'+esc(it.text)+'</li>';}).join('')+'</ul></div><button type="button" class="revx" data-rev="'+r.id+'" aria-label="Dismiss">✕</button></div>';});
+  G.reviews.forEach(function(r){h+='<div class="ri"><div class="tx"><div class="tt">'+esc(r.title)+'</div><ul>'+r.items.map(function(it){return '<li class="'+(it.pending?'wait':it.ok?'ok':'no')+'">'+esc(it.text)+'</li>';}).join('')+'</ul></div><button type="button" class="revx" data-rev="'+r.id+'" aria-label="Dismiss">✕</button></div>';});
   return h+'</div>';
 }
 function wireReview(){
@@ -2200,8 +2756,39 @@ function wireReview(){
 }
 function placeReview(){var el=document.getElementById('rev'),hp=document.querySelector('.handpanel');if(el&&hp&&getComputedStyle(el).position==='fixed')el.style.bottom=(hp.getBoundingClientRect().height+8)+'px';}
 window.addEventListener('resize',placeReview);
-window.__shanghai={get G(){return G;},S:S,B:B,celebrate:celebrate,toast:toast};
+// ---------- what this round asks for, shown as each round starts ----------
+function roundIntro(){
+  if(FAST||AUTO||!G)return;
+  var st=G.st,cfg=st.cfg,rd=S.roundInfo(st);if(!rd)return;
+  var sets=rd.contract.filter(function(p){return p.t==='set';}),runs=rd.contract.filter(function(p){return p.t==='run';});
+  function words(n,w,len,std){return n?n+' '+w+(n>1?'s':'')+(len!==std?' of '+len:''):'';}
+  var parts=[];if(sets.length)parts.push(words(sets.length,'set',sets[0].n,3));if(runs.length)parts.push(words(runs.length,'run',runs[0].n,4));
+  var big=parts.join(' and ');
+  function mini(cs){return '<div class="left">'+cs.map(function(c){return cardHTML(c,cfg,{mini:true});}).join('')+'</div>';}
+  var ex='';
+  if(sets.length){var n=sets[0].n,cs=[];for(var k=0;k<n;k++)cs.push({id:-1-k,suit:k%4,rank:7});ex+='<div class="ex"><b>A set</b> ('+n+' or more): the same number, any suits'+mini(cs)+'</div>';}
+  if(runs.length){var m=runs[0].n,cr=[];for(var q=0;q<m;q++)cr.push({id:-20-q,suit:2,rank:4+q>13?(4+q-13):4+q});ex+='<div class="ex"><b>A run</b> ('+m+' or more): in order, all one suit'+mini(cr)+'</div>';}
+  var extra=[rd.deal+' cards each'];if(rd.noDiscardOut)extra.push('no discard to win: lay your last cards down');if(rd.allAtOnce)extra.push('go down and lay off everything in one go');
+  var d=document.createElement('div');d.id='intro';d.setAttribute('role','dialog');
+  d.innerHTML='<div class="box"><div class="rno">Round '+(st.round+1)+' of '+cfg.rounds.length+'</div><div class="big">'+esc(big)+'</div>'+ex+'<div class="muted">'+esc(extra.join(' · '))+'</div><button class="btn primary" id="introgo">Start round</button></div>';
+  var old=document.getElementById('intro');if(old)old.remove();
+  document.body.appendChild(d);
+  d.addEventListener('click',function(){d.remove();});
+}
+
+// The splash picture shows first every time the game opens (Guy, 17 Nov 2026); tap Play or anywhere to go on.
+var SPLASH='';
+function showSplash(){
+  if(!SPLASH||SPLASH.indexOf('data:')!==0||FAST)return;
+  var d=document.createElement('div');d.id='splash';d.setAttribute('role','dialog');d.setAttribute('aria-label','Shanghai');
+  d.innerHTML='<img src="'+SPLASH+'" alt="Shanghai Family: three players round a card table"><button class="btn primary" id="splashgo">Play</button>';
+  document.body.appendChild(d);
+  function go(){d.style.opacity='0';setTimeout(function(){d.remove();},400);}
+  d.addEventListener('click',go);
+}
+window.__shanghai={get G(){return G;},S:S,B:B,celebrate:celebrate,toast:toast,render:function(){render();}};
 renderSetup();
+showSplash();
 if(AUTO){document.getElementById('start').click();}
 })();
 </script>
