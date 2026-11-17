@@ -900,9 +900,13 @@ table.sc td.n{text-align:right}
   var LEVELS = {
     easy:   { takeChance: 0.6, buy: false, mistake: 0.35, safety: 0, dumpWeight: 0.2 },
     medium: { takeChance: 1, buy: true, mistake: 0.05, safety: 0, dumpWeight: 0.6, buyMaxExtra: 4 },
-    hard:   { takeChance: 1, buy: true, mistake: 0, safety: 1, dumpWeight: 1, buyMaxExtra: 6 }
+    hard:   { takeChance: 1, buy: true, mistake: 0, safety: 1, dumpWeight: 1, buyMaxExtra: 6, ev: true }
   };
 
+  // An outside judge for close throws (the coach's paired play-outs, set by the page). Top players ask it; it answers
+  // null when it has nothing better, and never inside a simulation (it guards that itself).
+  var ORACLE = null;
+  function setDiscardOracle(fn) { ORACLE = fn || null; }
   function without(hand, id) { return hand.filter(function (c) { return c.id !== id; }); }
 
   // How much a natural card helps toward the contract's kind of melds.
@@ -1078,6 +1082,7 @@ table.sc td.n{text-align:right}
   Bot.prototype.pickDiscard = function (st, pi) {
     var me = st.players[pi], rd = S.roundInfo(st), self = this;
     if (rd.noDiscardOut && me.hand.length === 1) return me.hand[0]; // will be refused; engine guards
+    if (this.p.ev && ORACLE) { try { var judged = ORACLE(st, pi, this); if (judged) return judged; } catch (e) { /* fall back to the rules below */ } }
     var scored = this.discardScores(st, pi), best = null, bestScore = Infinity;
     scored.forEach(function (x) { if (x.s < bestScore) { bestScore = x.s; best = x.c; } });
     if (self.p.mistake && self.rand() < self.p.mistake && scored.length > 1) {
@@ -1143,7 +1148,7 @@ table.sc td.n{text-align:right}
     return st;
   }
 
-  return { LEVELS: LEVELS, Bot: Bot, runFlex: runFlex, playRound: playRound, playGame: playGame, usefulness: usefulness, planAllOut: planAllOut };
+  return { LEVELS: LEVELS, Bot: Bot, runFlex: runFlex, setDiscardOracle: setDiscardOracle, playRound: playRound, playGame: playGame, usefulness: usefulness, planAllOut: planAllOut };
 });
 
 </script>
@@ -1583,7 +1588,12 @@ table.sc td.n{text-align:right}
   }
   function stateJSON(st0) { var r = st0.rand; st0.rand = null; var j = JSON.stringify(st0); st0.rand = r; return j; }
   // Play the current round to its end with computer players at the given levels (the asking player as medium).
+  var SIM = 0; // > 0 while a play-out runs: computer players inside it use their plain rules, never the oracle
   function finishRound(st, levels, seed) {
+    SIM++;
+    try { return finishRound0(st, levels, seed); } finally { SIM--; }
+  }
+  function finishRound0(st, levels, seed) {
     var srand = S.rng(seed >>> 0);
     var seats = st.players.map(function (p, i) { return new B.Bot(levels[i] || 'medium', Math.floor(srand() * 4294967296)); });
     while (st.phase !== 'roundOver') {
@@ -1635,7 +1645,8 @@ table.sc td.n{text-align:right}
       if (gTrials >= gameTarget) return;
       var st = r.st;
       st.seed = Math.floor(rand() * 4294967296);
-      while (st.round < st.cfg.rounds.length - 1) B.playRound(st, r.seats);
+      SIM++;
+      try { while (st.round < st.cfg.rounds.length - 1) B.playRound(st, r.seats); } finally { SIM--; }
       var best = Math.min.apply(null, st.scores), w = [];
       st.scores.forEach(function (x, i) { if (x === best) w.push(i); });
       w.forEach(function (i) { wins[i] += 1 / w.length; });
@@ -1667,22 +1678,56 @@ table.sc td.n{text-align:right}
   // then the same world with the same luck, throwing card B. The difference per world is what the choice is worth.
   // Measured in your penalty points for this round; in the last round, in your chance of winning the game.
   // result(): {n, unit:'points'|'game', mean: B minus A (points: positive = B costs more), se, clear, better:'A'|'B'|null}
+  // One throw played to the end of the round in one world: your penalty points (or, in the last round, 1 for winning
+  // the game, shared on a tie). null if the throw is not allowed.
+  function playThrow(snap, HW, pi, card, w, sd, levels, last, before) {
+    var st = JSON.parse(snap);
+    st.rand = S.rng(sd);
+    HW.apply(st, w, st.rand);
+    var r = S.tryApply(st, { type: 'discard', cardId: card.id });
+    if (!r.ok) return null;
+    if (st.phase !== 'roundOver') finishRound(st, levels, sd ^ 0x85ebca6b);
+    if (!last) return st.scores[pi] - before;
+    var best = Math.min.apply(null, st.scores), w2 = st.scores.filter(function (x) { return x === best; }).length;
+    return st.scores[pi] === best ? 1 / w2 : 0;
+  }
+
+  // ---------- a top player's throw: its close candidates played out on the same deals ----------
+  // Uses only what that player can see (the hidden cards are dealt at random from its own view). Keeps the plain
+  // rules' first choice unless another card is clearly better (more than twice its margin of error, and by at least
+  // a point; in the last round, 3 points of game-winning chance). Returns {card, tried, trials, changed} or null.
+  function bestThrow(st0, pi, levels, opts) {
+    opts = opts || {};
+    if (SIM > 0 || st0.phase !== 'play') return null;
+    var bot = new B.Bot('hard', 1), scores = bot.discardScores(st0, pi);
+    if (scores.length < 2) return null;
+    scores.sort(function (a, b) { return a.s - b.s; });
+    var cands = scores.filter(function (x) { return x.s - scores[0].s <= (opts.window || 150); }).slice(0, opts.max || 3).map(function (x) { return x.c; });
+    if (cands.length < 2) return null;
+    SIM++;
+    try {
+      var trials = opts.trials || 24, rand = S.rng((opts.seed || (st0.seed ^ (st0.turnsThisRound * 2654435761) ^ (pi * 40503))) >>> 0);
+      var last = st0.round >= st0.cfg.rounds.length - 1, before = st0.scores[pi];
+      var HW = hiddenWorlds(st0, pi, false), snap = stateJSON(st0), vals = cands.map(function () { return []; });
+      for (var t = 0; t < trials; t++) {
+        var w = HW.sample(rand), sd = Math.floor(rand() * 4294967296);
+        for (var k = 0; k < cands.length; k++) { var v = playThrow(snap, HW, pi, cands[k], w, sd, levels, last, before); if (v == null) return null; vals[k].push(v); }
+      }
+      var pick = 0, gain = 0;
+      for (var k2 = 1; k2 < cands.length; k2++) {
+        var d = vals[k2].map(function (v, i) { return last ? v - vals[0][i] : vals[0][i] - v; }), p = O.paired(d, last ? 0.03 : 1);
+        if ((opts.mode === 'mean' ? p.mean > 0 : p.clear) && p.mean > gain) { gain = p.mean; pick = k2; }
+      }
+      return { card: cands[pick], tried: cands.length, trials: trials, changed: pick > 0 };
+    } finally { SIM--; }
+  }
+
   function compareThrows(st0, pi, cardA, cardB, levels, open, seed, opts) {
     opts = opts || {};
     var rand = S.rng(seed >>> 0), target = opts.trials || 40, diffs = [], valsA = [], valsB = [], failed = false;
     var last = st0.round >= st0.cfg.rounds.length - 1, before = st0.scores[pi];
     var HW = hiddenWorlds(st0, pi, open), src = worldSource(HW, rand, target, Object.assign({ candidates: 200 }, opts)), snap = stateJSON(st0);
-    function value(card, w, sd) {
-      var st = JSON.parse(snap);
-      st.rand = S.rng(sd);
-      HW.apply(st, w, st.rand);
-      var r = S.tryApply(st, { type: 'discard', cardId: card.id });
-      if (!r.ok) return null;
-      if (st.phase !== 'roundOver') finishRound(st, levels, sd ^ 0x85ebca6b);
-      if (!last) return st.scores[pi] - before;
-      var best = Math.min.apply(null, st.scores), w2 = st.scores.filter(function (x) { return x === best; }).length;
-      return st.scores[pi] === best ? 1 / w2 : 0;
-    }
+    function value(card, w, sd) { return playThrow(snap, HW, pi, card, w, sd, levels, last, before); }
     function verdict() {
       // in points lower is better; for the game, higher is better. Express "how much better B is than A".
       var d = diffs.map(function (x) { return last ? x : -x; }), p = O.paired(d, last ? 0.03 : 1);
@@ -1848,7 +1893,7 @@ table.sc td.n{text-align:right}
     return { sets: sets, runs: runs, spare: spare };
   }
 
-  return { chanceRunner: chanceRunner, tuneReading: tuneReading, compareThrows: compareThrows, observations: observations, hiddenWorlds: hiddenWorlds, reviewTurn: reviewTurn, reviewBuy: reviewBuy, arrange: arrange, knowledge: knowledge, outs: outs, pWithin: pWithin, readyChance: readyChance, discardAdvice: discardAdvice,
+  return { chanceRunner: chanceRunner, bestThrow: bestThrow, tuneReading: tuneReading, compareThrows: compareThrows, observations: observations, hiddenWorlds: hiddenWorlds, reviewTurn: reviewTurn, reviewBuy: reviewBuy, arrange: arrange, knowledge: knowledge, outs: outs, pWithin: pWithin, readyChance: readyChance, discardAdvice: discardAdvice,
     adviseDraw: adviseDraw, adviseBuy: adviseBuy, advisePlay: advisePlay, pct: pct };
 });
 
@@ -1857,6 +1902,9 @@ table.sc td.n{text-align:right}
 (function(){
 'use strict';
 var S=window.Shanghai,B=window.ShanghaiBots,C=window.ShanghaiCoach,O=window.CardOdds;
+// Top computer players check their close throws by paired play-outs, from their own view of the cards (Guy, 17 Nov 2026 18:59).
+var TOP_CHECK={trials:24,mode:'mean',window:150};
+if(B.setDiscardOracle&&C.bestThrow)B.setDiscardOracle(function(st,pi){if(!G||AUTO||G.st!==st)return null;var r=C.bestThrow(st,pi,G.levels.map(function(L){return L||'medium';}),TOP_CHECK);return r&&r.card;});
 var Q=new URLSearchParams(location.search);
 var AUTO=Q.get('autoplay')==='1', FAST=Q.get('fast')==='1'||AUTO;
 var KEY='shanghai.v1.';
