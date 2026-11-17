@@ -121,6 +121,8 @@ table.sc td.n{text-align:right}
 .hand .card.dragging{opacity:.35}
 .hand .card.drop-before{box-shadow:-5px 0 0 0 var(--gold)}
 .hand .card.drop-after{box-shadow:5px 0 0 0 var(--gold)}
+.dragfit{outline:2px dashed var(--gold);outline-offset:2px}
+.drop-on{outline:3px solid var(--gold)!important;outline-offset:2px;background:rgba(242,193,78,.3)!important}
 .card.ghost{position:fixed;z-index:20;pointer-events:none;transform:rotate(-4deg);box-shadow:0 8px 20px rgba(0,0,0,.45)}
 .meld{border-left:4px solid var(--c)}
 .handpanel{position:relative}
@@ -2297,6 +2299,34 @@ function layOffAll(){
   G.sel={};G.msg='';noteLog(mark);save();
   if(st.phase!=='play'&&waiter&&waiter.kind==='play')resolve();else render();
 }
+// The picked cards that fit somewhere on the table, laid one after another (a card can fit a meld another just grew).
+function selectedFit(){
+  var st=G.st,cfg=st.cfg,me=st.players[G.human];if(!me.down)return [];
+  var sim=st.melds.map(function(m){return {id:m.id,t:m.t,rank:m.rank,suit:m.suit,start:m.start,cards:m.cards.slice()};});
+  var left=selectedCards(),plan=[],moved=true;
+  while(left.length&&moved){moved=false;
+    for(var i=0;i<left.length&&!moved;i++)for(var k=0;k<sim.length&&!moved;k++){
+      var sp=S.layOffSpots(left[i],sim[k],cfg);if(!sp.length)continue;
+      var m=sim[k],c=left[i],spot=sp.filter(function(x){return x.end==='high';})[0]||sp[0];
+      if(m.t==='set')m.cards.push(c);else if(spot.end==='low'){m.cards.unshift(c);m.start--;}else m.cards.push(c);
+      plan.push({type:'layOff',cardId:c.id,meld:m.id,end:spot.end});left.splice(i,1);moved=true;}
+  }
+  return plan;
+}
+function layOffSelected(){
+  var plan=selectedFit(),n=selectedCards().length;
+  if(!plan.length){G.msg='None of those cards fits on the table.';render();return;}
+  var skipped=n-plan.length;
+  humanAct({type:'layOffs',list:plan},skipped?(skipped===1?'1 card did not fit and stays in your hand.':skipped+' cards did not fit and stay in your hand.'):'');
+}
+// What to say when you pick cards in your play phase.
+function playHint(){
+  var st=G.st,me=st.players[G.human],cs=selectedCards();if(!cs.length)return '';
+  if(!me.down)return cs.length===1?'Throw it, or pick more cards to move them.':'';
+  var fit=selectedFit().length;
+  if(cs.length===1)return fit?'Tap a gold meld to lay the '+cardText(cs[0])+' there, drag it onto one, or press Lay off.':'The '+cardText(cs[0])+' does not fit on the table: throw it, or drag it onto the face-up pile.';
+  return fit?'Lay off '+(fit===cs.length?'these '+cs.length:fit+' of these '+cs.length)+' with the button, or pick fewer.':'None of these fits on the table.';
+}
 function tapMeld(mid){
   var st=G.st,cfg=st.cfg,cs=selectedCards();
   if(cs.length!==1){G.msg='Pick one card from your hand first, then tap where it goes.';render();return;}
@@ -2517,6 +2547,7 @@ function render(){
     h+='<div class="msg" aria-live="polite">'+msgText+'</div>';
     h+='<div class="actions">';
     if(!me.down){var able=canGoDown();h+='<button class="btn primary" id="godown"'+(able||G.goDownMode==='always'?'':' disabled')+'>Go down</button>';}
+    else if(n>=1&&selectedFit().length)h+='<button class="btn primary" id="laysel">Lay off '+(n===1?'this card':'these '+n)+'</button>';
     else h+='<button class="btn primary" id="layall">Lay off all</button>';
     h+='<button class="btn" id="discard"'+(n===1?'':' disabled')+'>Throw</button>';
     h+=hintBtn();
@@ -2580,7 +2611,7 @@ function wire(){
     var v=this.value;if(v==='round'){G.noBuyRound=G.st.round;}else{G.noBuyRound=null;G.buyAsk=v;var su=Object.assign({},DEFAULT_SETUP,load('setup')||{});su.buyAsk=v;store('setup',su);}
     save();if(waiter&&waiter.kind==='buy'&&(v==='round'||v==='never'))resolve(false);else render();
   });on('buyno',function(){if(waiter&&waiter.kind==='buy')resolve(false);});
-  on('godown',goDown);on('layall',layOffAll);on('discard',discard);
+  on('godown',goDown);on('layall',layOffAll);on('laysel',layOffSelected);on('discard',discard);
   on('hint',function(){G.hintFor=posKey();render();var t=document.querySelector('.coach');if(t)t.scrollIntoView({block:'nearest'});});
   on('sort',function(){G.menu=!G.menu;render();});
   ['suit','rank','lanes','mine'].forEach(function(m){on('ord-'+m,function(){chooseOrder(m);});});
@@ -2606,10 +2637,28 @@ function wire(){
 // Tap a card to pick it; press and drag it to move it.
 function wireHand(hand){
   var drag=null,ghost=null,suppress=false,mark=null;
-  function clearMark(){if(mark){mark.classList.remove('drop-before','drop-after');mark=null;}}
+  function clearMark(){if(mark){mark.classList.remove('drop-before','drop-after','drop-on');mark=null;}}
+  function clearFit(){document.querySelectorAll('.dragfit').forEach(function(el){el.classList.remove('dragfit');});}
+  // while dragging in your play phase, outline the melds the card fits and the face-up pile (to throw it)
+  function showFit(id){
+    if(!(waiter&&waiter.kind==='play'))return;
+    var st=G.st,cfg=st.cfg,me=st.players[G.human],c=me.hand.filter(function(x){return x.id===id;})[0];if(!c)return;
+    if(me.down)document.querySelectorAll('[data-meld]').forEach(function(el){var m=st.melds.filter(function(x){return x.id===+el.getAttribute('data-meld');})[0];if(m&&(S.layOffSpots(c,m,cfg).length||S.swapSpots(c,m,cfg).length))el.classList.add('dragfit');});
+    var fu=document.getElementById('faceup');if(fu&&S.barredDiscards(st,G.human).indexOf(id)<0)fu.classList.add('dragfit');
+  }
   function end(apply){
     if(!drag)return;
     if(!drag.on){drag=null;return;}   // a plain tap: the click handler picks the card
+    if(apply&&drag.drop){
+      // dropped on the table: lay the card on that meld, or throw it on the face-up pile
+      suppress=true;var d=drag.drop,id=drag.id;
+      if(ghost)ghost.remove();ghost=null;clearMark();clearFit();
+      drag=null;G.dragging=false;G.renderPending=false;
+      G.sel={};G.sel[id]=1;
+      if(d.kind==='meld')tapMeld(d.id);else discard();
+      return;
+    }
+    clearFit();
     {
       suppress=true;
       if(apply&&drag.target!=null){
@@ -2623,36 +2672,41 @@ function wireHand(hand){
     drag=null;G.dragging=false;G.renderPending=false;
     render();
   }
+  // the move and release are followed on the whole page, so a card can be dragged out of the hand onto the table
+  function offWin(){window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',cancel);}
+  function up(){offWin();end(true);}
+  function cancel(){offWin();end(false);}
   hand.addEventListener('pointerdown',function(e){
     var b=e.target.closest('.card');if(!b||e.button>0)return;
     drag={id:+b.getAttribute('data-id'),x:e.clientX,y:e.clientY,el:b,on:false,pid:e.pointerId,target:null,after:false};
+    offWin();window.addEventListener('pointermove',move,{passive:false});window.addEventListener('pointerup',up);window.addEventListener('pointercancel',cancel);
   });
-  hand.addEventListener('pointermove',function(e){
+  function move(e){
     if(!drag)return;
     if(!drag.on){
       if(Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)<10)return;
       drag.on=true;G.dragging=true;
       try{hand.setPointerCapture(drag.pid);}catch(x){}
       ghost=drag.el.cloneNode(true);ghost.classList.add('ghost');document.body.appendChild(ghost);
-      drag.el.classList.add('dragging');
+      drag.el.classList.add('dragging');showFit(drag.id);
     }
     e.preventDefault();
     ghost.style.left=(e.clientX-23)+'px';ghost.style.top=(e.clientY-50)+'px';
     var under=document.elementFromPoint(e.clientX,e.clientY),t=under&&under.closest&&under.closest('#hand .card');
-    clearMark();
-    if(t&&+t.getAttribute('data-id')!==drag.id){
+    clearMark();drag.drop=null;
+    var tm=!t&&under&&under.closest&&under.closest('.dragfit');
+    if(tm){drag.drop=tm.id==='faceup'?{kind:'pile'}:{kind:'meld',id:+tm.getAttribute('data-meld')};mark=tm;tm.classList.add('drop-on');drag.target=null;}
+    else if(t&&+t.getAttribute('data-id')!==drag.id){
       var r=t.getBoundingClientRect(),after=e.clientX>r.left+r.width/2;
       drag.target=+t.getAttribute('data-id');drag.after=after;mark=t;t.classList.add(after?'drop-after':'drop-before');
     }
-  });
-  hand.addEventListener('pointerup',function(){end(true);});
-  hand.addEventListener('pointercancel',function(){end(false);});
+  }
   hand.addEventListener('click',function(e){
     if(suppress){suppress=false;return;}
     var b=e.target.closest('.card');if(!b)return;
     var id=+b.getAttribute('data-id');if(G.sel[id])delete G.sel[id];else G.sel[id]=1;
     if(!(waiter&&waiter.kind==='play'))G.msg=Object.keys(G.sel).length?'Use ◀ ▶ or drag to move a card.':'';
-    else G.msg='';
+    else G.msg=playHint();
     render();
   });
 }
