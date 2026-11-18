@@ -318,6 +318,7 @@ body[data-skin=war]{--fa:#4a6690;--fb:#202f4b;--rail1:#8a95a1;--rail2:#4a525b;--
 .cover{position:absolute;inset:0;background:rgba(0,0,0,.62);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#fff;font-weight:900;font-size:34px;z-index:30;border-radius:inherit}.cover .ic{font-size:84px;color:#ffd23c}
 .seat:not(.me) .nm.hn{display:block}
 @media(max-width:999px){.table.onlm .felt,.table.onlm .ladder{display:none}}
+.nums .src{display:inline-block;opacity:.72;font-size:.82em;letter-spacing:.02em;margin-top:2px}
 </style>
 </head>
 <body data-skin="classic">
@@ -595,6 +596,11 @@ safe-buffer/index.js:
   // top/bluff = the hands he bets with; slack = how far below the price he still calls (the computer players' own rule);
   // pay = how often he pays one more bet after the player's draw comes in. ALL of these numbers are application: the computer
   // players' are how they were built, a person's are plain assumptions (the book warns that reads from few hands are weak, pp. 65-66).
+  // STARTING HANDS, measured by dealing them out with this file's own evaluator (work/mk_start2.js): for each of the 169 kinds of
+  // two-card hand, eq[k-1] = its chance in thousandths of winning a showdown against k random hands (k = 1..5), and pct = the share
+  // in thousandths of all 1,326 two-card hands that do better against one hand. A measurement, not a rule; nothing here is from the book.
+  var START = {"pct":[437,991,982,973,964,955,906,849,762,677,584,472,321,934,348,946,937,925,916,891,828,735,644,532,422,291,903,846,247,867,876,858,819,804,701,623,502,389,255,888,801,783,152,837,792,771,725,692,596,493,359,199,900,816,780,719,84,750,710,665,632,544,463,339,211,885,813,759,686,641,38,653,611,563,514,401,312,178,789,786,744,674,593,541,27,554,484,413,368,270,157,747,722,689,620,572,523,481,23,448,380,279,220,113,662,605,608,581,526,460,410,336,18,300,238,125,89,578,575,529,511,457,434,353,267,229,14,187,134,66,445,442,431,398,356,330,264,208,169,146,9,101,57,377,333,309,288,252,232,196,143,110,81,75,5,45,235,175,172,149,166,122,98,78,54,42,32,35,0],"eq":[[512,327,334,340,341,352,367,391,416,444,471,505,550,359,538,353,359,363,365,377,396,427,454,482,518,555,373,395,566,384,380,387,396,402,434,460,500,530,565,379,403,413,601,395,404,415,428,437,466,502,533,578,374,398,413,430,628,423,433,446,459,478,506,540,578,379,399,417,438,455,660,453,462,477,492,523,552,587,405,406,425,445,466,480,695,477,504,519,532,561,600,424,429,438,460,476,492,505,722,508,530,559,577,613,448,463,463,472,488,507,523,540,751,553,566,604,624,473,476,487,496,508,516,537,561,575,773,582,603,635,509,509,518,527,537,550,562,578,594,602,803,619,643,532,544,553,556,566,574,580,602,614,628,631,824,652,572,588,592,601,599,607,622,630,644,659,665,665,855],[309,185,217,218,203,205,209,236,259,269,288,308,351,241,341,230,230,237,226,227,230,260,278,300,320,361,240,265,363,251,251,242,245,238,253,291,300,326,372,260,284,287,407,278,267,259,264,263,299,314,331,374,249,274,286,295,430,289,286,284,295,290,319,350,389,242,264,277,302,309,468,304,311,307,330,336,357,389,260,265,269,305,326,342,510,330,336,344,357,362,407,267,282,272,306,327,337,364,538,354,363,375,397,419,295,293,300,305,332,353,379,383,569,395,412,420,457,310,311,329,334,331,353,370,391,414,610,414,430,452,319,332,335,349,359,364,379,404,427,446,659,450,466,346,364,361,370,386,390,413,420,439,454,477,690,481,387,390,398,418,410,427,447,437,472,476,499,504,733],[229,145,144,154,134,137,145,166,172,183,206,224,253,176,242,169,163,165,160,152,168,185,187,204,227,267,191,203,264,192,182,183,167,168,190,195,221,231,267,187,211,236,294,194,199,189,194,195,206,223,233,283,181,205,217,241,307,210,215,211,210,218,232,260,273,194,200,219,237,251,347,227,228,236,232,245,261,287,189,192,223,234,255,258,363,254,255,253,263,265,304,195,197,207,231,248,264,291,407,277,276,276,297,311,218,225,232,230,252,281,293,304,464,310,311,334,341,227,232,238,241,264,269,297,309,339,487,322,327,353,243,243,265,260,269,284,290,313,347,356,536,359,367,259,264,277,287,287,303,309,330,336,377,381,580,382,286,319,301,307,311,320,333,347,370,394,398,415,631],[172,106,112,118,110,107,107,124,132,145,153,172,198,155,182,126,133,136,124,116,130,142,151,163,175,205,150,167,207,154,141,137,125,133,142,153,164,179,210,162,170,183,228,164,160,148,142,146,165,169,181,224,158,164,191,182,250,167,165,160,158,164,174,198,219,153,162,182,193,209,264,181,190,180,187,192,206,219,156,167,176,186,198,221,289,203,204,194,204,217,236,169,168,178,185,207,224,223,321,230,227,225,231,252,178,180,193,191,196,224,240,257,367,254,249,270,277,185,183,193,190,202,223,242,265,292,405,266,287,300,199,194,211,209,220,222,242,248,294,295,459,292,301,220,216,232,219,231,248,251,267,295,299,323,499,318,244,254,261,259,257,283,277,282,315,319,335,362,556],[149,93,101,100,92,87,96,99,106,112,128,139,163,139,161,102,113,107,101,95,106,110,116,132,139,167,134,145,169,139,117,114,106,113,114,123,135,151,180,134,157,170,182,138,128,120,118,123,130,134,151,177,134,142,157,175,202,148,146,139,135,137,151,161,174,124,139,151,156,174,227,151,154,144,145,150,161,188,129,131,144,169,183,194,240,172,168,170,168,183,193,137,144,139,160,173,184,206,266,192,189,189,198,199,143,158,162,161,165,186,198,228,293,214,216,214,232,155,164,167,169,169,183,204,222,255,336,228,227,243,162,169,179,191,182,191,204,224,252,263,370,246,265,177,191,197,190,198,209,210,224,250,276,277,424,283,207,207,218,207,221,230,235,245,269,275,289,309,506]]};
+  function startIdx(hole) { var a = rankOf(hole[0]) - 2, b = rankOf(hole[1]) - 2, hi = Math.max(a, b), lo = Math.min(a, b); return hi === lo ? hi * 13 + hi : (suitOf(hole[0]) === suitOf(hole[1]) ? hi * 13 + lo : lo * 13 + hi); }
   var RANGES = { 1: { top: 0.28, bluff: 0, slack: 0.22, pay: 0.8 }, 2: { top: 0.38, bluff: 0.06, slack: 0.08, pay: 0.55 }, 3: { top: 0.46, bluff: 0.12, slack: 0, pay: 0.4 }, human: { top: 0.5, bluff: 0.15, pay: 0.5, balanced: true } };
 
   // ================= THE PAYOFF CALCULATOR, built from The Mathematics of Poker (Chen and Ankenman) =================
@@ -689,7 +695,7 @@ safe-buffer/index.js:
   function geometric(S, M) { var r = Math.pow(1 + 2 * S, 1 / M); return { growth: r, bet: (r - 1) / 2 }; }
   function facedRaise(m) { return m.log.some(function (e) { return e.p === 1 && e.type === 'raise' && e.street === m.street; }); }
 
-  var PK = { betEV: betEV, payoffCall: payoffCall, payoffBet: payoffBet, callPayoff: callPayoff, rangeAhead: rangeAhead, foldShare: foldShare, alpha: alpha, geometric: geometric, rangeEquity: rangeEquity, RANGES: RANGES, facedRaise: facedRaise, insight: insight, rng32: rng32, rankOf: rankOf, suitOf: suitOf, eval5: eval5, best: best, made: made, equity: equity, newMatch: newMatch, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, botAct: botAct, advise: advise, POW: POW };
+  var PK = { START: START, startIdx: startIdx, betEV: betEV, payoffCall: payoffCall, payoffBet: payoffBet, callPayoff: callPayoff, rangeAhead: rangeAhead, foldShare: foldShare, alpha: alpha, geometric: geometric, rangeEquity: rangeEquity, RANGES: RANGES, facedRaise: facedRaise, insight: insight, rng32: rng32, rankOf: rankOf, suitOf: suitOf, eval5: eval5, best: best, made: made, equity: equity, newMatch: newMatch, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, botAct: botAct, advise: advise, POW: POW };
   if (typeof module !== 'undefined' && module.exports) module.exports = PK; else root.PK = PK;
 })(typeof window !== 'undefined' ? window : this);
 </script><script>/* Table engine: no-limit hold'em for 2 to 6 seats with side pots. Pure logic, no screen or network code.
@@ -809,7 +815,7 @@ safe-buffer/index.js:
   function view(t, seat) {
     var h = t.h, n = t.seats.length, i, v = { handNo: t.handNo, you: seat, button: t.button, sb: t.sb, bb: t.bb, over: t.over, started: !!h };
     v.seats = t.seats.map(function (s, j) {
-      var o = { name: s.name, kind: s.kind, lvl: s.lvl, stack: s.stack, rebuys: s.rebuys, bet: h ? h.bet[j] : 0, inHand: h ? h.inHand[j] : false, folded: h ? h.folded[j] : false, allin: h ? (h.inHand[j] && !h.folded[j] && s.stack === 0) : false, cards: null };
+      var o = { name: s.name, av: s.av, kind: s.kind, lvl: s.lvl, stack: s.stack, rebuys: s.rebuys, bet: h ? h.bet[j] : 0, inHand: h ? h.inHand[j] : false, folded: h ? h.folded[j] : false, allin: h ? (h.inHand[j] && !h.folded[j] && s.stack === 0) : false, cards: null };
       if (h && h.inHand[j]) { if (j === seat) o.cards = h.hole[j]; else if (t.over && t.result && !t.result.fold && t.result.shown[j]) o.cards = h.hole[j]; }
       return o;
     });
@@ -836,15 +842,62 @@ safe-buffer/index.js:
     }
     return win / iters;
   }
+  // ---- BEFORE THE FLOP, NOBODY HAS RAISED (The Mathematics of Poker, chapter 21, pp. 260-262) ----
+  // FROM THE BOOK: (1) first in, a hand is raised or folded, never just called, outside the blinds (p. 262); (2) a hand is played only
+  // if its expectation against the remaining field is positive, "as far as we can estimate" (p. 262); (3) the raise is the same size
+  // for every hand and grows with the seat, from double the big blind five or six off the button to about three times on the button
+  // (p. 262); (4) later seats open weaker hands because fewer players are left behind (p. 262).
+  // THE ESTIMATE: the book prints no list of hands by seat and says there is no solution for three or more players. So the expectation
+  // in (2) is counted here with the book's own sum - what you win, times how often, less what you pay (pp. 50-51) - over dealt-out
+  // trials in which each player still in keeps or folds his cards by the rule the computer players really use (botAct, below). A person
+  // is taken to play like the middle computer player. Everyone who stays is taken to call, not raise again, and the cards are run to a
+  // showdown with no more betting; the book warns that this last step is not exact while bets are still to come (p. 52).
+  // NOT YET USED: the short-stack all-in (pp. 262-265); adding suited and connected hands as stacks deepen (p. 261).
+  function bookRaiseTo(v, L, k) { var want = v.bb * (3 - Math.min(Math.max(k - 2, 0), 5) / 5); return Math.abs(L.full - want) < Math.abs(L.half - want) ? L.full : L.half; }
+  function fieldEV(v, hole, R, rng, iters) {
+    var L = v.L, me = v.you, n = v.seats.length, opp = [], used = {}, rest = [], i, j, x, t, q, s, total = 0;
+    for (i = 1; i < n; i++) { s = v.seats[(me + i) % n]; if (s.inHand && !s.folded) opp.push({ bet: s.bet, stack: s.stack, P: s.kind === 'bot' ? (LEVELS[s.lvl] || LEVELS[1]) : LEVELS[2] }); }
+    hole.forEach(function (c) { used[c] = 1; }); for (i = 0; i < 52; i++) if (!used[i]) rest.push(i);
+    var m = opp.length, cost = Math.min(Math.max(0, R - v.seats[me].bet), v.seats[me].stack);
+    for (t = 0; t < iters; t++) {
+      for (i = 0; i < 2 * m + 5; i++) { j = i + Math.floor(rng() * (rest.length - i)); x = rest[i]; rest[i] = rest[j]; rest[j] = x; }
+      var pot = L.pot + cost, alive = m + 1, stay = [];
+      for (q = 0; q < m; q++) {
+        var o = opp[q], add = Math.min(Math.max(0, R - o.bet), o.stack);
+        if (add <= 0) { stay.push(q); continue; }
+        var nO = alive - 1, e = PK.START.eq[Math.min(nO, 5) - 1][PK.startIdx([rest[2 * q], rest[2 * q + 1]])] / 1000;
+        if (e + (add > 0.4 * (o.stack + o.bet) ? o.P.slack / 2 : o.P.slack) / nO >= add / (pot + add)) { stay.push(q); pot += add; } else alive--;
+      }
+      if (!stay.length) { total += pot - cost; continue; }
+      var b = rest.slice(2 * m, 2 * m + 5), a = PK.best(hole.concat(b)).score, top = -1, tie = 0, sc;
+      for (i = 0; i < stay.length; i++) { q = stay[i]; sc = PK.best([rest[2 * q], rest[2 * q + 1]].concat(b)).score; if (sc > top) { top = sc; tie = 1; } else if (sc === top) tie++; }
+      total += a > top ? pot - cost : a === top ? pot / (tie + 1) - cost : -cost;
+    }
+    return total / iters;
+  }
+  function preflop(v, hole, rng, iters) {
+    var L = v.L, me = v.you, n = v.seats.length, i, j, s, k = 0, limp = 0;
+    for (i = 1; i < n; i++) { j = (me + i) % n; s = v.seats[j]; if (!s.inHand || s.folded) continue; if (s.bet >= L.cur && j !== v.bbSeat) limp++; else k++; }
+    var first = limp === 0, blind = me === v.sbSeat || me === v.bbSeat, R = L.canRaise ? bookRaiseTo(v, L, k) : 0;
+    var evR = L.canRaise ? fieldEV(v, hole, R, rng, iters) : null, evC = fieldEV(v, hole, L.cur, rng, iters), move;
+    if (first && !blind) move = evR !== null && evR > 0 ? 'raise' : 'fold';                       // the book: raise or fold (p. 262)
+    else if (L.call === 0) move = evR !== null && evR > evC ? 'raise' : 'check';
+    else move = evR !== null && evR > 0 && evR >= evC ? 'raise' : evC > 0 ? 'call' : 'fold';
+    return { first: first, blind: blind, k: k, limp: limp, raiseTo: R, evRaise: evR, evCall: evC, move: move, size: R && R === L.full && L.full !== L.half ? 'big' : 'small', rule: first && !blind };
+  }
   // the coach for one seat, from that seat's own view: {eq (real chance against everyone still in), e1 (the same strength
   // as if against one player), ins (PK.insight, against one player), adv ({move, size, need}), nOpp}
   function coach(v, rng, iters) {
     if (!v.L || v.you < 0 || !v.seats[v.you].cards) return null;
     var hole = v.seats[v.you].cards, nOpp = Math.max(1, v.nAlive - 1), eq = equityN(hole, v.board, nOpp, iters || 400, rng);
     var e1 = Math.pow(eq, 1 / nOpp), ins = PK.insight(hole, v.board), L = v.L, need = L.call > 0 ? L.call / (L.pot + L.call) : 0, adv;
-    // BEFORE THE FLOP nothing here is from the book: the win chance to the end is set against the price, trimmed by 15 per cent when
-    // someone has raised. (The book warns that the chance of winning by the end is not the test of a call, p. 52.) Rough, and labelled so.
+    // BEFORE THE FLOP, FACING A RAISE, nothing here is from the book: the win chance to the end is set against the price, trimmed by
+    // 15 per cent. (Unraised pots go to preflop() above.) (The book warns that the chance of winning by the end is not the test of a call, p. 52.) Rough, and labelled so.
     var faced = L.call > v.bb, eqc = faced ? eq * 0.85 : eq, post = !ins.pre, read = null;
+    if (ins.pre && L.cur <= v.bb && PK.START) {
+      var pf = preflop(v, hole, rng, Math.max(300, iters || 400));
+      return { eq: eq, e1: e1, ins: ins, adv: { move: pf.move, size: pf.size, need: need, pre: pf }, nOpp: nOpp, read: null };
+    }
     // someone has bet after the flop: he does not hold a random hand, so measure the chance against the hands HE bets with
     if (L.call > 0 && post && v.agg >= 0 && v.agg !== v.you) {
       var b = v.seats[v.agg], R = b.kind === 'bot' ? (PK.RANGES[b.lvl] || PK.RANGES[1]) : PK.RANGES.human;
@@ -884,7 +937,7 @@ safe-buffer/index.js:
     return { type: 'check' };
   }
 
-  var TB = { newTable: newTable, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, view: view, rebuy: rebuy, equityN: equityN, coach: coach, botAct: botAct, potTotal: potTotal };
+  var TB = { newTable: newTable, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, view: view, rebuy: rebuy, equityN: equityN, coach: coach, preflop: preflop, fieldEV: fieldEV, bookRaiseTo: bookRaiseTo, botAct: botAct, potTotal: potTotal };
   if (typeof module !== 'undefined' && module.exports) module.exports = TB; else root.TB = TB;
 })(typeof window !== 'undefined' ? window : this);
 </script>
@@ -1037,11 +1090,13 @@ function deal(f){clearTimeout(ui.timer);clearTimeout(ui.sdT);ui.sd=null;var m=ui
 var NUMW=['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'];
 var DCAT=['','','','','a straight','a flush','a full house','four of a kind','a straight flush'],SUITN=['club','diamond','heart','spade'];
 /* the payoff numbers under the verdict, for the grown-up: average chips each choice earns, and the prices */
-function numsHTML(){var a=ui.adv,p=a&&a.pay;if(!p)return '';var r=function(x){return (x>=0?'+':'')+Math.round(x)},pc=function(x){return Math.round(x*100)+'%'},t;
- if(p.mode==='call')t='CALL '+r(p.ev.call)+' \u00b7 FOLD 0 \u00b7 PRICE '+pc(p.need)+(p.later>0?' \u00b7 WITH LATER BETS '+pc(p.needImplied):'');
- else t='CHECK '+r(p.ev.check)+(p.ev.half!=null?' \u00b7 BET '+p.size.half+': '+r(p.ev.half):'')+(p.ev.full!=null?' \u00b7 BET '+p.size.full+': '+r(p.ev.full):'');
- return '<div class="nums" data-nums="'+p.mode+'">'+t+'</div>'}
-function whyOf(mv,sz,n){if(mv==='bet'&&ui.adv&&ui.adv.why==='protect')return ['hand','PUSH THEM OUT'];if(mv==='call'&&ui.adv&&ui.adv.later>0)return ['coin','PAYS LATER'];if(mv==='raise'||(mv==='bet'&&sz==='big'))return ['flame','VERY STRONG'];if(mv==='bet')return ['coin','HE PAYS'];if(mv==='call')return ['tag','GOOD PRICE'];if(mv==='fold')return ['hand','BAD PRICE'];return n&&n.cardsToCome===0?['cards','SHOW CARDS']:['cards','FREE CARD']}
+function numsHTML(){var a=ui.adv,p=a&&a.pay,q=a&&a.pre;if(!a)return '';var r=function(x){return (x>=0?'+':'')+Math.round(x)},pc=function(x){return Math.round(x*100)+'%'},t='',src,many=ui.multi&&ui.nOpp>1,est=many?'3+ PLAYERS: ESTIMATE':'HIS HABITS: ESTIMATE';
+ if(q){t=(q.evRaise!==null?'RAISE TO '+q.raiseTo+': '+r(q.evRaise)+' · ':'')+(q.rule?'':(ui.L&&ui.L.call>0?'CALL ':'CHECK ')+r(q.evCall)+' · ')+(ui.L&&ui.L.call>0?'FOLD 0 · ':'')+q.k+' LEFT TO ACT';src=(q.rule?'BOOK p.262: FIRST IN, RAISE OR FOLD; SIZE BY SEAT · ':'')+'THE SUMS: ESTIMATE'}
+ else if(!p)src='ESTIMATE, NOT FROM THE BOOK';
+ else if(p.mode==='call'){t='CALL '+r(p.ev.call)+' · FOLD 0 · PRICE '+pc(p.need)+(p.later>0?' · WITH LATER BETS '+pc(p.needImplied):'');src=a.move==='raise'?'WHEN TO RAISE: ESTIMATE, NOT FROM THE BOOK':'BOOK pp.50-54 · '+est}
+ else{t='CHECK '+r(p.ev.check)+(p.ev.half!=null?' · BET '+p.size.half+': '+r(p.ev.half):'')+(p.ev.full!=null?' · BET '+p.size.full+': '+r(p.ev.full):'');src='BOOK pp.51, 87 · '+est}
+ return '<div class="nums" data-nums="'+(q?'pre':p?p.mode:'none')+'">'+t+(t?'<br>':'')+'<span class="src">'+src+'</span></div>'}
+function whyOf(mv,sz,n){if(ui.adv&&ui.adv.pre){if(mv==='raise')return ['flame','GOOD START'];if(mv==='fold')return ['hand','WEAK START'];if(mv==='call')return ['tag','GOOD PRICE'];return ['cards','FREE CARD']}if(mv==='bet'&&ui.adv&&ui.adv.why==='protect')return ['hand','PUSH THEM OUT'];if(mv==='call'&&ui.adv&&ui.adv.later>0)return ['coin','PAYS LATER'];if(mv==='raise'||(mv==='bet'&&sz==='big'))return ['flame','VERY STRONG'];if(mv==='bet')return ['coin','HE PAYS'];if(mv==='call')return ['tag','GOOD PRICE'];if(mv==='fold')return ['hand','BAD PRICE'];return n&&n.cardsToCome===0?['cards','SHOW CARDS']:['cards','FREE CARD']}
 var THN=['','a pair','two pair','three of a kind','a straight','a flush','a full house','four of a kind','a straight flush'];
 function szPic(sz){var c=CC[25],n=sz==='big'?7:3,t='';for(var i=0;i<n;i++)t+='<i class="chip" style="--c:'+c[0]+';--e:'+c[1]+';--t:'+c[2]+'"></i>';return '<span class="sz szpile" data-size="'+sz+'"><div class="col">'+t+'</div></span>'}
 function nA(w){return (/^[aeiou]/.test(w)?'an ':'a ')+w}
@@ -1060,7 +1115,7 @@ function coachLine(){var m=ui.m,h=PK.made(cxHole(),cxBoard()),nm=cxName(),p=[han
   p.push(cap(it)+' makes '+DCAT[dr.cat]+'.');p.push(dr.n===1?'One card helps.':cap(NUMW[Math.min(dr.n,20)])+' cards help.')}
  if(dn&&dn.k>=2){if(dn.threat)p.push(nm+' may have '+THN[dn.threat]+'.');else if(dn.pair)p.push(nm+' may have a pair of '+RW[dn.pair]+'.')}
  var sz=ui.adv.size;
- p.push(mv==='check'?(ui.ins.cardsToCome===0?'Check. Show the cards.':'Check. See the next card for free.'):mv==='bet'?(ui.adv&&ui.adv.why==='protect'?'Bet. Make them pay to chase.':sz==='big'?'Very strong. Bet big.':'Bet small. '+nm+' pays with worse.'):mv==='raise'?'Very strong. Raise.':mv==='call'?(ui.adv&&ui.adv.later>0?'Call. If you hit, '+nm+' pays more.':'Good price. Call.'):(ui.read?(ui.read.bluff===0?ui.read.name+' only bets good hands. Fold.':ui.read.name+' bet. Your hand is too weak. Fold.'):'Bad price. Fold.'));
+ p.push(mv==='check'?(ui.ins.cardsToCome===0?'Check. Show the cards.':'Check. See the next card for free.'):mv==='bet'?(ui.adv&&ui.adv.why==='protect'?'Bet. Make them pay to chase.':sz==='big'?'Very strong. Bet big.':'Bet small. '+nm+' pays with worse.'):mv==='raise'?(ui.adv.pre?'Good start. '+(ui.adv.pre.k>0?(ui.adv.pre.k===1?'One player':cap(NUMW[Math.min(ui.adv.pre.k,20)])+' players')+' left to act. ':'')+'Raise.':'Very strong. Raise.'):mv==='call'?(ui.adv&&ui.adv.later>0?'Call. If you hit, '+nm+' pays more.':'Good price. Call.'):(ui.adv.pre?'Weak start. Fold.':ui.read?(ui.read.bluff===0?ui.read.name+' only bets good hands. Fold.':ui.read.name+' bet. Your hand is too weak. Fold.'):'Bad price. Fold.'));
  return p.join(' ')}
 function step(){clearTimeout(ui.timer);var m=ui.m;if(m.over){endHand();return}
  if(m.toAct===1){ui.thinking=true;render();ui.timer=setTimeout(botMove,ui.delay)}
@@ -1127,7 +1182,7 @@ function sideHTML(){var m=ui.m;
      hh=Math.round(ins.hit*10),gd='';for(var q=0;q<10;q++)gd+='<i class="'+(q<hh?'y':'')+'"></i>';
     var fb='';for(var q=0;q<ins.cardsToCome;q++)fb+='<span class="mc bk"></span>';
     rows+='<div class="drawbox" style="color:#ffd23c"><div class="drow"><div class="grps">'+gh+'</div><span class="ar">'+I('next')+'</span>'+ladPic(dr.cat)+'</div><div class="drow">'+I('cards')+'<div class="dots">'+gd+'</div><div class="frac">'+hh+' / 10</div><span class="pairpic">'+fb+'</span></div></div>'}
-   if(ui.L.call>0)rows+='<div class="drow" style="color:#ffae42">'+I('tag')+'<div class="dots">'+d2+'</div><div class="frac">'+n2+' / 10</div></div><div class="pay">'+pile(ui.L.call,{me:1})+I('next')+pile(ui.L.pot+ui.L.call,{})+'</div>';
+   if(ui.L.call>0&&!(ui.adv&&ui.adv.pre))rows+='<div class="drow" style="color:#ffae42">'+I('tag')+'<div class="dots">'+d2+'</div><div class="frac">'+n2+' / 10</div></div><div class="pay">'+pile(ui.L.call,{me:1})+I('next')+pile(ui.L.pot+ui.L.call,{})+'</div>';
    coach='<div class="coach">'+rows+'<div class="vrow"><div class="verdict '+vk+'" data-rep="1">'+I(vi)+vw+((mv==='bet'||mv==='raise')?szPic(ui.adv.size==='big'?'big':'small'):'')+'</div><button class="rep" data-rep="1" aria-label="again">'+I('say')+'</button></div><div class="why">'+I(why[0])+why[1]+'</div>'+numsHTML()+'</div>'}
   else coach='<div class="coach wait">'+((ui.multi&&ui.mv?ui.mv.over:m.over)?'':'<span class="dots3"><span></span><span></span><span></span></span>')+'</div>'}
  var a='<div class="acts">';
