@@ -1972,6 +1972,10 @@ function textToRounds(txt){
 
 // ---------- setup ----------
 var DEFAULT_SETUP={name:'You',bots:3,level:'medium',preset:'family',speed:'normal',seed:'',buyAsk:'helps',coach:'tap',goDownMode:'able',review:'on',chances:'on',openHands:'off'};
+// Rule settings saved on this phone count only while the rule set they were based on is unchanged. When a rule set is
+// changed in the game (Guy's family rules went from 7 cards to 11 on 16 Nov), old saved settings are dropped, so a phone
+// that played before does not keep the old rules (Guy, 18 Nov 2026: his dad still got 7 cards).
+function savedFields(preset){var s=load('fields');if(!s||!s.f||s.preset!==preset||s.base!==JSON.stringify(presetFields(preset)))return {};return s.f;}
 function presetFields(name){
   var c=S.makeConfig(name);
   return {decks:c.decks,jokers:c.jokersPerDeck!=null?c.jokersPerDeck:c.jokers,jokersPerDeck:c.jokersPerDeck!=null,noPlayableDiscard:c.noPlayableDiscard,twosWild:c.twosWild,aceMode:c.aceMode,wildMode:c.wildLimit.mode==='fixed'?'fixed'+c.wildLimit.fixed:c.wildLimit.mode,
@@ -1999,7 +2003,7 @@ function chk(name,val,label){return '<label class="check"><input type="checkbox"
 function renderSetup(){
   $app.className='';
   var su=Object.assign({},DEFAULT_SETUP,load('setup')||{});
-  var f=Object.assign(presetFields(su.preset),load('fields')||{});
+  var f=Object.assign(presetFields(su.preset),savedFields(su.preset));
   var saved=load('game');
   var h='<div class="setup"><h1>Shanghai</h1><div class="muted">The family card game. You against the computer.</div>';
   if(saved&&saved.st&&!saved.st.over)h+='<div class="prompt"><b>A game is in progress</b> (round '+(saved.st.round+1)+' of '+saved.st.cfg.rounds.length+').<div class="row" style="margin-top:8px"><button class="btn primary" id="cont">Carry on</button><button class="btn ghost" id="abandon">Start again</button></div></div>';
@@ -2060,7 +2064,7 @@ function renderSetup(){
   check();
   document.getElementById('start').addEventListener('click',function(){
     var su2=readSu(),f2=readF(),r=check();if(r.errs)return;
-    store('setup',su2);store('fields',f2);
+    store('setup',su2);store('fields',{preset:su2.preset,base:JSON.stringify(presetFields(su2.preset)),f:f2});
     var seed=su2.seed?(+su2.seed):Math.floor(Math.random()*1e9);
     newGame(r.cfg,seed,su2);
   });
@@ -2889,7 +2893,7 @@ function showSplash(){
   function go(){d.style.opacity='0';setTimeout(function(){d.remove();},400);}
   d.addEventListener('click',go);
 }
-window.__shanghai={get G(){return G;},S:S,B:B,celebrate:celebrate,toast:toast,render:function(){render();}};
+window.__shanghai={get G(){return G;},S:S,B:B,celebrate:celebrate,toast:toast,render:function(){render();},presetFields:presetFields};
 renderSetup();
 showSplash();
 if(AUTO){document.getElementById('start').click();}
