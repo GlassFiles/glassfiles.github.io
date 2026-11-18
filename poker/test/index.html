@@ -157,6 +157,7 @@ button{font:inherit;color:inherit;touch-action:manipulation;cursor:pointer}
 .vrow{display:flex;gap:8px;align-items:stretch}
 .vrow .verdict{flex:1;cursor:pointer}
 .rep{width:64px;height:64px;border-radius:50%;border:0;background:#e0a800;color:#2a1c00;font-size:38px;display:flex;align-items:center;justify-content:center;flex:none;padding:0;box-shadow:0 3px 8px rgba(0,0,0,.4)}
+.nums{font-size:12px;font-weight:700;opacity:.8;text-align:center;margin-top:4px;letter-spacing:.02em;line-height:1.3}
 .why{display:flex;align-items:center;justify-content:center;gap:8px;font-weight:900;font-size:20px;background:rgba(255,255,255,.14);border-radius:999px;padding:2px 14px;min-height:34px}
 .slot.hint{display:flex;align-items:center;justify-content:center;font-weight:900;font-size:calc(var(--cw)*.7);color:rgba(255,255,255,.3);border-style:solid;border-color:rgba(255,210,60,.35)}
 #app{position:relative}
@@ -492,21 +493,44 @@ safe-buffer/index.js:
   // the coach: one suggested move from the chance of winning (eq) and the price of calling (need)
   // After the flop it also uses insight (ins): a bet is for value only, so it needs a hand that is ahead of
   // most of what the other player can hold; a draw or a bare high card checks and takes the free card.
-  function advise(m, eq, ins) {
-    var L = legal(m), need = L.call > 0 ? L.call / (L.pot + L.call) : 0, post = ins && !ins.pre;
+  // ctx (the two-player game): {hole, board, lvl, rng, read (eq was measured against his betting hands), me: seat}. With ctx, after
+  // the flop, the move comes from the payoff calculator above.
+  function advise(m, eq, ins, ctx) {
+    var L = legal(m), need = L.call > 0 ? L.call / (L.pot + L.call) : 0, post = ins && !ins.pre, R = ctx ? (RANGES[ctx.lvl] || RANGES[1]) : null, pay;
     if (L.call > 0) {
+      if (ctx && post && ctx.read) {
+        pay = callPayoff(ctx.hole, ctx.board, ins, eq, R, L.pot, L.call, Math.min(m.stack[0] - L.call, m.stack[1]));
+        // when to RAISE is not from the book: these thresholds are this game's own rule of thumb
+        if (L.canRaise && eq >= 0.72 && eq >= need + 0.2 && ins.behind <= 0.2) return { move: 'raise', size: 'big', need: need, pay: pay };
+        return { move: pay.best, need: need, pay: pay, later: pay.best === 'call' && pay.hitNext < need && pay.later > 0 ? pay.later : 0 };
+      }
       if (L.canRaise && eq >= 0.72 && eq >= need + 0.2 && (!post || ins.behind <= 0.2)) return { move: 'raise', size: 'big', need: need };
       return { move: eq >= need ? 'call' : 'fold', need: need };
     }
     if (!L.canRaise) return { move: 'check', need: 0 };
+    if (post && ctx) {
+      pay = payoffBet({ hole: ctx.hole, board: ctx.board, pot: L.pot, sizes: { half: sizeTo(m, 0.5) - m.bet[1 - L.p], full: sizeTo(m, 1) - m.bet[1 - L.p] }, models: [R], eqCheck: eq, cardsToCome: ins.cardsToCome, rng: ctx.rng });
+      if (pay.best === 'check' || ins.cat < 1) return { move: 'check', need: 0, pay: pay };          // no bluffing lessons yet
+      return { move: 'bet', size: pay.best === 'full' ? 'big' : 'small', need: 0, pay: pay, why: pay.why };
+    }
     if (post) {
-      // a clear lead: bet big. A made hand that beats most of what he can hold, though some hands beat it: bet small.
-      // (The easy opponent calls with nearly anything, so a bet pays whenever the hand wins more often than it loses.)
       if (ins.behind <= 0.2 && eq >= 0.55) return { move: 'bet', size: 'big', need: 0 };
       if (ins.behind <= 0.45 && ins.cat >= 1 && (ins.cardsToCome === 0 || eq >= 0.55)) return { move: 'bet', size: 'small', need: 0 };
       return { move: 'check', need: 0 };
     }
     return eq >= 0.6 ? { move: 'bet', size: 'small', need: 0 } : { move: 'check', need: 0 };
+  }
+  // the call payoff against the player who has bet: payoffCall applied to a real hand. ALL of this is application: his betting
+  // hands (RANGES), outs counted as the cards that make a straight or better, later bets taken as half the pot of the time, the
+  // same share bet again if the flop call misses, and no allowance for cards that kill the draw.
+  // `others` (application, not in the book): with more players still in, the chance of being ahead now is cut by the chance of
+  // also beating each of them; a draw that comes in is taken to win.
+  function callPayoff(hole, board, ins, pEnd, R, pot, call, cap, others) {
+    var toCome = 5 - board.length, newPot = pot + call;
+    if (toCome === 0) return payoffCall({ pot: pot, call: call, cardsToCome: 0, p: pEnd });
+    var b1 = Math.round(0.5 * newPot / 5) * 5, b2 = Math.round(0.5 * (newPot + 2 * b1) / 5) * 5, frac = pot - call > 0 ? call / (pot - call) : 0.5;
+    return payoffCall({ pot: pot, call: call, cardsToCome: toCome, pAhead: rangeAhead(hole, board, R.top, R.bluff) * (others == null ? 1 : others), outs: ins.big.length, unseen: 52 - 2 - board.length,
+      later: [b1, b2], pay: R.pay, cap: cap, again: toCome === 2 ? Math.round(frac * newPot / 5) * 5 : 0 });
   }
 
   // what the coach explains after the flop (exact, no simulation):
@@ -568,10 +592,104 @@ safe-buffer/index.js:
     return win / iters;
   }
   // how each kind of player bets when nobody has bet before him: the computer levels as they are built, and people
-  var RANGES = { 1: { top: 0.28, bluff: 0 }, 2: { top: 0.38, bluff: 0.06 }, 3: { top: 0.46, bluff: 0.12 }, human: { top: 0.5, bluff: 0.15 } };
+  // top/bluff = the hands he bets with; slack = how far below the price he still calls (the computer players' own rule);
+  // pay = how often he pays one more bet after the player's draw comes in. ALL of these numbers are application: the computer
+  // players' are how they were built, a person's are plain assumptions (the book warns that reads from few hands are weak, pp. 65-66).
+  var RANGES = { 1: { top: 0.28, bluff: 0, slack: 0.22, pay: 0.8 }, 2: { top: 0.38, bluff: 0.06, slack: 0.08, pay: 0.55 }, 3: { top: 0.46, bluff: 0.12, slack: 0, pay: 0.4 }, human: { top: 0.5, bluff: 0.15, pay: 0.5, balanced: true } };
+
+  // ================= THE PAYOFF CALCULATOR, built from The Mathematics of Poker (Chen and Ankenman) =================
+  // Page numbers are the book's. "Application" marks what is this game's own modelling and NOT in the book.
+  //
+  // share of the hands he bets with that the player's hand beats RIGHT NOW (no more cards): a hand against a range, p. 93
+  function rangeAhead(hole, board, top, bluff) {
+    var used = {}, rest = [], list = [], i, j, W = 0, win = 0, my = best(hole.concat(board)).score;
+    hole.concat(board).forEach(function (c) { used[c] = 1; });
+    for (i = 0; i < 52; i++) if (!used[i]) rest.push(i);
+    for (i = 0; i < rest.length; i++) for (j = i + 1; j < rest.length; j++) list.push(best([rest[i], rest[j]].concat(board)).score);
+    list.sort(function (a, b) { return a - b; });
+    var cut = Math.floor(list.length * (1 - top));
+    list.forEach(function (x, k) { var w = k >= cut ? 1 : bluff; W += w; win += w * (my > x ? 1 : my === x ? 0.5 : 0); });
+    return W > 0 ? win / W : 0.5;
+  }
+  // CALLING A BET.
+  //   EV of a call = chance of winning x new pot - cost of the call, new pot = pot + his bet + the call (p. 50); fold = 0.
+  //   Break-even chance = call / new pot: "pot odds" (p. 51).
+  //   With cards to come, only winning on the NEXT card counts for the immediate price (p. 52). The rest of the line is valued
+  //   street by street, and a later call is made only if it is itself worth more than nothing (Examples 4.3-4.5, pp. 51-52).
+  //   Implied odds: when the draw comes in he pays more. The book's own simplification is one bet on each later street (Example 4.7,
+  //   pp. 53-54). Application: he pays each of those bets with chance `pay`, and never more than the chips left behind (`cap`);
+  //   the book warns not to count on a whole stack (p. 54).
+  // o = { pot (already holding his bet), call, cardsToCome, and
+  //       on the last card: p (chance of winning against the hands he bets with);
+  //       before it: pAhead (chance the hand is already best), outs, unseen (cards not seen), later: [bet on the next street, bet on the
+  //       street after], pay, cap, again (what he bets on the turn if the flop call misses; 0 = he gives a free card) }
+  function payoffCall(o) {
+    var newPot = o.pot + o.call, need = o.call / newPot, ev, E = 0, h1 = 0;
+    if (o.cardsToCome === 0) ev = o.p * newPot - o.call;
+    else {
+      var cap = o.cap == null ? Infinity : Math.max(0, o.cap), later = o.later || [0, 0], pay = o.pay || 0, miss = 0;
+      h1 = o.outs / o.unseen;
+      var b1 = Math.min(cap, later[0] || 0), b2 = o.cardsToCome === 2 ? Math.min(Math.max(0, cap - b1), later[1] || 0) : 0;
+      E = pay * b1 + pay * b2;
+      if (o.cardsToCome === 2) {
+        var h2 = o.outs / (o.unseen - 1);
+        if (o.again > 0) { var c2 = Math.min(cap, o.again), pot2 = newPot + c2 + c2; miss = Math.max(0, h2 * (pot2 + pay * Math.min(Math.max(0, cap - c2), later[1] || 0)) - c2); }
+        else miss = h2 * (newPot + pay * Math.min(cap, later[1] || 0));
+      }
+      ev = o.pAhead * newPot + (1 - o.pAhead) * (h1 * (newPot + E) + (1 - h1) * miss) - o.call;
+    }
+    return { mode: 'call', ev: { fold: 0, call: ev }, need: need, needImplied: o.call / (newPot + E), later: E, hitNext: h1, best: ev > 0 ? 'call' : 'fold' };
+  }
+  // BETTING when nobody has bet.
+  //   EV of checking = chance of winning x pot (p. 50).
+  //   EV of a bet = p(he folds) x pot + p(he calls) x [chance of winning when called x new pot - cost of the bet], new pot = pot + 2 x bet
+  //   (the form of p. 87; with no folds it is the made-hand-against-draw sum of p. 51). The size is whichever earns most (p. 149),
+  //   never a large multiple of the pot for value (p. 95): half the pot and the pot are compared.
+  //   How often he folds is application, not the book. A computer player folds by its own built rule (see foldShare). A person is
+  //   given a BENCHMARK: he folds bet/(pot + bet) of his hands. That number is alpha = s/(1 + s) of p. 112, which in the book is the
+  //   defence that makes a bluff break even in a one-street toy game with a bettor who knows the result. It is not the book's
+  //   account of how people play, the book limits it (pp. 147-148 when the bettor is very strong, p. 245 for several streets),
+  //   and it is used here only for want of anything known about the person.
+  //   More than one opponent is NOT in the book (p. 349: no solution with three or more). Application: everyone must fold for the
+  //   pot to be won outright, and the chance of winning when called is taken against each expected caller in turn.
+  //   Also application: only half the pot and the pot are compared, the larger size must earn a tenth more to be chosen (the
+  //   win chances are simulated and wobble), and the calling hands are taken to be his strongest by what they hold now.
+  // A computer player calls when its chance against a random hand, plus its slack, reaches its own price s/(pot + 2s). On the last
+  // card that chance is simply how its hand ranks among all hands; with cards to come even weak hands keep some chance, so fewer
+  // hands fall below the line (application: the spread 0.65 on the flop and 0.8 on the turn is this game's own estimate).
+  var SPREAD = { 0: 1, 1: 0.8, 2: 0.65 };
+  function foldShare(model, pot, s, cardsToCome) {
+    if (model.balanced) return Math.max(0, Math.min(0.95, s / (pot + s)));
+    var line = s / (pot + 2 * s) - model.slack, sp = SPREAD[cardsToCome == null ? 0 : cardsToCome] || 1;
+    return Math.max(0, Math.min(0.95, 0.5 + (line - 0.5) / sp));
+  }
+  // the bet sum itself (p. 87): he folds with chance f, otherwise the bet of `cost` is called and the pot becomes newPot
+  function betEV(f, pot, pw, newPot, cost) { return f * pot + (1 - f) * (pw * newPot - cost); }
+  // o = { hole, board, pot, sizes: {half, full}, models: [one per opponent still in], eqCheck (chance of winning if it is checked down),
+  //       cardsToCome, rng }
+  function payoffBet(o) {
+    var n = o.models.length, res = { mode: 'bet', ev: { check: o.eqCheck * o.pot }, fold: {}, win: {}, size: o.sizes }, best = 'check';
+    ['half', 'full'].forEach(function (key) {
+      var s = o.sizes[key]; if (!s || (key === 'full' && s === o.sizes.half)) return;
+      var fAll = 1, fAvg = 0; o.models.forEach(function (m) { var f = foldShare(m, o.pot, s, o.cardsToCome); fAll *= f; fAvg += f / n; });
+      var callers = Math.max(1, n * (1 - fAvg)), pw = Math.pow(rangeEquity(o.hole, o.board, Math.max(0.05, 1 - fAvg), 0, 400, o.rng), callers);
+      res.ev[key] = betEV(fAll, o.pot, pw, o.pot + s + s * callers, s); res.fold[key] = fAll; res.win[key] = pw;
+    });
+    if (res.ev.half != null && res.ev.half > res.ev.check) best = 'half';
+    if (res.ev.full != null && res.ev.full > res.ev.check && (res.ev.half == null || res.ev.full > res.ev.half * 1.1)) best = 'full';
+    res.best = best;
+    // why the bet earns: mostly because worse hands pay ("value"), or mostly because hands give up the pot ("protect")
+    res.why = best !== 'check' && res.fold[best] * o.pot >= 0.5 * res.ev[best] ? 'protect' : 'value';
+    return res;
+  }
+  // bluffs per value bet for a bet of s pots, which is also the share of his bluff-catchers the toy game's caller FOLDS (p. 112);
+  // the pot growth
+  // that puts a stack of S pots in over M streets with the same share of the pot bet each time (static games only, pp. 234-236)
+  function alpha(s) { return s / (1 + s); }
+  function geometric(S, M) { var r = Math.pow(1 + 2 * S, 1 / M); return { growth: r, bet: (r - 1) / 2 }; }
   function facedRaise(m) { return m.log.some(function (e) { return e.p === 1 && e.type === 'raise' && e.street === m.street; }); }
 
-  var PK = { rangeEquity: rangeEquity, RANGES: RANGES, facedRaise: facedRaise, insight: insight, rng32: rng32, rankOf: rankOf, suitOf: suitOf, eval5: eval5, best: best, made: made, equity: equity, newMatch: newMatch, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, botAct: botAct, advise: advise, POW: POW };
+  var PK = { betEV: betEV, payoffCall: payoffCall, payoffBet: payoffBet, callPayoff: callPayoff, rangeAhead: rangeAhead, foldShare: foldShare, alpha: alpha, geometric: geometric, rangeEquity: rangeEquity, RANGES: RANGES, facedRaise: facedRaise, insight: insight, rng32: rng32, rankOf: rankOf, suitOf: suitOf, eval5: eval5, best: best, made: made, equity: equity, newMatch: newMatch, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, botAct: botAct, advise: advise, POW: POW };
   if (typeof module !== 'undefined' && module.exports) module.exports = PK; else root.PK = PK;
 })(typeof window !== 'undefined' ? window : this);
 </script><script>/* Table engine: no-limit hold'em for 2 to 6 seats with side pots. Pure logic, no screen or network code.
@@ -724,22 +842,31 @@ safe-buffer/index.js:
     if (!v.L || v.you < 0 || !v.seats[v.you].cards) return null;
     var hole = v.seats[v.you].cards, nOpp = Math.max(1, v.nAlive - 1), eq = equityN(hole, v.board, nOpp, iters || 400, rng);
     var e1 = Math.pow(eq, 1 / nOpp), ins = PK.insight(hole, v.board), L = v.L, need = L.call > 0 ? L.call / (L.pot + L.call) : 0, adv;
+    // BEFORE THE FLOP nothing here is from the book: the win chance to the end is set against the price, trimmed by 15 per cent when
+    // someone has raised. (The book warns that the chance of winning by the end is not the test of a call, p. 52.) Rough, and labelled so.
     var faced = L.call > v.bb, eqc = faced ? eq * 0.85 : eq, post = !ins.pre, read = null;
     // someone has bet after the flop: he does not hold a random hand, so measure the chance against the hands HE bets with
     if (L.call > 0 && post && v.agg >= 0 && v.agg !== v.you) {
       var b = v.seats[v.agg], R = b.kind === 'bot' ? (PK.RANGES[b.lvl] || PK.RANGES[1]) : PK.RANGES.human;
       eqc = PK.rangeEquity(hole, v.board, R.top, R.bluff, 300, rng) * Math.pow(e1, nOpp - 1); eq = eqc; read = { seat: v.agg, top: R.top, bluff: R.bluff };
     }
+    // the payoff calculator (engine.js, from The Mathematics of Poker): pot odds, implied odds, and what each bet size earns
+    var pay = null, me = v.seats[v.you], models = [], i;
+    for (i = 0; i < v.seats.length; i++) if (i !== v.you && v.seats[i].inHand && !v.seats[i].folded) models.push(v.seats[i].kind === 'bot' ? (PK.RANGES[v.seats[i].lvl] || PK.RANGES[1]) : PK.RANGES.human);
     if (L.call > 0) {
-      if (L.canRaise && e1 >= 0.72 && eqc >= need + 0.2 && (!post || ins.behind <= 0.2)) adv = { move: 'raise', size: 'big', need: need };
+      if (post && read) {
+        var bs = v.seats[read.seat], Rb = bs.kind === 'bot' ? (PK.RANGES[bs.lvl] || PK.RANGES[1]) : PK.RANGES.human;
+        pay = PK.callPayoff(hole, v.board, ins, eqc, Rb, L.pot, L.call, Math.max(0, Math.min(me.stack - L.call, bs.stack)), Math.pow(e1, nOpp - 1));
+      }
+      // when to RAISE is not from the book: these thresholds are this game's own rule of thumb
+      if (L.canRaise && e1 >= 0.72 && eqc >= need + 0.2 && (!post || ins.behind <= 0.2)) adv = { move: 'raise', size: 'big', need: need, pay: pay };
+      else if (pay) adv = { move: pay.best, need: need, pay: pay, later: pay.best === 'call' && pay.hitNext < need && pay.later > 0 ? pay.later : 0 };
       else adv = { move: eqc >= need ? 'call' : 'fold', need: need };
     } else if (!L.canRaise) adv = { move: 'check', need: 0 };
-    else if (post) {
-      // more players in means more hands that can beat him, so the lead needed to bet grows with the table
-      var lead = Math.pow(1 - ins.behind, nOpp);
-      if (lead >= 0.8 && e1 >= 0.55) adv = { move: 'bet', size: 'big', need: 0 };
-      else if (lead >= 0.55 && ins.cat >= 1 && (ins.cardsToCome === 0 || e1 >= 0.55)) adv = { move: 'bet', size: 'small', need: 0 };
-      else adv = { move: 'check', need: 0 };
+    else if (post && models.length) {
+      pay = PK.payoffBet({ hole: hole, board: v.board, pot: L.pot, sizes: { half: L.half, full: L.full }, models: models, eqCheck: eq, cardsToCome: ins.cardsToCome, rng: rng });
+      if (pay.best === 'check' || ins.cat < 1) adv = { move: 'check', need: 0, pay: pay };              // no bluffing lessons yet
+      else adv = { move: 'bet', size: pay.best === 'full' ? 'big' : 'small', need: 0, pay: pay, why: pay.why };
     } else adv = e1 >= 0.6 ? { move: 'bet', size: 'small', need: 0 } : { move: 'check', need: 0 };
     return { eq: eq, e1: e1, ins: ins, adv: adv, nOpp: nOpp, read: read };
   }
@@ -909,7 +1036,12 @@ function deal(f){clearTimeout(ui.timer);clearTimeout(ui.sdT);ui.sd=null;var m=ui
 
 var NUMW=['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'];
 var DCAT=['','','','','a straight','a flush','a full house','four of a kind','a straight flush'],SUITN=['club','diamond','heart','spade'];
-function whyOf(mv,sz,n){if(mv==='raise'||(mv==='bet'&&sz==='big'))return ['flame','VERY STRONG'];if(mv==='bet')return ['coin','HE PAYS'];if(mv==='call')return ['tag','GOOD PRICE'];if(mv==='fold')return ['hand','BAD PRICE'];return n&&n.cardsToCome===0?['cards','SHOW CARDS']:['cards','FREE CARD']}
+/* the payoff numbers under the verdict, for the grown-up: average chips each choice earns, and the prices */
+function numsHTML(){var a=ui.adv,p=a&&a.pay;if(!p)return '';var r=function(x){return (x>=0?'+':'')+Math.round(x)},pc=function(x){return Math.round(x*100)+'%'},t;
+ if(p.mode==='call')t='CALL '+r(p.ev.call)+' \u00b7 FOLD 0 \u00b7 PRICE '+pc(p.need)+(p.later>0?' \u00b7 WITH LATER BETS '+pc(p.needImplied):'');
+ else t='CHECK '+r(p.ev.check)+(p.ev.half!=null?' \u00b7 BET '+p.size.half+': '+r(p.ev.half):'')+(p.ev.full!=null?' \u00b7 BET '+p.size.full+': '+r(p.ev.full):'');
+ return '<div class="nums" data-nums="'+p.mode+'">'+t+'</div>'}
+function whyOf(mv,sz,n){if(mv==='bet'&&ui.adv&&ui.adv.why==='protect')return ['hand','PUSH THEM OUT'];if(mv==='call'&&ui.adv&&ui.adv.later>0)return ['coin','PAYS LATER'];if(mv==='raise'||(mv==='bet'&&sz==='big'))return ['flame','VERY STRONG'];if(mv==='bet')return ['coin','HE PAYS'];if(mv==='call')return ['tag','GOOD PRICE'];if(mv==='fold')return ['hand','BAD PRICE'];return n&&n.cardsToCome===0?['cards','SHOW CARDS']:['cards','FREE CARD']}
 var THN=['','a pair','two pair','three of a kind','a straight','a flush','a full house','four of a kind','a straight flush'];
 function szPic(sz){var c=CC[25],n=sz==='big'?7:3,t='';for(var i=0;i<n;i++)t+='<i class="chip" style="--c:'+c[0]+';--e:'+c[1]+';--t:'+c[2]+'"></i>';return '<span class="sz szpile" data-size="'+sz+'"><div class="col">'+t+'</div></span>'}
 function nA(w){return (/^[aeiou]/.test(w)?'an ':'a ')+w}
@@ -928,11 +1060,11 @@ function coachLine(){var m=ui.m,h=PK.made(cxHole(),cxBoard()),nm=cxName(),p=[han
   p.push(cap(it)+' makes '+DCAT[dr.cat]+'.');p.push(dr.n===1?'One card helps.':cap(NUMW[Math.min(dr.n,20)])+' cards help.')}
  if(dn&&dn.k>=2){if(dn.threat)p.push(nm+' may have '+THN[dn.threat]+'.');else if(dn.pair)p.push(nm+' may have a pair of '+RW[dn.pair]+'.')}
  var sz=ui.adv.size;
- p.push(mv==='check'?(ui.ins.cardsToCome===0?'Check. Show the cards.':'Check. See the next card for free.'):mv==='bet'?(sz==='big'?'Very strong. Bet big.':'Bet small. '+nm+' pays with worse.'):mv==='raise'?'Very strong. Raise.':mv==='call'?'Good price. Call.':(ui.read?(ui.read.bluff===0?ui.read.name+' only bets good hands. Fold.':ui.read.name+' bet. Your hand is too weak. Fold.'):'Bad price. Fold.'));
+ p.push(mv==='check'?(ui.ins.cardsToCome===0?'Check. Show the cards.':'Check. See the next card for free.'):mv==='bet'?(ui.adv&&ui.adv.why==='protect'?'Bet. Make them pay to chase.':sz==='big'?'Very strong. Bet big.':'Bet small. '+nm+' pays with worse.'):mv==='raise'?'Very strong. Raise.':mv==='call'?(ui.adv&&ui.adv.later>0?'Call. If you hit, '+nm+' pays more.':'Good price. Call.'):(ui.read?(ui.read.bluff===0?ui.read.name+' only bets good hands. Fold.':ui.read.name+' bet. Your hand is too weak. Fold.'):'Bad price. Fold.'));
  return p.join(' ')}
 function step(){clearTimeout(ui.timer);var m=ui.m;if(m.over){endHand();return}
  if(m.toAct===1){ui.thinking=true;render();ui.timer=setTimeout(botMove,ui.delay)}
- else{ui.thinking=false;var L=PK.legal(m);var eq=PK.equity(m.hole[0],m.board,500,ui.rng2);ui.read=null;if(L.call>0&&m.board.length>=3&&PK.facedRaise(m)){var RG=PK.RANGES[ui.level]||PK.RANGES[1];eq=PK.rangeEquity(m.hole[0],m.board,RG.top,RG.bluff,300,ui.rng2);ui.read={name:OPP[ui.level-1].n,bluff:RG.bluff}}else if(L.call>m.bb)eq*=0.85;ui.eq=eq;ui.L=L;ui.ins=PK.insight(m.hole[0],m.board);ui.adv=PK.advise(m,eq,ui.ins);render();say(ui.coach?coachLine():handLine(PK.made(m.hole[0],m.board))+'.')}}
+ else{ui.thinking=false;var L=PK.legal(m);var eq=PK.equity(m.hole[0],m.board,500,ui.rng2);ui.read=null;if(L.call>0&&m.board.length>=3&&PK.facedRaise(m)){var RG=PK.RANGES[ui.level]||PK.RANGES[1];eq=PK.rangeEquity(m.hole[0],m.board,RG.top,RG.bluff,300,ui.rng2);ui.read={name:OPP[ui.level-1].n,bluff:RG.bluff}}else if(L.call>m.bb)eq*=0.85;ui.eq=eq;ui.L=L;ui.ins=PK.insight(m.hole[0],m.board);ui.adv=PK.advise(m,eq,ui.ins,{hole:m.hole[0],board:m.board,lvl:ui.level,rng:ui.rng2,read:!!ui.read});render();say(ui.coach?coachLine():handLine(PK.made(m.hole[0],m.board))+'.')}}
 function bubbleOf(e,callBefore){var t=e.type;if(t==='raise')return e.allin?{k:'allin',i:'flame',w:'ALL IN'}:{k:'raise',i:'up',w:callBefore>0?'RAISE':'BET'};
  return {k:t,i:t==='fold'?'hand':t==='check'?'tick':'thumb',w:t.toUpperCase()}}
 function botMove(){var m=ui.m;if(m.over||m.toAct!==1||ui.phase!=='play')return;var L=PK.legal(m),a=PK.botAct(m,ui.level,ui.rng2);PK.act(m,a);ui.bubble=bubbleOf(m.log[m.log.length-1],L.call);ui.thinking=false;step()}
@@ -996,7 +1128,7 @@ function sideHTML(){var m=ui.m;
     var fb='';for(var q=0;q<ins.cardsToCome;q++)fb+='<span class="mc bk"></span>';
     rows+='<div class="drawbox" style="color:#ffd23c"><div class="drow"><div class="grps">'+gh+'</div><span class="ar">'+I('next')+'</span>'+ladPic(dr.cat)+'</div><div class="drow">'+I('cards')+'<div class="dots">'+gd+'</div><div class="frac">'+hh+' / 10</div><span class="pairpic">'+fb+'</span></div></div>'}
    if(ui.L.call>0)rows+='<div class="drow" style="color:#ffae42">'+I('tag')+'<div class="dots">'+d2+'</div><div class="frac">'+n2+' / 10</div></div><div class="pay">'+pile(ui.L.call,{me:1})+I('next')+pile(ui.L.pot+ui.L.call,{})+'</div>';
-   coach='<div class="coach">'+rows+'<div class="vrow"><div class="verdict '+vk+'" data-rep="1">'+I(vi)+vw+((mv==='bet'||mv==='raise')?szPic(ui.adv.size==='big'?'big':'small'):'')+'</div><button class="rep" data-rep="1" aria-label="again">'+I('say')+'</button></div><div class="why">'+I(why[0])+why[1]+'</div></div>'}
+   coach='<div class="coach">'+rows+'<div class="vrow"><div class="verdict '+vk+'" data-rep="1">'+I(vi)+vw+((mv==='bet'||mv==='raise')?szPic(ui.adv.size==='big'?'big':'small'):'')+'</div><button class="rep" data-rep="1" aria-label="again">'+I('say')+'</button></div><div class="why">'+I(why[0])+why[1]+'</div>'+numsHTML()+'</div>'}
   else coach='<div class="coach wait">'+((ui.multi&&ui.mv?ui.mv.over:m.over)?'':'<span class="dots3"><span></span><span></span><span></span></span>')+'</div>'}
  var a='<div class="acts">';
  var L=mine?(ui.multi?ui.mv.L:PK.legal(m)):null,adv=mine&&ui.coach?ui.adv.move:'';
