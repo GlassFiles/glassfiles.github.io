@@ -545,7 +545,33 @@ safe-buffer/index.js:
     return out;
   }
 
-  var PK = { insight: insight, rng32: rng32, rankOf: rankOf, suitOf: suitOf, eval5: eval5, best: best, made: made, equity: equity, newMatch: newMatch, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, botAct: botAct, advise: advise, POW: POW };
+  // ---- reading a bet (hand reading in its simplest form): a player who bets does not hold a random hand.
+  // rangeEquity = the chance of beating a player who bets with the strongest `top` share of the hands he could hold
+  // on this board, and with the rest only `bluff` of the time (0 = never bluffs). After the flop only.
+  function rangeEquity(hole, board, top, bluff, iters, rng) {
+    var used = {}, rest = [], list = [], i, j, W = 0, my, win = 0, t;
+    hole.concat(board).forEach(function (c) { used[c] = 1; });
+    for (i = 0; i < 52; i++) if (!used[i]) rest.push(i);
+    for (i = 0; i < rest.length; i++) for (j = i + 1; j < rest.length; j++) list.push({ h: [rest[i], rest[j]], s: best([rest[i], rest[j]].concat(board)).score, w: 0 });
+    list.sort(function (a, b) { return a.s - b.s; });
+    var cut = Math.floor(list.length * (1 - top)), cum = [];
+    list.forEach(function (x, k) { x.w = k >= cut ? 1 : bluff; W += x.w; cum.push(W); });
+    if (W <= 0) return 0.5;
+    if (board.length === 5) { my = best(hole.concat(board)).score; list.forEach(function (x) { if (x.w > 0) win += x.w * (my > x.s ? 1 : my === x.s ? 0.5 : 0); }); return win / W; }
+    var need = 5 - board.length;
+    for (t = 0; t < iters; t++) {
+      var r = rng() * W, lo = 0, hi = cum.length - 1, mid; while (lo < hi) { mid = (lo + hi) >> 1; if (cum[mid] >= r) hi = mid; else lo = mid + 1; }
+      var o = list[lo].h, b = board.slice(), c;
+      while (b.length < 5) { c = rest[Math.floor(rng() * rest.length)]; if (c !== o[0] && c !== o[1] && b.indexOf(c) < 0) b.push(c); }
+      var a = best(hole.concat(b)).score, s2 = best(o.concat(b)).score; win += a > s2 ? 1 : a === s2 ? 0.5 : 0;
+    }
+    return win / iters;
+  }
+  // how each kind of player bets when nobody has bet before him: the computer levels as they are built, and people
+  var RANGES = { 1: { top: 0.28, bluff: 0 }, 2: { top: 0.38, bluff: 0.06 }, 3: { top: 0.46, bluff: 0.12 }, human: { top: 0.5, bluff: 0.15 } };
+  function facedRaise(m) { return m.log.some(function (e) { return e.p === 1 && e.type === 'raise' && e.street === m.street; }); }
+
+  var PK = { rangeEquity: rangeEquity, RANGES: RANGES, facedRaise: facedRaise, insight: insight, rng32: rng32, rankOf: rankOf, suitOf: suitOf, eval5: eval5, best: best, made: made, equity: equity, newMatch: newMatch, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, botAct: botAct, advise: advise, POW: POW };
   if (typeof module !== 'undefined' && module.exports) module.exports = PK; else root.PK = PK;
 })(typeof window !== 'undefined' ? window : this);
 </script><script>/* Table engine: no-limit hold'em for 2 to 6 seats with side pots. Pure logic, no screen or network code.
@@ -577,7 +603,7 @@ safe-buffer/index.js:
     for (i = 0; i < n; i++) if (inH(i)) live.push(i);
     if (live.length < 2) throw new Error('need two players with chips');
     t.handNo++; t.button = nextSeat(t, t.button, inH);
-    var d = shuffled(t.rng), h = { hole: [], board: [], rest: null, street: 0, bet: [], total: [], folded: [], acted: [], inHand: [], cur: 0, minRaise: t.bb, toAct: -1, log: [], last: null, runout: false };
+    var d = shuffled(t.rng), h = { hole: [], board: [], rest: null, street: 0, bet: [], total: [], folded: [], acted: [], inHand: [], cur: 0, minRaise: t.bb, toAct: -1, log: [], last: null, runout: false, agg: -1 };
     for (i = 0; i < n; i++) { h.inHand[i] = inH(i); h.folded[i] = !h.inHand[i]; h.bet[i] = 0; h.total[i] = 0; h.acted[i] = false; h.hole[i] = null; }
     var k = 0, r, j; for (r = 0; r < 2; r++) { j = t.button; for (i = 0; i < live.length; i++) { j = nextSeat(t, j, inH); (h.hole[j] = h.hole[j] || []).push(d[k++]); } }
     h.rest = d.slice(k); t.h = h; t.over = false; t.result = null;
@@ -610,7 +636,7 @@ safe-buffer/index.js:
       to = Math.max(L.minTo, Math.min(L.maxTo, r5(a.to || 0)));
       if (to - h.cur >= h.minRaise) h.minRaise = to - h.cur;
       put(t, p, to - h.bet[p]); if (to > h.cur) h.cur = to;
-      for (i = 0; i < t.seats.length; i++) h.acted[i] = false; h.acted[p] = true;
+      for (i = 0; i < t.seats.length; i++) h.acted[i] = false; h.acted[p] = true; h.agg = p;
     } else throw new Error('unknown action ' + type);
     h.last = { seat: p, type: type, to: h.bet[p], allin: t.seats[p].stack === 0 && type !== 'fold' && type !== 'check' }; h.log.push(h.last);
     advance(t, p);
@@ -630,7 +656,7 @@ safe-buffer/index.js:
   function maxBetOfOthers(t, p) { var m = 0, i; for (i = 0; i < t.seats.length; i++) if (i !== p && t.h.inHand[i] && !t.h.folded[i]) m = Math.max(m, t.h.bet[i]); return m; }
   function closeStreet(t) {
     var h = t.h, i, n = t.seats.length;
-    for (i = 0; i < n; i++) { h.bet[i] = 0; h.acted[i] = false; } h.cur = 0; h.minRaise = t.bb; h.toAct = -1;
+    for (i = 0; i < n; i++) { h.bet[i] = 0; h.acted[i] = false; } h.cur = 0; h.minRaise = t.bb; h.toAct = -1; h.agg = -1;
     var actors = aliveSeats(t).filter(function (j) { return t.seats[j].stack > 0; });
     if (h.street === 3 || actors.length <= 1) { h.runout = h.board.length < 5; while (h.board.length < 5) h.board.push(h.rest.shift()); h.street = 3; return showdown(t); }
     h.street++; var c = h.street === 1 ? 3 : 1; for (i = 0; i < c; i++) h.board.push(h.rest.shift());
@@ -673,7 +699,7 @@ safe-buffer/index.js:
     var bets = 0; for (i = 0; i < n; i++) bets += h.bet[i];
     if (t.over) { v.seats.forEach(function (o) { o.bet = 0; }); bets = potTotal(t); }   // paid out: nothing left in the middle
     v.street = h.street; v.board = h.board.slice(); v.pot = potTotal(t) - bets; v.toAct = t.over ? -1 : h.toAct; v.last = h.last; v.sbSeat = h.sbSeat; v.bbSeat = h.bbSeat;
-    v.nAlive = aliveSeats(t).length;
+    v.nAlive = aliveSeats(t).length; v.agg = h.agg;   // agg = the seat that last bet or raised on this street, or -1
     if (!t.over && h.toAct === seat) v.L = legal(t);
     if (t.over) v.result = t.result;
     return v;
@@ -698,7 +724,12 @@ safe-buffer/index.js:
     if (!v.L || v.you < 0 || !v.seats[v.you].cards) return null;
     var hole = v.seats[v.you].cards, nOpp = Math.max(1, v.nAlive - 1), eq = equityN(hole, v.board, nOpp, iters || 400, rng);
     var e1 = Math.pow(eq, 1 / nOpp), ins = PK.insight(hole, v.board), L = v.L, need = L.call > 0 ? L.call / (L.pot + L.call) : 0, adv;
-    var faced = L.call > v.bb, eqc = faced ? eq * 0.85 : eq, post = !ins.pre;
+    var faced = L.call > v.bb, eqc = faced ? eq * 0.85 : eq, post = !ins.pre, read = null;
+    // someone has bet after the flop: he does not hold a random hand, so measure the chance against the hands HE bets with
+    if (L.call > 0 && post && v.agg >= 0 && v.agg !== v.you) {
+      var b = v.seats[v.agg], R = b.kind === 'bot' ? (PK.RANGES[b.lvl] || PK.RANGES[1]) : PK.RANGES.human;
+      eqc = PK.rangeEquity(hole, v.board, R.top, R.bluff, 300, rng) * Math.pow(e1, nOpp - 1); eq = eqc; read = { seat: v.agg, top: R.top, bluff: R.bluff };
+    }
     if (L.call > 0) {
       if (L.canRaise && e1 >= 0.72 && eqc >= need + 0.2 && (!post || ins.behind <= 0.2)) adv = { move: 'raise', size: 'big', need: need };
       else adv = { move: eqc >= need ? 'call' : 'fold', need: need };
@@ -710,7 +741,7 @@ safe-buffer/index.js:
       else if (lead >= 0.55 && ins.cat >= 1 && (ins.cardsToCome === 0 || e1 >= 0.55)) adv = { move: 'bet', size: 'small', need: 0 };
       else adv = { move: 'check', need: 0 };
     } else adv = e1 >= 0.6 ? { move: 'bet', size: 'small', need: 0 } : { move: 'check', need: 0 };
-    return { eq: eq, e1: e1, ins: ins, adv: adv, nOpp: nOpp };
+    return { eq: eq, e1: e1, ins: ins, adv: adv, nOpp: nOpp, read: read };
   }
   // computer players, the same three characters as the two-player game: level 1 calls too much and never bluffs
   var LEVELS = [null, { raise: 0.80, slack: 0.22, bluff: 0.00, frac: 0.40 }, { raise: 0.70, slack: 0.08, bluff: 0.06, frac: 0.60 }, { raise: 0.62, slack: 0.00, bluff: 0.12, frac: 0.75 }];
@@ -897,11 +928,11 @@ function coachLine(){var m=ui.m,h=PK.made(cxHole(),cxBoard()),nm=cxName(),p=[han
   p.push(cap(it)+' makes '+DCAT[dr.cat]+'.');p.push(dr.n===1?'One card helps.':cap(NUMW[Math.min(dr.n,20)])+' cards help.')}
  if(dn&&dn.k>=2){if(dn.threat)p.push(nm+' may have '+THN[dn.threat]+'.');else if(dn.pair)p.push(nm+' may have a pair of '+RW[dn.pair]+'.')}
  var sz=ui.adv.size;
- p.push(mv==='check'?(ui.ins.cardsToCome===0?'Check. Show the cards.':'Check. See the next card for free.'):mv==='bet'?(sz==='big'?'Very strong. Bet big.':'Bet small. '+nm+' pays with worse.'):mv==='raise'?'Very strong. Raise.':mv==='call'?'Good price. Call.':'Bad price. Fold.');
+ p.push(mv==='check'?(ui.ins.cardsToCome===0?'Check. Show the cards.':'Check. See the next card for free.'):mv==='bet'?(sz==='big'?'Very strong. Bet big.':'Bet small. '+nm+' pays with worse.'):mv==='raise'?'Very strong. Raise.':mv==='call'?'Good price. Call.':(ui.read?(ui.read.bluff===0?ui.read.name+' only bets good hands. Fold.':ui.read.name+' bet. Your hand is too weak. Fold.'):'Bad price. Fold.'));
  return p.join(' ')}
 function step(){clearTimeout(ui.timer);var m=ui.m;if(m.over){endHand();return}
  if(m.toAct===1){ui.thinking=true;render();ui.timer=setTimeout(botMove,ui.delay)}
- else{ui.thinking=false;var L=PK.legal(m);var eq=PK.equity(m.hole[0],m.board,500,ui.rng2);if(L.call>m.bb)eq*=0.85;ui.eq=eq;ui.L=L;ui.ins=PK.insight(m.hole[0],m.board);ui.adv=PK.advise(m,eq,ui.ins);render();say(ui.coach?coachLine():handLine(PK.made(m.hole[0],m.board))+'.')}}
+ else{ui.thinking=false;var L=PK.legal(m);var eq=PK.equity(m.hole[0],m.board,500,ui.rng2);ui.read=null;if(L.call>0&&m.board.length>=3&&PK.facedRaise(m)){var RG=PK.RANGES[ui.level]||PK.RANGES[1];eq=PK.rangeEquity(m.hole[0],m.board,RG.top,RG.bluff,300,ui.rng2);ui.read={name:OPP[ui.level-1].n,bluff:RG.bluff}}else if(L.call>m.bb)eq*=0.85;ui.eq=eq;ui.L=L;ui.ins=PK.insight(m.hole[0],m.board);ui.adv=PK.advise(m,eq,ui.ins);render();say(ui.coach?coachLine():handLine(PK.made(m.hole[0],m.board))+'.')}}
 function bubbleOf(e,callBefore){var t=e.type;if(t==='raise')return e.allin?{k:'allin',i:'flame',w:'ALL IN'}:{k:'raise',i:'up',w:callBefore>0?'RAISE':'BET'};
  return {k:t,i:t==='fold'?'hand':t==='check'?'tick':'thumb',w:t.toUpperCase()}}
 function botMove(){var m=ui.m;if(m.over||m.toAct!==1||ui.phase!=='play')return;var L=PK.legal(m),a=PK.botAct(m,ui.level,ui.rng2);PK.act(m,a);ui.bubble=bubbleOf(m.log[m.log.length-1],L.call);ui.thinking=false;step()}
@@ -1251,7 +1282,7 @@ function onTbl(){var c=ui.ctl;if(!c)return;var v=c.view;ui.mv=v;if(!v){ui.phase=
  ui.phase=v.over?'end':'play';
  var fresh=false;
  if(!v.over&&v.toAct===v.you&&v.L){var key=v.handNo+':'+v.street+':'+v.L.call+':'+v.pot+':'+v.board.length;
-  if(ui.ckey!==key){ui.ckey=key;fresh=true;var cc=TB.coach(v,ui.rng2,400);ui.eq=cc.eq;ui.ins=cc.ins;ui.adv=cc.adv;ui.L=v.L;ui.nOpp=cc.nOpp;ui.dseat=-1;ui.cname='Someone';
+  if(ui.ckey!==key){ui.ckey=key;fresh=true;var cc=TB.coach(v,ui.rng2,400);ui.eq=cc.eq;ui.ins=cc.ins;ui.adv=cc.adv;ui.L=v.L;ui.nOpp=cc.nOpp;ui.read=cc.read?{name:v.seats[cc.read.seat].name,bluff:cc.read.bluff}:null;ui.dseat=-1;ui.cname='Someone';
    if(cc.nOpp===1)v.seats.forEach(function(s,i){if(i!==v.you&&s.inHand&&!s.folded){ui.dseat=i;ui.cname=s.name}})}}
  var ended=v.over&&ui.endNo!==v.handNo;
  if(ended){ui.endNo=v.handNo;endT(v)}
