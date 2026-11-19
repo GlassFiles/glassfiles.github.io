@@ -1,7 +1,7 @@
 {
-  "name": "Pas à pas",
-  "short_name": "Pas à pas",
-  "description": "Practise French at your own pace, A1 to C2.",
+  "name": "Le Stylo Rouge",
+  "short_name": "Le Stylo Rouge",
+  "description": "Practise French, one red mark at a time, A1 to C2.",
   "lang": "en",
   "start_url": "./",
   "scope": "./",
