@@ -2135,7 +2135,7 @@ var Net=(function(){
  function b64(u){var s='',i;for(i=0;i<u.length;i++)s+=String.fromCharCode(u[i]);return btoa(s)}
  function unb64(s){var b=atob(s),u=new Uint8Array(b.length),i;for(i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u}
  function hex(u){var s='',i;for(i=0;i<u.length;i++)s+=(u[i]<16?'0':'')+u[i].toString(16);return s}
- function newCode(){var a=CR.getRandomValues(new Uint32Array(2)),n=(a[0]%10000)*10000+(a[1]%10000);var s=String(n);while(s.length<8)s='0'+s;return s}
+ function newCode(){var a=CR.getRandomValues(new Uint32Array(2)),n=a[0]%10000;var s=String(n);while(s.length<4)s='0'+s;return s}
  function derive(code){return SUB.importKey('raw',TE.encode('code:'+code),'PBKDF2',false,['deriveBits']).then(function(b){return SUB.deriveBits({name:'PBKDF2',salt:TE.encode('gfp2.poker.v1'),iterations:ITER,hash:'SHA-256'},b,512)}).then(function(bits){var u=new Uint8Array(bits);
   return Promise.all([SUB.importKey('raw',u.slice(0,32),'AES-GCM',false,['encrypt','decrypt']),SUB.digest('SHA-256',u.slice(32))]).then(function(r){return {rk:r[0],tid:hex(new Uint8Array(r[1])).slice(0,32)}})})}
  function enc(key,topic,obj){var iv=CR.getRandomValues(new Uint8Array(12));return SUB.encrypt({name:'AES-GCM',iv:iv,additionalData:TE.encode(topic)},key,TE.encode(JSON.stringify(obj))).then(function(ct){var c=new Uint8Array(ct),o=new Uint8Array(12+c.length);o.set(iv);o.set(c,12);return b64(o)})}
@@ -2332,9 +2332,9 @@ function onlClick(x){var o=ui.onl,c;
   if(x==='host'){ui.onl={step:'host'};c=ui.octl=makeHostCtl();c.onLobby(onlRefresh)}else ui.onl={step:'join',code:''};render();return}
  if(x==='cancel'){onlStop();render();return}
  if(x==='again'){ui.onl={step:'join',code:''};render();return}
- if(/^d\d$/.test(x)){if(o&&o.step==='join'&&o.code.length<8){o.code+=x[1];render()}return}
+ if(/^d\d$/.test(x)){if(o&&o.step==='join'&&o.code.length<4){o.code+=x[1];render()}return}
  if(x==='bs'){if(o&&o.step==='join'){o.code=o.code.slice(0,-1);render()}return}
- if(x==='ok'){if(o&&o.step==='join'&&o.code.length===8)joinRoom(o.code);return}
+ if(x==='ok'){if(o&&o.step==='join'&&o.code.length===4)joinRoom(o.code);return}
  if(x.indexOf('letin:')===0){c=ui.octl||ui.ctl;if(c&&c.letIn)c.letIn(x.slice(6));render();return}
  if(x.indexOf('deny:')===0){c=ui.octl||ui.ctl;if(c&&c.deny)c.deny(x.slice(5));render();return}
  if(x==='deal'){c=ui.octl;if(c&&c.deal)c.deal()&&enterOnline(c);return}
@@ -2353,14 +2353,14 @@ function onlHTML(){var o=ui.onl,c=ui.octl,back='<button class="btn gold obk" dat
   var l=c.lobby();return '<div class="onl">'+askHTML(c)+'<div class="roomno" id="roomno" aria-label="table number '+c.room.split('').join(' ')+'">'+codeFmt(c.room)+'</div>'+lobbySeatsHTML(l.seats,1)+botsRowHTML(c)+rebuyRowHTML()
    +'<button class="btn big" data-on="deal"'+(c.seatsN()>=2?'':' disabled')+'>'+I('play')+'DEAL</button>'+back+'</div>'}
  if(o.step==='guestlobby'&&c&&c.lobby)return '<div class="onl"><div class="roomno sm">'+codeFmt(c.room)+'</div>'+lobbySeatsHTML(c.lobby.seats,9)+'<div class="bigpic">'+I('hourglass')+'</div>'+back+'</div>';
- var dg='<div class="digs" aria-label="table number">';for(i=0;i<8;i++)dg+=(i===4?'<i class="gap"></i>':'')+'<b>'+(o.code[i]||'')+'</b>';dg+='</div>';
+ var dg='<div class="digs" aria-label="table number">';for(i=0;i<4;i++)dg+='<b>'+(o.code[i]||'')+'</b>';dg+='</div>';
  if(o.step==='asking')return '<div class="onl">'+dg+'<div class="bigpic ask">'+portrait({kind:'human',av:ui.me.av,lvl:1},0,false)+I('hourglass')+'</div>'+back+'</div>';
  if(o.step==='declined')return '<div class="onl"><div class="bigpic nt" data-pic="declined">'+I('notable')+'<span>NO</span></div><button class="btn big" data-on="again">'+I('again')+'AGAIN</button>'+back+'</div>';
  if(o.step==='joining'||o.step==='guestlobby')return '<div class="onl">'+dg+'<div class="bigpic"><span class="dots3"><span></span><span></span><span></span></span></div>'+back+'</div>';
  var pad='<div class="pad">';for(i=1;i<=9;i++)pad+='<button data-on="d'+i+'">'+i+'</button>';
- pad+='<button class="bk" data-on="bs" aria-label="back one">'+I('bs')+'</button><button data-on="d0">0</button><button class="ok" data-on="ok" aria-label="join"'+(o.code.length===8?'':' disabled')+'>'+I('tick')+'</button></div>';
+ pad+='<button class="bk" data-on="bs" aria-label="back one">'+I('bs')+'</button><button data-on="d0">0</button><button class="ok" data-on="ok" aria-label="join"'+(o.code.length===4?'':' disabled')+'>'+I('tick')+'</button></div>';
  return '<div class="onl">'+dg+pad+back+'</div>'}
-function codeFmt(c){return c.slice(0,4)+'<i class="gap"></i>'+c.slice(4)}
+function codeFmt(c){return c}
 function askHTML(c){var a=c&&c.asks?c.asks():[];if(!a.length)return '';var q=a[0];
  return '<div class="letin" role="dialog" aria-label="'+esc(q.name)+' wants to join">'+portrait({kind:'human',av:q.av,lvl:1},0,true)+'<b class="lnm">'+esc(q.name)+'</b><div class="lbt"><button class="btn gold" data-on="letin:'+q.id+'">'+I('tick')+'LET IN</button><button class="btn fold lno" data-on="deny:'+q.id+'" aria-label="no"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg></button></div>'+(a.length>1?'<span class="lmore">+'+(a.length-1)+'</span>':'')+'</div>'}
 function onlBtns(){return '<div class="onhead">'+I('globe')+'<b>ONLINE</b></div><div class="onrow"><button class="obtn" data-on="host" aria-label="new table">'+I('cards')+'NEW TABLE</button><button class="obtn" data-on="join" aria-label="join a table">'+I('handshake')+'JOIN</button></div>'}
@@ -2599,7 +2599,7 @@ load();loadMe();newMatch();mkNew();applySkin();applyText();
 Object.defineProperty(window,'__game',{get:function(){return {m:ui.m,ui:ui,ctl:ui.ctl,lastSay:ui.lastSay,lastSting:ui.lastSting}}});
 window.__phr=PHR;window.__test={onTbl:onTbl,Net:Net,avName:avName,speak:speak,render:render,tbl:function(){return ui.ctl&&ui.ctl._t?ui.ctl._t():null},defeat:defeat,DEF:DEF,defCur:function(){return ui.defCur},amt:function(){return ui.amt},deal:function(a,b,c){ui.mode='h';clearTimeout(ui.timer);deal({h0:a,h1:b,b:c})},pic:function(k){return AVP[k]},sfx:SFX};
 window.__mh={bestIdx:function(){return ui.mh&&ui.mh.up?mkBest().idx:null}};
-(function(){var r=lsGet('pk_room');if(!r)return;try{r=JSON.parse(r)}catch(e){return}if(r&&/^\d{8}$/.test(r.room)&&Date.now()-r.at<6*3600000){ui.intro=null;joinRoom(r.room)}else lsSet('pk_room',null)})();
+(function(){var r=lsGet('pk_room');if(!r)return;try{r=JSON.parse(r)}catch(e){return}if(r&&/^\d{4}$/.test(r.room)&&Date.now()-r.at<6*3600000){ui.intro=null;joinRoom(r.room)}else lsSet('pk_room',null)})();
 render();
 })();
 </script>
