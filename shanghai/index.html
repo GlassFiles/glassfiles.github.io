@@ -122,6 +122,7 @@ table.sc td.n{text-align:right}
 .hand .card.dragging{opacity:.35}
 .hand .card.drop-before{box-shadow:-5px 0 0 0 var(--gold)}
 .hand .card.drop-after{box-shadow:5px 0 0 0 var(--gold)}
+.card.built{opacity:.45;outline:2px solid var(--gold);outline-offset:-2px}
 .dragfit{outline:2px dashed var(--gold);outline-offset:2px}
 .drop-on{outline:3px solid var(--gold)!important;outline-offset:2px;background:rgba(242,193,78,.3)!important}
 .card.ghost{position:fixed;z-index:20;pointer-events:none;transform:rotate(-4deg);box-shadow:0 8px 20px rgba(0,0,0,.45)}
@@ -1922,7 +1923,7 @@ var LEVEL_LABEL={easy:'easy',medium:'medium',hard:'hard'};
 function cardHTML(c,cfg,opts){
   opts=opts||{};
   var mini=opts.mini?' mini':'';
-  var cls='card'+mini+(opts.sel?' sel':'')+(opts.isNew?' new':'')+(opts.tip?' tip':'')+(opts.barred?' barred':'');
+  var cls='card'+mini+(opts.sel?' sel':'')+(opts.isNew?' new':'')+(opts.tip?' tip':'')+(opts.barred?' barred':'')+(opts.built?' built':'');
   var tag=opts.button?'button':'div', attrs=opts.button?' type="button" data-id="'+c.id+'"':'';
   var label;
   if(c.suit===4){
@@ -2331,12 +2332,21 @@ function friendly(e){
   return e.charAt(0).toUpperCase()+e.slice(1)+'.';
 }
 function selectedCards(){var me=G.st.players[G.human];return me.hand.filter(function(c){return G.sel[c.id];});}
-function goDown(){
-  var st=G.st,me=st.players[G.human],rd=S.roundInfo(st),cfg=st.cfg;
-  var chosen=selectedCards(),pool=chosen.length>=3?chosen:me.hand;
-  var found=S.findContract(pool,rd.contract,cfg);
-  if(!found&&pool!==me.hand)found=S.findContract(me.hand,rd.contract,cfg);
-  if(!found){var d=S.contractDistance(me.hand,rd.contract,cfg);G.msg='Not yet: you are about '+d+' card'+(d===1?'':'s')+' short of '+contractText(rd.contract)+'.';render();return;}
+// Going down meld by meld (Guy, 19 Nov 2026: "when u go down u shud be able to pick which sets/runs to use"): pick the
+// cards for one set or run and press Go down; it is set aside (outlined); pick the next; when the contract is complete
+// you go down with exactly those. With nothing picked, Go down finds an arrangement for you, as before.
+function curBuild(){var st=G.st,b=G.build;if(b&&b.round===st.round&&b.turn===st.turnsThisRound&&st.turn===G.human&&st.phase==='play'&&!st.players[G.human].down)return b;G.build=null;return null;}
+function builtIds(){var b=curBuild(),ids={};if(b)b.melds.forEach(function(x){x.meld.cards.forEach(function(c){ids[c.id]=1;});});return ids;}
+function partName(p){return p.t==='set'?'set of '+p.n:'run of '+p.n;}
+function openParts(){var rd=S.roundInfo(G.st),b=curBuild();return rd.contract.map(function(p,i){return {p:p,i:i};}).filter(function(x){return !b||!b.melds.some(function(m){return m.part===x.i;});});}
+function buildText(){
+  var b=curBuild();if(!b)return '';
+  var done=b.melds.map(function(m){return (m.meld.t==='set'?'set ':'run ')+m.meld.cards.map(cardText).join(' ');}).join(' · ');
+  var left=openParts();
+  return 'Set aside to go down: '+done+'. '+(left.length?'Now pick the cards for your '+left.map(function(x){return partName(x.p);}).join(' and ')+', then press Go down.':'');
+}
+function finishDown(found){
+  var st=G.st,rd=S.roundInfo(st);G.build=null;
   var melds=found.map(function(m){return {t:m.t,rank:m.rank,suit:m.suit,start:m.start,cardIds:m.cards.map(function(c){return c.id;})};});
   if(rd.allAtOnce){
     var plan=B.planAllOut(st,G.human,found,true);
@@ -2344,6 +2354,36 @@ function goDown(){
     humanAct({type:'goDown',melds:melds,layoffs:plan},'');return;
   }
   if(humanAct({type:'goDown',melds:melds},'You went down! Lay off anything that fits, then throw a card.')&&G.turnRev)G.turnRev.wentDown=true;
+}
+function goDown(){
+  var st=G.st,me=st.players[G.human],rd=S.roundInfo(st),cfg=st.cfg,b=curBuild(),built=builtIds();
+  var chosen=selectedCards().filter(function(c){return !built[c.id];});
+  var minPart=Math.min.apply(null,rd.contract.map(function(p){return p.n;}));
+  // fewer picked cards than any set or run needs (say, the card you mean to throw): the game chooses, as before
+  if(chosen.length||b)if(!b&&chosen.length<minPart)chosen=[];
+  if(chosen.length||b){
+    if(!chosen.length){G.msg=buildText();render();return;}
+    // the picked cards as one of the parts still open, using every picked card
+    var made=null,open=openParts();
+    for(var k=0;k<open.length&&!made;k++){
+      if(chosen.length<open[k].p.n)continue;
+      var f=S.findContract(chosen,[{t:open[k].p.t,n:chosen.length}],cfg);
+      if(f&&f[0].cards.length===chosen.length)made={part:open[k].i,meld:f[0]};
+    }
+    if(made){
+      b=b||(G.build={round:st.round,turn:st.turnsThisRound,melds:[]});
+      b.melds.push(made);G.sel={};
+      if(openParts().length){G.msg=buildText();render();return;}
+      var order=b.melds.slice().sort(function(x,y){return x.part-y.part;});
+      finishDown(order.map(function(x){return x.meld;}));return;
+    }
+    // or, with nothing set aside yet, the picked cards may hold the whole contract at once
+    if(!b){var all=S.findContract(chosen,rd.contract,cfg);if(all){finishDown(all);return;}}
+    G.msg='Those '+chosen.length+' cards do not make a '+open.map(function(x){return partName(x.p);}).join(' or a ')+'. Pick the cards for one set or one run (wild cards count), then press Go down.';render();return;
+  }
+  var found=S.findContract(me.hand,rd.contract,cfg);
+  if(!found){var d=S.contractDistance(me.hand,rd.contract,cfg);G.msg='Not yet: you are about '+d+' card'+(d===1?'':'s')+' short of '+contractText(rd.contract)+'.';render();return;}
+  finishDown(found);
 }
 function layOffAll(){
   var st=G.st,mark=st.roundLog.length,helper=new B.Bot('medium',1);
@@ -2375,7 +2415,10 @@ function layOffSelected(){
 // What to say when you pick cards in your play phase.
 function playHint(){
   var st=G.st,me=st.players[G.human],cs=selectedCards();if(!cs.length)return '';
-  if(!me.down)return cs.length===1?'Throw it, or pick more cards to move them.':'';
+  if(!me.down){
+    if(cs.length>=3)return 'Press Go down to set these aside as one set or run'+(curBuild()?'':' (or pick your whole contract at once)')+'.';
+    return cs.length===1?'Throw it, or pick the cards for a set or run and press Go down.':'Pick the cards for one set or run, then press Go down.';
+  }
   var fit=selectedFit().length;
   if(cs.length===1)return fit?'Tap a gold meld to lay the '+cardText(cs[0])+' there, drag it onto one, or press Lay off.':'The '+cardText(cs[0])+' does not fit on the table: throw it, or drag it onto the face-up pile.';
   return fit?'Lay off '+(fit===cs.length?'these '+cs.length:fit+' of these '+cs.length)+' with the button, or pick fewer.':'None of these fits on the table.';
@@ -2594,12 +2637,12 @@ function render(){
     h+='<div class="prompt"><div class="muted">'+esc(st.players[st.turn].name)+' drew from the pile, so the '+esc(cardText(st.top))+' is up for grabs.</div><b>Buy the '+esc(cardText(st.top))+'?</b> '+esc(buyReason())+' You also take '+cfg.buyPenalty+' card'+(cfg.buyPenalty===1?'':'s')+' from the pile. Buys left: '+me.buysLeft+'.'+(adv2?'<div class="tipline">Coach: '+esc(adv2.pick?'buy it':'let it go')+'</div>':'')+'<div class="row" style="margin-top:6px"><button class="btn primary" id="buyyes">Buy it</button><button class="btn" id="buyno">No thanks</button>'+hintBtn()+'</div>'+
       '<div class="field" style="margin:6px 0 0"><label for="askbuy">Ask me</label>'+sel('askbuy',G.noBuyRound===st.round?'round':G.buyAsk,[['helps','Only when the card would help me'],['always','Every time I may buy'],['round','Not again this round'],['never','Never']])+'</div></div>';
   }
-  var msgText=esc(G.msg||(waiter&&waiter.kind==='play'?'':st.turn!==G.human&&st.phase!=='roundOver'?st.players[st.turn].name+' is playing…':''));
+  var msgText=esc(G.msg||(waiter&&waiter.kind==='play'?buildText():st.turn!==G.human&&st.phase!=='roundOver'?st.players[st.turn].name+' is playing…':''));
   var n=selectedCards().length,sortLbl=orderLabel()+' ▾';
   if(waiter&&waiter.kind==='play'){
     h+='<div class="msg" aria-live="polite">'+msgText+'</div>';
     h+='<div class="actions">';
-    if(!me.down){var able=canGoDown();h+='<button class="btn primary" id="godown"'+(able||G.goDownMode==='always'?'':' disabled')+'>Go down</button>';}
+    if(!me.down){var able=canGoDown();h+='<button class="btn primary" id="godown"'+(able||G.goDownMode==='always'||curBuild()?'':' disabled')+'>Go down</button>';if(curBuild())h+='<button class="btn" id="buildreset">Start over</button>';}
     else if(n>=1&&selectedFit().length)h+='<button class="btn primary" id="laysel">Lay off '+(n===1?'this card':'these '+n)+'</button>';
     else h+='<button class="btn primary" id="layall">Lay off all</button>';
     h+='<button class="btn" id="discard"'+(n===1?'':' disabled')+'>Throw</button>';
@@ -2615,7 +2658,8 @@ function render(){
   h+='</div>';
   var tipId=adv2&&adv2.discardId,layIds=(adv2&&adv2.layIds)||[],barIds=(st.phase==='play'||st.phase==='draw')?S.barredDiscards(st,G.human):[];
   h+='<div class="hand" id="hand">';
-  function cardBtn(c){return cardHTML(c,cfg,{button:true,sel:!!G.sel[c.id],isNew:c.id===G.lastDrawn,tip:c.id===tipId||layIds.indexOf(c.id)>=0,barred:barIds.indexOf(c.id)>=0});}
+  var bIds=builtIds();
+  function cardBtn(c){return cardHTML(c,cfg,{button:true,sel:!!G.sel[c.id],isNew:c.id===G.lastDrawn,tip:c.id===tipId||layIds.indexOf(c.id)>=0,barred:barIds.indexOf(c.id)>=0,built:!!bIds[c.id]});}
   if(G.sort==='lanes'){
     var ln=lanes();
     h=h.replace('<div class="hand" id="hand">','<div class="hand lanes" id="hand">');
@@ -2664,7 +2708,7 @@ function wire(){
     var v=this.value;if(v==='round'){G.noBuyRound=G.st.round;}else{G.noBuyRound=null;G.buyAsk=v;var su=Object.assign({},DEFAULT_SETUP,load('setup')||{});su.buyAsk=v;store('setup',su);}
     save();if(waiter&&waiter.kind==='buy'&&(v==='round'||v==='never'))resolve(false);else render();
   });on('buyno',function(){if(waiter&&waiter.kind==='buy')resolve(false);});
-  on('godown',goDown);on('layall',layOffAll);on('laysel',layOffSelected);on('discard',discard);
+  on('godown',goDown);on('buildreset',function(){G.build=null;G.sel={};G.msg='Pick the cards for one set or run, or press Go down to let the game choose.';render();});on('layall',layOffAll);on('laysel',layOffSelected);on('discard',discard);
   on('hint',function(){G.hintFor=posKey();render();var t=document.querySelector('.coach');if(t)t.scrollIntoView({block:'nearest'});});
   on('sort',function(){G.menu=!G.menu;render();});
   ['suit','rank','lanes','mine'].forEach(function(m){on('ord-'+m,function(){chooseOrder(m);});});
@@ -2757,7 +2801,9 @@ function wireHand(hand){
   hand.addEventListener('click',function(e){
     if(suppress){suppress=false;return;}
     var b=e.target.closest('.card');if(!b)return;
-    var id=+b.getAttribute('data-id');if(G.sel[id])delete G.sel[id];else G.sel[id]=1;
+    var id=+b.getAttribute('data-id');
+    if(builtIds()[id]){G.msg='That card is set aside to go down. Press Start over to change your mind.';render();return;}
+    if(G.sel[id])delete G.sel[id];else G.sel[id]=1;
     if(!(waiter&&waiter.kind==='play'))G.msg=Object.keys(G.sel).length?'Use ◀ ▶ or drag to move a card.':'';
     else G.msg=playHint();
     render();
