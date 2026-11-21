@@ -2774,5 +2774,13 @@ window.__mh={bestIdx:function(){return ui.mh&&ui.mh.up?mkBest().idx:null}};
 render();
 })();
 </script>
+<script>
+/* Usage tracker (GoatCounter, same account as Shanghai and Le Stylo Rouge): counts which parts are used, never who. No cookies. */
+(function(){var P={learn:'tuition',guided:'guided-play',plain:'just-poker',deal:'deal'};
+document.addEventListener('click',function(e){try{var b=e.target.closest&&e.target.closest('[data-in],[data-go],[data-t]');if(!b)return;
+var k=b.getAttribute('data-in')||b.getAttribute('data-go')||b.getAttribute('data-t');var part=P[k]||(k==='badges'||k==='settings'?k:null);if(!part)return;
+if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:'poker/'+part,title:'Poker: '+part,event:true})}catch(x){}},true)})();
+</script>
+<script data-goatcounter="https://glassfiles.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
