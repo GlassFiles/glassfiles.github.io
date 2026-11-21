@@ -1388,6 +1388,23 @@ safe-buffer/index.js:
     }
     return win / iters;
   }
+  /* == PART: v15.1 M2 == */
+  // chance to win before the flop against the raiser's range AND k other random hands, all dealt together on one board
+  // (never his-range chance times heads-up chances: change 10, p.59). k = 0 is preRangeEq.
+  function preJointEq(hole, combos, k, iters, rng) {
+    if (!k) return preRangeEq(hole, combos, iters, rng);
+    if (!combos.length) return 0.5; rng = rng || rng32(15); iters = iters || 400; var t, win = 0, o, b, u, c, a, s, q, h, top, tie;
+    for (t = 0; t < iters; t++) {
+      o = combos[Math.floor(rng() * combos.length)]; u = {}; u[hole[0]] = u[hole[1]] = u[o[0]] = u[o[1]] = 1; b = []; h = [];
+      while (h.length < 2 * k) { c = Math.floor(rng() * 52); if (!u[c]) { u[c] = 1; h.push(c); } }
+      while (b.length < 5) { c = Math.floor(rng() * 52); if (!u[c]) { u[c] = 1; b.push(c); } }
+      a = best(hole.concat(b)).score; top = best(o.concat(b)).score; tie = 1;
+      for (q = 0; q < k; q++) { s = best([h[2 * q], h[2 * q + 1]].concat(b)).score; if (s > top) { top = s; tie = 1; } else if (s === top) tie++; }
+      win += a > top ? 1 : a === top ? 1 / (tie + 1) : 0;
+    }
+    return win / iters;
+  }
+  /* == END PART == */
   // value of a winning hidden hand with the river to come, against a balanced caller: pot + b x pot/(pot + b) (p.249)
   function riverValue(pot, b) { return pot + b * pot / (pot + b); }
   // change 1: next-card price plus the later streets valued as a balanced caller pays them, never the river equity (pp.51-54, 249, 362)
@@ -1418,7 +1435,10 @@ safe-buffer/index.js:
     if (L.call > 0 && m.bet[o] > m.bb) {
       var allin = m.stack[o] === 0, Sx = Math.min(S, 50), mine = [hole[0], hole[1]];
       if (allin && S <= 10) { var cb = jfIn(code, 'call', S); return { move: cb ? 'call' : 'fold', need: need, pre: preTag(false, 0), bookSrc: 'BOOK p.134 (CH12: CALL A JAM BY THE TABLE)' + St }; }
-      var codes = allin ? bandCodes('jam', Sx) : topCodes(OPENSH[ctx && ctx.lvl] || OPENSH.human), opens = rangeCombos(codes, mine), eqR = preRangeEq(hole, opens, 400, rng);
+      /* v15.1 M3: facing a re-raise after our own raise, his range is about half his opening range (ESTIMATE), not the opening range */
+      var reRaise = m.log.some(function (e) { return e.street === 0 && e.p === p && (e.type === 'raise' || e.type === 'bet'); });
+      var openSh = OPENSH[ctx && ctx.lvl] || OPENSH.human;
+      var codes = allin ? bandCodes('jam', Sx) : topCodes(reRaise ? openSh / 2 : openSh), opens = rangeCombos(codes, mine), eqR = preRangeEq(hole, opens, 400, rng);
       var evCall = eqR * (L.pot + L.call) - L.call, mv = evCall > 0 ? 'call' : 'fold', evJam = null;
       if (!allin && L.canRaise && opens.length && S <= 25) {   // ESTIMATE: the jam is offered up to 25 BB
         var cc = {}; Object.keys(codes).forEach(function (c) { if (jfIn(c, 'call', Sx)) cc[c] = 1; });
@@ -1426,14 +1446,14 @@ safe-buffer/index.js:
         evJam = f * L.pot + (1 - f) * (eqC * 2 * L.maxTo - (L.maxTo - m.bet[p]));
         if (evJam > Math.max(0, evCall)) mv = 'jam';
       }
-      var src = 'BOOK p.59, pp.86-88, 134-135 (EQUITY AGAINST HIS RANGE, CARD REMOVAL' + (evJam != null ? ', JAM OPTION' : '') + ') · ESTIMATE: HIS RAISING HANDS' + St;
+      var src = 'BOOK p.59, pp.86-88, 134-135 (EQUITY AGAINST HIS RANGE, CARD REMOVAL' + (evJam != null ? ', JAM OPTION' : '') + ') · ESTIMATE: HIS ' + (reRaise && !allin ? 'RE-RAISING' : 'RAISING') + ' HANDS' + St;
       var r = mv === 'jam' ? jamA(src) : { move: mv, need: need, pre: preTag(false, 0), bookSrc: src };
       r.eqRange = eqR; r.evCall = evCall; r.evJam = evJam; return r;
     }
     return null;
   }
   /* == END PART == */
-  var PK = { handCode: handCode, jfIn: jfIn, bandCodes: bandCodes, topCodes: topCodes, rangeCombos: rangeCombos, preRangeEq: preRangeEq, riverValue: riverValue, callPayoffB: callPayoffB, OPENSH: OPENSH, JF: JF, equityVs: equityVs, adviceSource: adviceSource, sizeOfPlan: sizeOfPlan, nuts: nuts, drawName: drawName, seatName: seatName, geoBets: geoBets, clairvoyantValue: clairvoyantValue, boardTexture: boardTexture, bookBet: bookBet, payoffPlans: payoffPlans, START: START, startIdx: startIdx, betEV: betEV, payoffCall: payoffCall, payoffBet: payoffBet, callPayoff: callPayoff, rangeAhead: rangeAhead, foldShare: foldShare, alpha: alpha, geometric: geometric, rangeEquity: rangeEquity, RANGES: RANGES, facedRaise: facedRaise, insight: insight, rng32: rng32, rankOf: rankOf, suitOf: suitOf, eval5: eval5, best: best, made: made, equity: equity, newMatch: newMatch, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, botAct: botAct, advise: advise, POW: POW };
+  var PK = { handCode: handCode, jfIn: jfIn, bandCodes: bandCodes, topCodes: topCodes, rangeCombos: rangeCombos, preRangeEq: preRangeEq, preJointEq: preJointEq, riverValue: riverValue, callPayoffB: callPayoffB, OPENSH: OPENSH, JF: JF, equityVs: equityVs, adviceSource: adviceSource, sizeOfPlan: sizeOfPlan, nuts: nuts, drawName: drawName, seatName: seatName, geoBets: geoBets, clairvoyantValue: clairvoyantValue, boardTexture: boardTexture, bookBet: bookBet, payoffPlans: payoffPlans, START: START, startIdx: startIdx, betEV: betEV, payoffCall: payoffCall, payoffBet: payoffBet, callPayoff: callPayoff, rangeAhead: rangeAhead, foldShare: foldShare, alpha: alpha, geometric: geometric, rangeEquity: rangeEquity, RANGES: RANGES, facedRaise: facedRaise, insight: insight, rng32: rng32, rankOf: rankOf, suitOf: suitOf, eval5: eval5, best: best, made: made, equity: equity, newMatch: newMatch, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, botAct: botAct, advise: advise, POW: POW };
   /* == PART: tournament blinds (v15) ==
      Schedules by speed (no antes, on purpose). Levels count hands dealt (handNo, 1-based). After the last listed level each level's big blind is 1.5 x the last,
      rounded to the nearest 10 (so the small blind, half of it, stays a multiple of 5). Blinds change only at the start of a hand (applyTour from startHand). */
@@ -1775,7 +1795,7 @@ safe-buffer/index.js:
       if (allF && SF <= 10 && nOpp === 1) pfx = { band: PK.jfIn(codeF, 'call', SF), src: 'BOOK p.134 (CH12: CALL A JAM BY THE TABLE, EFFECTIVE STACK) · p.340' };
       else {
         var codesF = allF ? PK.bandCodes('jam', Math.min(SF, 50)) : PK.topCodes(rs.kind === 'bot' ? (PK.OPENSH[rs.lvl] || 0.5) : PK.OPENSH.human);
-        eqc = PK.preRangeEq(hole, PK.rangeCombos(codesF, hole), 300, rng) * Math.pow(e1, nOpp - 1); eq = eqc;
+        eqc = PK.preJointEq(hole, PK.rangeCombos(codesF, hole), nOpp - 1, 300, rng); eq = eqc;   /* v15.1 M2: one joint deal, never a product */
         pfx = { band: null, src: 'BOOK p.59, pp.134-135 (EQUITY AGAINST HIS RANGE, CARD REMOVAL) · ESTIMATE: HIS RAISING HANDS' };
       }
     }
@@ -1946,7 +1966,7 @@ safe-buffer/index.js:
 'use strict';
 var PK=window.PK;
 /* == PART: version and edition storage prefix (v14) == */
-var VERSION='15.0';
+var VERSION='15.1';
 /* the build sets window.PK_EDITION ('main' or 'test'); main keeps the old prefix so existing players keep their records; anything else gets the test prefix (no copying from main) */
 var PFX=window.PK_EDITION==='main'?'pk_':'pk'+'t_';
 function SK(name){return PFX+name}
