@@ -15,9 +15,9 @@
 <meta name="twitter:title" content="Poker Table">
 <meta name="twitter:description" content="A friendly card game with a coach who helps you play.">
 <meta name="twitter:image" content="https://glassfiles.github.io/poker/og.jpg">
-<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png?v=1f7fd039">
-<link rel="icon" type="image/png" sizes="64x64" href="favicon.png?v=4eb503e1">
-<link rel="apple-touch-icon" href="apple-touch-icon.png?v=3e2c4ace">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png">
+<link rel="icon" type="image/png" sizes="64x64" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -396,6 +396,11 @@ body[data-skin=war]{--fa:#4a6690;--fb:#202f4b;--rail1:#8a95a1;--rail2:#4a525b;--
 .amr{grid-column:1/-1;width:100%;height:44px;margin:0;accent-color:#ffd23c;touch-action:pan-y}
 .amr::-webkit-slider-thumb{width:44px;height:44px}.amr::-moz-range-thumb{width:44px;height:44px}
 .amgo{grid-column:1/-1;min-height:70px}
+/* == PART: auto-advance + check/fold (v14) == */
+.cfb{width:100%;min-height:56px;background:#59606a;font-size:calc(20px*var(--ts))}.cfb.sel{background:#1f6fe0;box-shadow:0 0 0 4px #ffd23c,0 5px 0 rgba(0,0,0,.4)}
+.acd{display:inline-flex;min-width:1.4em;justify-content:center;background:rgba(0,0,0,.3);border-radius:10px;padding:0 6px}
+.autorow .rbb{font-size:calc(20px*var(--ts));min-width:0}
+/* == END PART == */
 @media(min-width:1000px){.amtrow{left:auto;right:10px;transform:none;width:350px}}
 .dfov{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));overflow-y:auto}
 .dfcard{width:min(92vw,520px,calc(var(--H) - 150px));background:#2a1c12;border:4px solid #caa24a;border-radius:22px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:10px;box-shadow:0 10px 40px rgba(0,0,0,.7)}
@@ -706,7 +711,7 @@ safe-buffer/index.js:
   function closeStreet(m) {
     m.pot += m.bet[0] + m.bet[1]; m.bet = [0, 0];
     var allin = m.stack[0] === 0 || m.stack[1] === 0;
-    if (m.street === 3 || allin) { m.runout = m.board.length < 5; while (m.board.length < 5) m.board.push(m.rest.shift()); m.street = 3; showdown(m); return; }
+    if (m.street === 3 || allin) { m.runFrom = m.board.length; m.runout = m.board.length < 5;   /* == PART: all-in runout (v14): runFrom = board cards out when betting ended == */ while (m.board.length < 5) m.board.push(m.rest.shift()); m.street = 3; showdown(m); return; }
     m.street++;
     var n = m.street === 1 ? 3 : 1, i; for (i = 0; i < n; i++) m.board.push(m.rest.shift());
     m.acted = [false, false]; m.minRaise = m.bb; m.toAct = 1 - m.button;
@@ -1206,7 +1211,7 @@ safe-buffer/index.js:
     var h = t.h, i, n = t.seats.length;
     for (i = 0; i < n; i++) { h.bet[i] = 0; h.acted[i] = false; } h.cur = 0; h.minRaise = t.bb; h.toAct = -1; h.agg = -1; h.nRaise = 0;
     var actors = aliveSeats(t).filter(function (j) { return t.seats[j].stack > 0; });
-    if (h.street === 3 || actors.length <= 1) { h.runout = h.board.length < 5; while (h.board.length < 5) h.board.push(h.rest.shift()); h.street = 3; return showdown(t); }
+    if (h.street === 3 || actors.length <= 1) { h.runFrom = h.board.length; h.runout = h.board.length < 5;   /* == PART: all-in runout (v14) == */ while (h.board.length < 5) h.board.push(h.rest.shift()); h.street = 3; return showdown(t); }
     h.street++; var c = h.street === 1 ? 3 : 1; for (i = 0; i < c; i++) h.board.push(h.rest.shift());
     advance(t, t.button);
   }
@@ -1257,6 +1262,9 @@ safe-buffer/index.js:
     v.nAlive = aliveSeats(t).length; v.nRaise = h.nRaise; v.agg = h.agg;   // agg = the seat that last bet or raised on this street, or -1
     if (!t.over && h.toAct === seat) v.L = legal(t);
     if (t.over) v.result = t.result;
+    /* == PART: all-in runout (v14): set only once the hand is over (betting finished), so no hidden card is early; runFrom = board cards out when the all in was called == */
+    v.runout = !!(t.over && h.runout && t.result && !t.result.fold); v.runFrom = v.runout ? h.runFrom : null;
+    /* == END PART == */
     if (t.over && t.result) v.outs = t.result.outs || [];
     // v13.2: who put ALL their chips in during this hand (seats) and on which street the last all in was made (-1 = nobody); the badges read it, so a guest gets it too
     if (t.over) { var al = {}, as = -1; h.log.forEach(function (e) { if (e.allin) { al[e.seat] = 1; if (e.street > as) as = e.street; } }); v.alls = Object.keys(al).map(Number); v.allStreet = as; }
@@ -1484,14 +1492,29 @@ safe-buffer/index.js:
     return { type: 'check' };
   }
 
-  var TB = { seatName: seatName, positions: positions, canRebuy: canRebuy, nutsOf: nutsOf, impliedClass: impliedClass, impliedHit: impliedHit, newTable: newTable, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, view: view, rebuy: rebuy, equityN: equityN, coach: coach, preflop: preflop, fieldEV: fieldEV, bookRaiseTo: bookRaiseTo, botAct: botAct, potTotal: potTotal };
+  /* == PART: watch when out (v14): the view for a seat that is OUT of the table (no chips, no rebuy) shows every dealt hand; any other seat gets the plain view == */
+  function watchView(t, seat) {
+    var v = view(t, seat), h = t.h;
+    if (!h || seat < 0 || !t.seats[seat] || !t.seats[seat].out) return v;
+    v.watching = true;
+    v.seats.forEach(function (o, j) { if (h.inHand[j] && h.hole[j] && !o.cards) { o.cards = h.hole[j].slice(); o.watch = true; } });
+    return v;
+  }
+  /* == END PART == */
+  var TB = { watchView: watchView, seatName: seatName, positions: positions, canRebuy: canRebuy, nutsOf: nutsOf, impliedClass: impliedClass, impliedHit: impliedHit, newTable: newTable, startHand: startHand, legal: legal, sizeTo: sizeTo, act: act, view: view, rebuy: rebuy, equityN: equityN, coach: coach, preflop: preflop, fieldEV: fieldEV, bookRaiseTo: bookRaiseTo, botAct: botAct, potTotal: potTotal };
   if (typeof module !== 'undefined' && module.exports) module.exports = TB; else root.TB = TB;
 })(typeof window !== 'undefined' ? window : this);
-</script>
+</script><script>window.PK_EDITION="main";</script>
 <script>
 (function(){
 'use strict';
 var PK=window.PK;
+/* == PART: version and edition storage prefix (v14) == */
+var VERSION='14.0';
+/* the build sets window.PK_EDITION ('main' or 'test'); main keeps the old prefix so existing players keep their records; anything else gets the test prefix (no copying from main) */
+var PFX=window.PK_EDITION==='main'?'pk_':'pk'+'t_';
+function SK(name){return PFX+name}
+/* == END PART == */
 var SUIT=['♣','♦','♥','♠'];
 var SP=['M12 2a4.5 4.5 0 00-3.2 7.7A4.6 4.6 0 1010.5 17c-.2 1.9-.8 3.5-2 5h7c-1.2-1.5-1.8-3.1-2-5a4.6 4.6 0 101.7-7.3A4.5 4.5 0 0012 2z','M12 1.5l8 10.5-8 10.5L4 12z','M12 21.5C5 15.5 2.5 12 2.5 8.3A4.9 4.9 0 0112 6a4.9 4.9 0 019.5 2.3c0 3.7-2.5 7.2-9.5 13.2z','M12 2.2c-1.8 4.6-8 6.6-8 11.6a4 4 0 006.5 3.1c-.2 1.9-.8 3.4-2 5h7c-1.2-1.6-1.8-3.1-2-5a4 4 0 006.5-3.1c0-5-6.2-7-8-11.6z'];
 function su(s){return '<svg class="su" viewBox="0 0 24 24" aria-hidden="true"><path d="'+SP[s]+'" fill="currentColor"/></svg>'}
@@ -1607,13 +1630,22 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){retur
 function cleanName(s){if(typeof s!=='string')return '';s=s.replace(/[\u2018\u2019]/g,"'");try{s=s.replace(new RegExp("[^\\p{L}\\p{N} '\\-]","gu"),'')}catch(e){s=s.replace(/[^A-Za-z0-9 '\-]/g,'')}return s.replace(/\s+/g,' ').trim().slice(0,12).trim()}
 /* pictures already worn by a human: a computer player never wears one of these (only in skins that draw the player's picture) */
 function takenSet(extra){var t={};if(SKINS[ui.skin].images.me)t[ui.me.av]=1;(extra||[]).forEach(function(k){if(okAv(k))t[k]=1});return t}
+/* == PART: cast rotation (v14) ==
+   Every character gets a seat over time: among the characters of a level, those not yet beaten by this player (badge data o) come first, then the least often seated
+   (a small counter per name kept in storage), then the list order. Choosing is pure; rotSeat records a seating only when a table or match really starts. */
+var ROT=null;
+function rotLoad(){if(!ROT){try{ROT=JSON.parse(lsGet(SK('rot'))||'{}')}catch(e){ROT={}}if(!ROT||typeof ROT!=='object')ROT={}}return ROT}
+function rotSort(list){var r=rotLoad(),o={};try{o=bgMe().o||{}}catch(e){}
+ return list.map(function(x,i){return [x,i]}).sort(function(a,b){return ((o[a[0].k]?1:0)-(o[b[0].k]?1:0))||((r[a[0].n]||0)-(r[b[0].n]||0))||(a[1]-b[1])}).map(function(a){return a[0]})}
+function rotSeat(names){var r=rotLoad();names.forEach(function(n){r[n]=(r[n]||0)+1});lsSet(SK('rot'),JSON.stringify(r))}
+/* == END PART == */
 function castFor(levels,extra){var tk=takenSet(extra),used={},c={};
- return levels.map(function(l){var all=CH.filter(function(x){return x.l===l}),ok=function(x){return !tk[x.k]&&!used[x.n]},pick=all.filter(ok)[0];
+ return levels.map(function(l){var all=CH.filter(function(x){return x.l===l}),ok=function(x){return !tk[x.k]&&!used[x.n]},pick=rotSort(all.filter(ok))[0];
   if(!pick)pick=CH.filter(ok).sort(function(a,b){return Math.abs(a.l-l)-Math.abs(b.l-l)})[0];
   if(!pick){var list=all.filter(function(x){return !tk[x.k]});if(!list.length)list=all;pick=list[(c[l]||0)%list.length];c[l]=(c[l]||0)+1}
   used[pick.n]=1;return {name:pick.n,lvl:l}})}
 function oppFor(l){var im=SKINS[ui.skin].images,all=CH.filter(function(x){return x.l===l});
- if(im.cast){var tk=takenSet(),ch=all.filter(function(x){return !tk[x.k]})[0]||all[0];return {n:ch.n,s:l,k:ch.k,p:ch.p}}
+ if(im.cast){var tk=takenSet();ui.hu=ui.hu||{};var ch=ui.hu[l];if(!ch||tk[ch.k]){ch=rotSort(all.filter(function(x){return !tk[x.k]}))[0]||all[0];ui.hu[l]=ch}return {n:ch.n,s:l,k:ch.k,p:ch.p}}
  return {n:OPP[l-1].n,s:l,k:all[0].k,p:im.portraits[l-1]}}
 function opp(){return oppFor(ui.level)}
 function chPic(s){if(!SKINS[ui.skin].images.cast||!s||s.kind==='human')return null;for(var i=0;i<CH.length;i++)if(CH[i].n===s.name)return CH[i].p;return null}
@@ -1621,19 +1653,19 @@ function chPic(s){if(!SKINS[ui.skin].images.cast||!s||s.kind==='human')return nu
 /* ---------- state ---------- */
 var ui={screen:'table',phase:'menu',mode:3,multi:false,ctl:null,mv:null,level:1,coach:true,sound:true,skin:'tavern',m:null,rng:null,rng2:null,bubble:null,thinking:false,adv:null,eq:0,L:null,
  stats:{hands:0,won:0,biggest:0,best:-1,streak:0,trophies:0,stars:0,starStreak:0,rounds:0},delay:900,prev:{},pop:{},timer:null,s0:0,mh:null,fast:false,lastDeal:0,ins:null,lastSay:'',vpanel:false,voiceName:'',intro:'splash',whoBack:'entry',nmDraft:null,me:{name:'You',av:'knight'},meSaved:false,lastSting:null,stingRef:null,stingNo:-1};
-try{ui.voiceName=localStorage.getItem('pk_voice')||''}catch(e){}
+try{ui.voiceName=localStorage.getItem(SK('voice'))||''}catch(e){}
 try{if(window.speechSynthesis){rankVoices();speechSynthesis.addEventListener('voiceschanged',function(){rankVoices();if(ui.vpanel)render()})}}catch(e){}
-ui.reduce=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);ui.fast=/fast/.test(location.hash);if(ui.fast){ui.delay=30;ui.intro=null}
-try{var rb0=localStorage.getItem('pk_rebuys');ui.rebuys=rb0==='0'?0:rb0==='3'?3:rb0==='u'?-1:1}catch(e){ui.rebuys=1}
-ui.music=true;try{ui.music=localStorage.getItem('pk_music')!=='0'}catch(e){}
+ui.reduce=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);ui.fast=false;
+try{var rb0=localStorage.getItem(SK('rebuys'));ui.rebuys=rb0==='0'?0:rb0==='3'?3:rb0==='u'?-1:1}catch(e){ui.rebuys=1}
+ui.music=true;try{ui.music=localStorage.getItem(SK('music'))!=='0'}catch(e){}
 ui.ts=1.15;ui.font='default';ui.settings=false;ui.leaveAsk=false;
-try{var ts0=parseFloat(localStorage.getItem('pk_ts'));ui.ts=(ts0===1||ts0===1.3)?ts0:1.15;ui.font=localStorage.getItem('pk_font')==='lexend'?'lexend':'default'}catch(e){}
+try{var ts0=parseFloat(localStorage.getItem(SK('ts')));ui.ts=(ts0===1||ts0===1.3)?ts0:1.15;ui.font=localStorage.getItem(SK('font'))==='lexend'?'lexend':'default'}catch(e){}
 /* (y) READING: Text size (1, 1.15, 1.3 times, the whole page: the root font size and every text size follow --ts) and Text style (default font or Lexend, embedded). Saved in localStorage. */
 function applyText(){try{document.documentElement.style.setProperty('--ts',String(ui.ts));document.body.setAttribute('data-font',ui.font)}catch(e){}}
-var KEY='pk_teach_v1';
+var KEY=SK('teach_v1');
 function load(){try{var s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){for(var k in ui.stats)if(typeof s.stats[k]==='number')ui.stats[k]=s.stats[k];if(s.skin&&SKINS[s.skin]&&s.art)ui.skin=s.skin;if(s.level>=1&&s.level<=3)ui.level=s.level;if(typeof s.coach==='boolean')ui.coach=s.coach;if(typeof s.sound==='boolean')ui.sound=s.sound}}catch(e){}}
-function loadMe(){try{var s=JSON.parse(localStorage.getItem('pk_me')||'null');if(s&&typeof s==='object'){ui.me.name=cleanName(s.name)||'You';ui.me.av=okAv(s.av)?s.av:'knight';ui.meSaved=true}}catch(e){}}
-function saveMe(){try{localStorage.setItem('pk_me',JSON.stringify({name:ui.me.name,av:ui.me.av}))}catch(e){}}
+function loadMe(){try{var s=JSON.parse(localStorage.getItem(SK('me'))||'null');if(s&&typeof s==='object'){ui.me.name=cleanName(s.name)||'You';ui.me.av=okAv(s.av)?s.av:'knight';ui.meSaved=true}}catch(e){}}
+function saveMe(){try{localStorage.setItem(SK('me'),JSON.stringify({name:ui.me.name,av:ui.me.av}))}catch(e){}}
 function save(){try{localStorage.setItem(KEY,JSON.stringify({art:1,stats:ui.stats,skin:ui.skin,level:ui.level,coach:ui.coach,sound:ui.sound}))}catch(e){}}
 var VOICES=[];
 function rankVoices(){try{var all=(window.speechSynthesis&&speechSynthesis.getVoices())||[],fav=['Google UK English Male','Google UK English Female','Daniel','Serena','Samantha','Karen','Google US English'],seen={};
@@ -1728,9 +1760,13 @@ var SFX=(function(){var ctx=null,mg=null,nbuf=null;
   if(k==='you'&&MUSIC.jingle){if(mbuf.jingle){playBuf(mbuf.jingle,.8);return}dec(MUSIC.jingle,function(b){if(!(ui.sound&&!document.hidden))return;if(b){mbuf.jingle=b;playBuf(b,.8)}else M.you(ctx.currentTime+.02)});return}
   if(clipsOf(k).length){needLines(k,function(){if(!(ui.sound&&!document.hidden))return;if(!line(k))(M[k]||M.other)(ctx.currentTime+.02)});return}
   if(k==='other')S.plain++;(M[k]||M.other)(ctx.currentTime+.02)}catch(e){}}
+ /* == PART: all-in sound (v14): a rising whoosh then a low drum hit, made in code; silent when the sound is off == */
+ function allin(){if(!ui.sound||!ctx||document.hidden)return false;try{if(ctx.state!=='running'){var p0=ctx.resume();if(p0&&p0.catch)p0.catch(function(){})}var t=ctx.currentTime+.02,n=ctx.createBufferSource(),f=ctx.createBiquadFilter(),g=ctx.createGain();n.buffer=noise();f.type='bandpass';f.frequency.setValueAtTime(300,t);f.frequency.exponentialRampToValueAtTime(3000,t+.9);
+  g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.7,t+.85);g.gain.exponentialRampToValueAtTime(.0001,t+1.05);n.connect(f);f.connect(g);g.connect(mg);n.start(t);n.stop(t+1.1);tone('sine',110,40,t+.9,.5,1);S.allin=(S.allin||0)+1;return true}catch(e){return false}}
+ /* == END PART == */
  function hush(){try{if(ctx&&ctx.state==='running'){var p=ctx.suspend();if(p&&p.catch)p.catch(function(){})}}catch(e){}}
  function back(){try{if(ctx&&ctx.state==='suspended'&&ui.sound&&!document.hidden){var p=ctx.resume();if(p&&p.catch)p.catch(function(){})}}catch(e){}}
- return {unlock:unlock,sting:sting,cheer:cheer,badge:badge,hush:hush,back:back,duck:duck,musicSync:musicSync,ctx:function(){return ctx},keys:Object.keys(M),info:function(){return {ctx:!!ctx,state:ctx?ctx.state:'none',decoded:lbuf.filter(Boolean).length,wins:Object.keys(wbuf).sort().join(),music:!!mnode,musicLoaded:!!mbuf.loop,jingle:!!mbuf.jingle,ducked:S.ducked,ducks:S.ducks,lastLaugh:S.lastLaugh,laughs:S.laughs,lines:S.lines,plain:S.plain,cheers:S.cheers,badgeSnd:S.bsnd,last:S.last,primed:primed}}}})();
+ return {allin:allin,allinN:function(){return S.allin||0},unlock:unlock,sting:sting,cheer:cheer,badge:badge,hush:hush,back:back,duck:duck,musicSync:musicSync,ctx:function(){return ctx},keys:Object.keys(M),info:function(){return {ctx:!!ctx,state:ctx?ctx.state:'none',decoded:lbuf.filter(Boolean).length,wins:Object.keys(wbuf).sort().join(),music:!!mnode,musicLoaded:!!mbuf.loop,jingle:!!mbuf.jingle,ducked:S.ducked,ducks:S.ducks,lastLaugh:S.lastLaugh,laughs:S.laughs,lines:S.lines,plain:S.plain,cheers:S.cheers,badgeSnd:S.bsnd,last:S.last,primed:primed}}}})();
 document.addEventListener('touchend',function(){SFX.unlock()},{passive:true});document.addEventListener('keydown',function(){SFX.unlock()});
 /* ---------- THE COACH'S VOICE: short recorded fragments played one after another ----------
    Every line the game speaks goes through speak(). PHR.map(line) turns a line into a list of fragment ids (the ids are the first column of
@@ -1941,12 +1977,15 @@ var PHR=(function(){
    or at least potShare of all the chips in play; or an all in was won; or it knocked someone out - or the game is late (a table of more than three that
    is down to lateLeft players or fewer, or more than lateHand hands played; a one-against-one match has only the hand count) - AND at least gap hands
    have passed since any character last spoke. Otherwise it stays silent and only the plain win sound plays. */
-var CHAT={potBB:15,potShare:.25,lateLeft:3,lateHand:30,gap:4};
-function chatOK(i){var big=i.amount>=CHAT.potBB*i.bb||i.amount>=CHAT.potShare*i.inPlay,late=i.no>CHAT.lateHand||(!!i.table&&i.seats>3&&i.left<=CHAT.lateLeft),why=big?'big pot':i.allin?'all in':i.bust?'knock out':late?'late':'';
- if(!why)return '';var sp=ui.spk;if(sp&&sp.ref===i.ref&&i.no-sp.no<CHAT.gap)return '';return why}
-function winSting(key,ref,no,info){if(ui.stingRef===ref&&ui.stingNo===no)return;ui.stingRef=ref;ui.stingNo=no;var k=key,why='';
+/* == PART: celebrations by net win (v14) == the NET chips the winner gained decide: under smallBB big blinds no speech; fullBB or more, a knock-out or a whole table/match win = full celebration; between = a short sting only. The gap between speakers stays. */
+var CHAT={smallBB:10,fullBB:25,gap:4};
+function chatTier(i){var bb=i.bb||20,n=i.net!=null?i.net:(i.amount||0);if(i.bust||i.cheer||i.whole||n>=CHAT.fullBB*bb)return 'full';return n>=CHAT.smallBB*bb?'short':'none'}
+function chatOK(i){if(chatTier(i)!=='full')return '';var sp=ui.spk;if(sp&&sp.ref===i.ref&&i.no-sp.no<CHAT.gap)return '';return i.cheer||i.whole?'whole table':i.bust?'knock out':'big win'}
+/* == END PART == */
+function winSting(key,ref,no,info){if(ui.stingRef===ref&&ui.stingNo===no)return;ui.stingRef=ref;ui.stingNo=no;var k=key,why='',tier=info?chatTier(info):'full';
  if(key!=='you'&&key!=='other'&&info){info.ref=ref;info.no=no;why=chatOK(info);if(why)ui.spk={ref:ref,no:no};else k='other'}
- ui.lastSting={key:key,hand:no,spoke:key!=='you'&&key!=='other'&&k===key,why:why};SFX.sting(k);
+ else if(key==='you'&&tier!=='full')k='other';/* v14 (d): the "you win" jingle only for a full celebration */
+ ui.lastSting={key:key,hand:no,spoke:key!=='you'&&key!=='other'&&k===key,why:why,tier:tier,played:k};SFX.sting(k);
  if(info&&info.cheer){ui.lastSting.cheer=true;SFX.cheer(1300)}}
 
 /* ===== v13.2 (4) BADGES: rewards are never taken away. Kept per player (by name) on this device in localStorage (try/catch); each is earned once; a big flash-up
@@ -1968,8 +2007,8 @@ var BDS=[
  {id:'beatall',n:'BEAT THEM ALL',h:'Knock out all 10 characters.'}],BDK={},BDALL=['orc','goblin','barb','dwarf','elf','dragon','wizard','bones','rogue','cleric'];
 BDS.forEach(function(b){BDK[b.id]=b});
 var BG={q:[],cur:null,D:null,pt:null,t:null};
-function bgLoad(){if(BG.D)return BG.D;var d=null;try{d=JSON.parse(localStorage.getItem('pk_badges')||'null')}catch(e){}if(!d||typeof d!=='object'||!d.p||typeof d.p!=='object')d={v:1,p:{}};BG.D=d;return d}
-function bgSave(){try{localStorage.setItem('pk_badges',JSON.stringify(BG.D))}catch(e){}}
+function bgLoad(){if(BG.D)return BG.D;var d=null;try{d=JSON.parse(localStorage.getItem(SK('badges'))||'null')}catch(e){}if(!d||typeof d!=='object'||!d.p||typeof d.p!=='object')d={v:1,p:{}};BG.D=d;return d}
+function bgSave(){try{localStorage.setItem(SK('badges'),JSON.stringify(BG.D))}catch(e){}}
 function bgMe(){var d=bgLoad(),k='n:'+(ui.me.name||'You');if(!d.p[k]||typeof d.p[k]!=='object')d.p[k]={e:{},o:{}};var r=d.p[k];if(!r.e)r.e={};if(!r.o)r.o={};return r}
 function bgHas(id){return !!bgMe().e[id]}
 function bgCount(){return BDS.filter(function(b){return bgHas(b.id)}).length}
@@ -2014,7 +2053,7 @@ function bgEval(I){var out=[],mh,c,eq,bl;
 function bgHand(I){if(!I)return [];var me=bgMe(),ids,got=[];(I.outKeys||[]).forEach(function(k){if(CKI[k])me.o[k]=1});ids=bgEval(I);
  if(BDALL.every(function(k){return me.o[k]}))ids.push('beatall');ids.forEach(function(id){if(bgEarn(id))got.push(id)});bgSave();return got}
 function applySkin(){var s=SKINS[ui.skin];document.body.setAttribute('data-skin',ui.skin);for(var k in s.vars)document.body.style.setProperty(k,s.vars[k])}
-function newMatch(){clearTimeout(ui.sdT);ui.sd=null;var seed=(Date.now()^(Math.random()*1e9))>>>0;ui.rng=PK.rng32(seed);ui.rng2=PK.rng32(seed^0x9e3779b9);ui.m=PK.newMatch({start:1000,sb:10,bb:20,rng:ui.rng});ui.m.bet=[0,0];ui.m.pot=0;ui.m.board=[];ui.phase='menu';ui.bubble=null;ui.thinking=false;ui.prev={}}
+function newMatch(){ui.hu={};ui.huReb=0;ui.roK=null;/* v14 review M2 */clearTimeout(ui.sdT);ui.sd=null;var seed=(Date.now()^(Math.random()*1e9))>>>0;ui.rng=PK.rng32(seed);ui.rng2=PK.rng32(seed^0x9e3779b9);ui.m=PK.newMatch({start:1000,sb:10,bb:20,rng:ui.rng});ui.m.bet=[0,0];ui.m.pot=0;ui.m.board=[];ui.phase='menu';ui.bubble=null;ui.thinking=false;ui.prev={}}
 
 /* ---------- chips ---------- */
 var DEN=[1000,500,100,25,10,5];
@@ -2049,7 +2088,7 @@ function orderHand(cs,cat){var cnt={};cs.forEach(function(c){cnt[rk(c)]=(cnt[rk(
  var a=cs.slice().sort(function(x,y){var d=(cnt[rk(y)]-cnt[rk(x)])||(rk(y)-rk(x));return d||(sd(y)-sd(x))});
  if((cat===4||cat===8)&&rk(a[0])===14&&rk(a[1])===5)a.push(a.shift());return a}
 /* ---------- game flow ---------- */
-function deal(f){clearTimeout(ui.timer);clearTimeout(ui.sdT);ui.sd=null;var m=ui.m;if(m.stack[0]<=0||m.stack[1]<=0)return;ui.bubble=null;PK.startHand(m);if(f){var u={};f.h0.concat(f.h1,f.b).forEach(function(c){u[c]=1});var o=[];for(var q=0;q<52;q++)if(!u[q])o.push(q);m.hole=[f.h0.slice(),f.h1.slice()];m.rest=f.b.concat(o)}ui.phase='play';ui.stats.hands++;ui.s0=m.stack[0]+m.bet[0];ui.lastDeal=m.handNo;step()}
+function deal(f){clearTimeout(ui.timer);clearTimeout(ui.sdT);ui.sd=null;var m=ui.m;if(m.stack[0]<=0||m.stack[1]<=0)return;ui.bubble=null;PK.startHand(m);if(f){var u={};f.h0.concat(f.h1,f.b).forEach(function(c){u[c]=1});var o=[];for(var q=0;q<52;q++)if(!u[q])o.push(q);m.hole=[f.h0.slice(),f.h1.slice()];m.rest=f.b.concat(o)}ui.phase='play';ui.stats.hands++;/* == PART: cast rotation, heads-up seating (v14) == */if(ui.hu&&!ui.hu.seated&&SKINS[ui.skin].images.cast){ui.hu.seated=1;rotSeat([opp().n])}/* == END PART == */ui.s0=m.stack[0]+m.bet[0];ui.lastDeal=m.handNo;step()}
 
 var NUMW=['zero','one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty'];
 var DCAT=['','','','','a straight','a flush','a full house','four of a kind','a straight flush'],SUITN=['club','diamond','heart','spade'];
@@ -2096,19 +2135,25 @@ function coachLine(){var m=ui.m,h=PK.made(cxHole(),cxBoard()),nm=cxName(),p=[cxB
  return p.join(' ')}
 function step(){clearTimeout(ui.timer);var m=ui.m;if(m.over){endHand();return}
  if(m.toAct===1){ui.thinking=true;render();ui.timer=setTimeout(botMove,ui.delay)}
- else{ui.thinking=false;var L=PK.legal(m);var eq=PK.equity(m.hole[0],m.board,500,ui.rng2);ui.read=null;if(L.call>0&&m.board.length>=3&&PK.facedRaise(m)){var RG=PK.RANGES[ui.level]||PK.RANGES[1];eq=PK.rangeEquity(m.hole[0],m.board,RG.top,RG.bluff,300,ui.rng2);ui.read={name:opp().n,bluff:RG.bluff}}else if(L.call>m.bb)eq*=0.85;ui.eq=eq;ui.L=L;ui.ins=PK.insight(m.hole[0],m.board);ui.nuts=ui.ins.pre?null:{isNuts:ui.ins.isNuts,beat:ui.ins.beatN,total:ui.ins.total};if(ui.nuts&&ui.nuts.isNuts)bfGet().nuts=true;ui.adv=PK.advise(m,eq,ui.ins,{hole:m.hole[0],board:m.board,lvl:ui.level,rng:ui.rng2,read:!!ui.read});render();if(ui.coach)say(coachLine())}}
+ else{ui.thinking=false;var L=PK.legal(m);if(cfFire(L.canCheck))return;/*v14 check/fold*/var eq=PK.equity(m.hole[0],m.board,500,ui.rng2);ui.read=null;if(L.call>0&&m.board.length>=3&&PK.facedRaise(m)){var RG=PK.RANGES[ui.level]||PK.RANGES[1];eq=PK.rangeEquity(m.hole[0],m.board,RG.top,RG.bluff,300,ui.rng2);ui.read={name:opp().n,bluff:RG.bluff}}else if(L.call>m.bb)eq*=0.85;ui.eq=eq;ui.L=L;ui.ins=PK.insight(m.hole[0],m.board);ui.nuts=ui.ins.pre?null:{isNuts:ui.ins.isNuts,beat:ui.ins.beatN,total:ui.ins.total};if(ui.nuts&&ui.nuts.isNuts)bfGet().nuts=true;ui.adv=PK.advise(m,eq,ui.ins,{hole:m.hole[0],board:m.board,lvl:ui.level,rng:ui.rng2,read:!!ui.read});render();if(ui.coach)say(coachLine())}}
 function bubbleOf(e,callBefore){var t=e.type;if(t==='raise')return e.allin?{k:'allin',i:'flame',w:'ALL IN'}:{k:'raise',i:'up',w:callBefore>0?'RAISE':'BET'};
  return {k:t,i:t==='fold'?'hand':t==='check'?'tick':'thumb',w:t.toUpperCase()}}
 function botMove(){var m=ui.m;if(m.over||m.toAct!==1||ui.phase!=='play')return;var L=PK.legal(m),a=PK.botAct(m,ui.level,ui.rng2);PK.act(m,a);ui.bubble=bubbleOf(m.log[m.log.length-1],L.call);ui.thinking=false;step()}
 function playerAct(a){var m=ui.m;if(ui.phase!=='play'||m.over||m.toAct!==0)return;PK.act(m,a);step()}
-function endHand(){var m=ui.m,r=m.result,s=ui.stats,net=m.stack[0]-ui.s0;
+/* == PART: all-in runout (v14), heads-up: stage the runout before the normal end == */
+function endHand(){var m=ui.m;if(m.runout&&m.result&&!m.result.fold&&roGo(m.handNo,m.runFrom,[0,1].map(function(i){return {av:avatarHTML(i),name:i?opp().n:ui.me.name}}),endHand0))return;endHand0()}
+/* == END PART == */
+function endHand0(){var m=ui.m,r=m.result,s=ui.stats,net=m.stack[0]-ui.s0;
  if(r.winner===0){s.won++;s.streak++;if(net>s.biggest)s.biggest=net}else if(r.winner===1)s.streak=0;
  if(!r.fold&&r.hands&&r.hands[0].cat>s.best&&r.winner!==1)s.best=r.hands[0].cat;
  if(m.stack[1]<=0)s.trophies++;
- ui.phase='end';ui.thinking=false;ui.net=net;ui.pop={};ui.prev={};save();clearTimeout(ui.sdT);ui.sd={no:m.handNo,done:false};render();
+ ui.phase='end';ui.thinking=false;ui.net=net;ui.pop={};ui.prev={};save();clearTimeout(ui.sdT);ui.sd=(!r.fold&&r.winner>=0)?{no:m.handNo,done:false}:null;render();
  if(!r.fold&&r.winner>=0){if(ui.fast||ui.reduce)runSD(false);else ui.sdT=setTimeout(function(){runSD(true)},1000)}
- winSting(r.winner===1?opp().k:'you',m,m.handNo,{amount:r.pot||0,bb:m.bb,inPlay:m.stack[0]+m.stack[1],allin:!r.fold&&m.log.some(function(e){return e.allin}),bust:m.stack[0]<=0,table:false,cheer:m.stack[1]<=0&&r.winner===0});
+ winSting(r.winner===1?opp().k:'you',m,m.handNo,{net:r.netWon!=null?r.netWon:net,amount:r.pot||0,bb:m.bb,inPlay:m.stack[0]+m.stack[1],allin:!r.fold&&m.log.some(function(e){return e.allin}),bust:m.stack[0]<=0,table:false,cheer:m.stack[1]<=0&&r.winner===0});
  try{bgHand(bgInfoH(m,r))}catch(e){}
+ /* == PART: heads-up defeat picture (v14) == */
+ if(m.stack[1]<=0){var dfn=opp().n;setTimeout(function(){if(ui.m===m)defeat(dfn)},ui.fast?0:1500)}
+ /* == END PART == */
  var nm=opp().n;
  if(m.stack[1]<=0)speak('You win the match.');else if(m.stack[0]<=0)speak('Good game. Try again.');
  else speak(r.winner===0?'You win '+net+'.':r.winner===1?nm+' wins.':'Split pot.')}
@@ -2119,7 +2164,7 @@ function starsHTML(n){var s='';for(var i=1;i<=3;i++)s+='<span class="'+(i<=n?'':
 function plateHTML(who,db){var nm=who===1?opp().n:esc(ui.me.name),m=ui.m;
  return '<div class="plate"><div class="who">'+avatarHTML(who)+db+'</div><div class="pinfo"><div class="nm">'+nm+'</div><div class="stk">'+pile(m.stack[who],{spread:1,cap:4,key:'stack'+who,me:who===0})+'</div></div></div>'}
 function tableHTML(){if(ui.mode!=='h')return tableTHTML();
- var m=Object.create(ui.m);if(!m.bet){m.bet=[0,0];m.pot=0;m.board=[]}var inHand=ui.phase==='play'||ui.phase==='end',end=ui.phase==='end',res=m.result,show=end&&res&&!res.fold;
+ var m=Object.create(ui.m);if(!m.bet){m.bet=[0,0];m.pot=0;m.board=[]}var inHand=ui.phase==='play'||ui.phase==='end',end=ui.phase==='end',res=m.result,show=(end||!!ui.ro)&&res&&!res.fold;
  var vals={bet0:m.bet[0],bet1:m.bet[1],pot:m.pot,stack0:m.stack[0],stack1:m.stack[1]};ui.pop={};for(var k in vals)if(vals[k]>(ui.prev[k]||0))ui.pop[k]=1;ui.prev=vals;
  var soft={},strong={},madeCat=-1;
  if(inHand){var mh=PK.made(m.hole[0],m.board);if(ui.coach){madeCat=mh.cat;if(ui.phase==='play')keyCards(mh).forEach(function(c){soft[c]=1})}if(show)madeCat=res.hands[0].cat}
@@ -2130,7 +2175,7 @@ function tableHTML(){if(ui.mode!=='h')return tableTHTML();
  else if(ui.bubble)bub='<div class="bubble '+ui.bubble.k+'">'+I(ui.bubble.i)+ui.bubble.w+'</div>';else bub='<div class="bubble empty">&nbsp;</div>';
  var oh='';if(inHand){oh=show?m.hole[1].map(function(c){return cardHTML(c,cl(c,'oc'))}).join(''):backHTML('oc')+backHTML('oc')}else oh='<div class="slot" style="--cw:var(--ow)"></div><div class="slot" style="--cw:var(--ow)"></div>';
  var hint='',di=ui.coach&&ui.phase==='play'&&!m.over&&m.toAct===0&&m.board.length>=3?drawInfo():null;if(di&&di.one)hint=rn(K(di.one,0));
- var bd='';for(var i=0;i<5;i++){bd+=m.board[i]!==undefined?cardHTML(m.board[i],cl(m.board[i],'bc')+(ui.dealt&&ui.dealt[i]?'':' deal')):'<div class="slot'+(hint&&i===m.board.length?' hint':'')+'">'+(hint&&i===m.board.length?hint:'')+'</div>'}
+ var bd='';for(var i=0;i<5;i++){bd+=m.board[i]!==undefined&&!roHide(i,m.handNo)?cardHTML(m.board[i],cl(m.board[i],'bc')+(ui.dealt&&ui.dealt[i]?'':' deal')):'<div class="slot'+(hint&&i===m.board.length?' hint':'')+'">'+(hint&&i===m.board.length?hint:'')+'</div>'}
  ui.dealt=m.board.slice();
  var mine='';if(inHand){mine='<div class="hand">'+m.hole[0].map(function(c){return cardHTML(c,cl(c,'pc')+(ui.lastShown===m.handNo?'':' deal'))}).join('')+'</div>';ui.lastShown=m.handNo}else mine='<div class="hand"><div class="slot" style="--cw:var(--pw)"></div><div class="slot" style="--cw:var(--pw)"></div></div>';
  var dOpp=inHand&&m.button===1?'<div class="dbtn">D</div>':'',dMe=inHand&&m.button===0?'<div class="dbtn">D</div>':'';
@@ -2185,7 +2230,7 @@ function sideHTML(){var m=ui.m;
   var est=!/^BOOK/i.test(String(ui.adv.source||''));
   vh='<div class="vrow"><div class="verdict '+vinfo.vk+'" data-rep="1" role="button" tabindex="0" aria-label="say it again">'+I(ui.adv.allIn?'flame':vinfo.vi)+'<span class="vw">'+vl+'</span>'+(ui.adv.facingAllIn?'<span class="fai">'+I('flame')+'ALL IN</span>':'')+(est?'<span class="est" data-est="1">ESTIMATE</span>':'')+'</div><button class="rep" data-rep="1" aria-label="again">'+I('say')+'</button><button class="qb" data-nq="1" aria-label="for the grown-up" aria-expanded="'+(!!ui.nq)+'">?</button></div>'
    +(ui.nq?'<div class="qpanel" data-qpanel="1" role="region" aria-label="for the grown-up">'+numsHTML()+startTagsHTML()+'</div>':'')}
- ui.dockH=(ui.nq&&vh?'':'')+vh+a;
+ ui.dockH=(ui.nq&&vh?'':'')+vh+a+cfHTML();
  return coach}
 
 /* ---------- any amount: big - / + steps and a slider ---------- */
@@ -2209,13 +2254,18 @@ function amtStep(d){var L=ui.Lcur;if(!L)return;if(d==='book'){var bb2=document.q
 document.addEventListener('input',function(e){if(e.target&&e.target.id==='amtrng')amtSet(+e.target.value)});
 function rowHTML(seat,win){var h=ui.m.result.hands[seat];
  return '<div class="rh'+(win?' win':'')+'" data-seat="'+seat+'">'+avatarHTML(seat)+'<div class="rb"><div class="rcards">'+orderHand(h.cards,h.cat).map(mini).join('')+'</div><div class="rl">'+CATN[h.cat]+'</div></div></div>'}
+/* == PART: heads-up rebuys (v14): same setting and prompt as tables, humans only == */
+function huCanReb(){return ui.rebuys<0||(ui.huReb||0)<ui.rebuys}
+function huRebuy(){var m=ui.m;if(!m||m.stack[0]>0||m.stack[1]<=0||!huCanReb())return;ui.huReb=(ui.huReb||0)+1;m.stack[0]=1000;deal()}
+function huRebAskHTML(){var left=ui.rebuys<0?0:ui.rebuys-(ui.huReb||0);return '<div class="rebask" data-rebask="1"><button class="btn big" data-go="hureb" aria-label="rebuy">'+I('chips')+'1000'+(left>0?'<span class="rbleft">'+left+' LEFT</span>':'')+'</button><button class="btn gold rbno" data-t="home" aria-label="leave">'+I('home')+'</button></div>'}
+/* == END PART == */
 function endHTML(){var m=ui.m,r=m.result,w=r.winner,h='',tie=w<0;
  h+='<div class="banner"><div class="crown">'+(tie?I('handshake'):I('crown'))+'</div>';
  var net=ui.net;h+='<div class="gain '+(net>0?'win':net<0?'lose':'')+'">'+(net>0?'+':net<0?'−':'')+Math.abs(net)+'</div>';
  if(r.fold)h+='<div class="rhs"><div class="rh win" data-seat="'+w+'">'+avatarHTML(w)+'</div><div class="rh" data-seat="'+(1-w)+'">'+avatarHTML(1-w)+'<span class="fi">'+I('hand')+'</span></div></div>';
  else{var a=tie?0:w;h+='<div class="rhs">'+rowHTML(a,!tie)+'<div class="sym">'+(tie?'=':'&gt;')+'</div>'+rowHTML(1-a,false)+'</div>'}
  if(m.stack[1]<=0)h+='<div class="wpic" data-wpic="1"><img alt="" src="'+PW+'"></div><div class="crown" style="animation-duration:.8s">'+I('trophy')+'</div>',ui.dockH='<button class="btn big gold" data-go="new">'+I('again')+'NEW GAME</button>';
- else if(m.stack[0]<=0)ui.dockH='<button class="btn big gold" data-go="again">'+I('again')+'TRY AGAIN</button>';
+ else if(m.stack[0]<=0)ui.dockH=huCanReb()?huRebAskHTML():'<button class="btn big gold" data-go="again">'+I('again')+'TRY AGAIN</button>';
  else ui.dockH='<button class="btn big" data-go="next">'+I('next')+'NEXT</button>';
  return h+'</div>'}
 /* ---------- showdown: slide the winning five into a tray (FLIP), leave ghosts ---------- */
@@ -2276,14 +2326,17 @@ function cxName(){return ui.multi?(ui.cname||'Someone'):opp().n}
    A network controller must offer the same members; view must always be a TB.view for mySeat. ===== */
 function makeLocalCtl(nb){
  var seed=(Date.now()^(Math.random()*1e9))>>>0,rng=PK.rng32(seed),brng=PK.rng32(seed^0x51ed270b),
-  seats=[{name:ui.me.name,kind:'human',lvl:1,id:'me'}];
- botList(nb).forEach(function(b,i){seats.push({name:b.name,kind:'bot',lvl:b.lvl,id:'bot'+(i+1)})});
+  seats=[{name:ui.me.name,kind:'human',lvl:1,id:'me'}],bl0=botList(nb);rotSeat(bl0.map(function(b){return b.name}));
+ bl0.forEach(function(b,i){seats.push({name:b.name,kind:'bot',lvl:b.lvl,id:'bot'+(i+1)})});
  var t=TB.newTable({seats:seats,sb:10,bb:20,start:1000,rng:rng,rebuys:ui.rebuys<0?Infinity:ui.rebuys}),subs=[],timer=0,dead=false,ctl={kind:'local',mySeat:0,view:TB.view(t,0)};t.seats[0].av=ui.me.av;ctl.view=TB.view(t,0);
- function emit(){ctl.view=TB.view(t,0);subs.forEach(function(f){f()})}
+ function emit(){ctl.view=TB.watchView(t,0);subs.forEach(function(f){f()})}
  function pump(){clearTimeout(timer);if(dead||t.over||!t.h)return;var s=t.h.toAct;if(s<0||t.seats[s].kind!=='bot')return;
   timer=setTimeout(function(){if(dead||t.over||t.h.toAct!==s)return;TB.act(t,s,TB.botAct(t,s,brng));emit();pump()},ui.fast?30:900)}
  ctl.act=function(a){if(dead||t.over||!t.h||t.h.toAct!==0)return;TB.act(t,0,a);emit();pump()};
- ctl.next=function(){if(dead||!t.over||t.tableOver||t.humansOut)return;TB.startHand(t);emit();pump()};
+ ctl.next=function(){if(dead||!t.over||t.tableOver||(t.humansOut&&!ctl.watching))return;TB.startHand(t);emit();pump()};
+ /* == PART: watch when out (v14): the computer players play on after every human is out == */
+ ctl.watching=false;ctl.watchRest=function(){if(dead||!t.humansOut||t.tableOver)return;ctl.watching=true;ctl.next()};
+ /* == END PART == */
  ctl._t=function(){return t};
  ctl.onChange=function(f){subs.push(f)};
  ctl.stop=function(){dead=true;clearTimeout(timer);subs=[]};
@@ -2291,7 +2344,7 @@ function makeLocalCtl(nb){
 /* ===== end of controller ===== */
 /* ===== ONLINE: relay layer + host / guest controllers (same shape as the local one) ===== */
 var Net=(function(){
- /* v13.1 (2): the free public relays stay, but nothing readable goes over them. The table code (8 digits) never appears in a topic: PBKDF2(code) gives 64 bytes; the
+ /* v13.1 (2): the free public relays stay, but nothing readable goes over them. The table code (4 digits) never appears in a topic: PBKDF2(code) gives 64 bytes; the
     first 32 are the AES-GCM key, SHA-256 of the last 32 names the topic. Every message is AES-GCM encrypted (the topic is bound in as additional data); a message that
     does not decrypt is dropped. Players are only ever a picture id; a joiner gets a key of their own (ECDH) only when the host taps LET IN. */
  var BROKERS=[{url:'wss://public.cloud.shiftr.io:443/mqtt',username:'public',password:'public'},{url:'wss://broker.emqx.io:8084/mqtt'},{url:'wss://broker.hivemq.com:8884/mqtt'}];
@@ -2363,7 +2416,7 @@ function makeHostCtl(){
  function idxOf(id){if(!t)return -1;for(var i=0;i<t.seats.length;i++)if(t.seats[i].id===id)return i;return -1}
  function nameMap(){var all=humans.concat(pend),u=uniqNames(all.map(function(h){return h.av})),m={};all.forEach(function(h,i){m[h.id]=u[i]});return m}
  function avs(){return humans.concat(pend).map(function(h){return h.av})}
- function mk(seat){var v=TB.view(t,seat),nm=nameMap();
+ function mk(seat){var v=TB.watchView(t,seat),nm=nameMap();
   v.seats.forEach(function(s,i){var o=t.seats[i];if(o.kind==='human'){var hu=hOf(o.id);s.name=nm[o.id]||'Helm';s.av=hu?hu.av:'helm';s.away=!!(hu&&i!==0&&Date.now()-hu.seen>10000)}});
   v.seq=seq;return v}
  function lobbyMsg(){var a=[],nm=nameMap();
@@ -2385,7 +2438,8 @@ function makeHostCtl(){
   if(old)old.seats.forEach(function(s){byId[s.id]=s});
   pend.forEach(function(h){humans.push(h)});pend=[];clamp();
   humans.forEach(function(h){seats.push({name:'',kind:'human',lvl:1,id:h.id})});
-  botList2(nbots,avs()).forEach(function(b,k){seats.push({name:b.name,kind:'bot',lvl:b.lvl,id:'bot'+(k+1)})});
+  var bl2=botList2(nbots,avs());if(!old)rotSeat(bl2.map(function(b){return b.name}));
+  bl2.forEach(function(b,k){var ob=byId['bot'+(k+1)];seats.push({name:ob?ob.name:b.name,kind:'bot',lvl:ob?ob.lvl:b.lvl,id:'bot'+(k+1)})});
   var nt=TB.newTable({seats:seats,sb:10,bb:20,start:1000,rng:rng,rebuys:ui.rebuys<0?Infinity:ui.rebuys});
   nt.seats.forEach(function(s){var o=byId[s.id];if(o){s.stack=o.stack;s.rebuys=o.rebuys;s.out=!!o.out;s.outHand=o.outHand||0}if(s.kind==='human'){var hh=hOf(s.id);if(hh)s.av=hh.av}});
   if(old){nt.handNo=old.handNo;var n=old.seats.length,bid=null,k;
@@ -2441,17 +2495,17 @@ function makeHostCtl(){
  return ctl}
 
 function makeGuestCtl(room){
- var link=Net.open(room),gid=lsGet('pk_gid'),subs=[],lsubs=[],seq=-1,last=Date.now(),tick=0,pend=null,dead=false,gk=null,ec=null,saved=null,joinAfter=0,
+ var link=Net.open(room),gid=lsGet(SK('gid')),subs=[],lsubs=[],seq=-1,last=Date.now(),tick=0,pend=null,dead=false,gk=null,ec=null,saved=null,joinAfter=0,
   ctl={kind:'guest',mySeat:-1,room:room,view:null,lobby:null,wait:false,stale:false,approved:false,declined:false,link:link};
- if(!gid||!/^[a-z0-9]{8,40}$/.test(gid)){gid=Net.rid(14);lsSet('pk_gid',gid)}
- try{saved=JSON.parse(lsGet('pk_gk')||'null')}catch(e){saved=null}
+ if(!gid||!/^[a-z0-9]{8,40}$/.test(gid)){gid=Net.rid(14);lsSet(SK('gid'),gid)}
+ try{saved=JSON.parse(lsGet(SK('gk'))||'null')}catch(e){saved=null}
  if(saved&&(saved.room!==room||saved.gid!==gid||typeof saved.gk!=='string'||Date.now()-saved.at>6*3600000))saved=null;
  if(saved)joinAfter=5;
  function emit(){subs.forEach(function(f){f()})}
  function lob(){lsubs.forEach(function(f){f()})}
  function joinMsg(){if(!ec||ctl.approved||ctl.declined||dead)return;link.pub('up',{t:'join',id:gid,av:ui.me.av,pk:ec.pub})}
  function aUp(o){if(!gk)return 0;o.id=gid;return link.pub('a/'+gid,o,gk)}
- function useKey(k,fresh){gk=k;link.sub('to/'+gid,onTo,function(){return [gk]});if(fresh)Net.keyOut(k).then(function(raw){lsSet('pk_gk',JSON.stringify({room:room,gid:gid,gk:raw,at:Date.now()}))})}
+ function useKey(k,fresh){gk=k;link.sub('to/'+gid,onTo,function(){return [gk]});if(fresh)Net.keyOut(k).then(function(raw){lsSet(SK('gk'),JSON.stringify({room:room,gid:gid,gk:raw,at:Date.now()}))})}
  function onTo(m){if(!m||typeof m.seq!=='number')return;last=Date.now();ctl.stale=false;
   if(!ctl.approved){ctl.approved=true}
   if(m.seq<seq)return;
@@ -2481,18 +2535,18 @@ function makeGuestCtl(room){
 /* ===== online screens ===== */
 function enterOnline(c){ui.sigT='';clearTimeout(ui.joinT);ui.onl=null;ui.octl=c;ui.multi=true;ui.ctl=c;ui.ckey=null;ui.reb=null;ui.flash={};ui.tHand=-1;ui.endNo=-1;ui.prevBoard=0;
  c.onChange(onTbl);ui.mv=c.view;ui.phase=ui.mv&&ui.mv.over?'end':'play';onTbl()}
-function onlStop(){clearTimeout(ui.joinT);if(ui.octl&&ui.octl!==ui.ctl&&ui.octl.stop)ui.octl.stop();ui.octl=null;ui.onl=null;lsSet('pk_room',null);lsSet('pk_gk',null)}
+function onlStop(){clearTimeout(ui.joinT);if(ui.octl&&ui.octl!==ui.ctl&&ui.octl.stop)ui.octl.stop();ui.octl=null;ui.onl=null;lsSet(SK('room'),null);lsSet(SK('gk'),null)}
 function onlRefresh(){if(ui.screen==='table'&&ui.phase==='menu'&&ui.onl)render()}
 function guestUpd(c){if(ui.octl!==c||(ui.multi&&ui.ctl===c))return;
- if(c.declined&&ui.onl&&ui.onl.step!=='declined'){clearTimeout(ui.joinT);ui.onl.step='declined';c.stop();lsSet('pk_room',null);lsSet('pk_gk',null);onlRefresh();return}
+ if(c.declined&&ui.onl&&ui.onl.step!=='declined'){clearTimeout(ui.joinT);ui.onl.step='declined';c.stop();lsSet(SK('room'),null);lsSet(SK('gk'),null);onlRefresh();return}
  if(c.approved&&(c.view||c.wait||(c.lobby&&c.lobby.started))){enterOnline(c);return}
- if(c.approved&&c.lobby&&ui.onl&&ui.onl.step!=='guestlobby'){clearTimeout(ui.joinT);ui.onl.step='guestlobby';lsSet('pk_room',JSON.stringify({room:c.room,at:Date.now()}))}
+ if(c.approved&&c.lobby&&ui.onl&&ui.onl.step!=='guestlobby'){clearTimeout(ui.joinT);ui.onl.step='guestlobby';lsSet(SK('room'),JSON.stringify({room:c.room,at:Date.now()}))}
  else if(!c.approved&&c.lobby&&ui.onl&&ui.onl.step==='joining'){clearTimeout(ui.joinT);ui.onl.step='asking'}
  onlRefresh()}
 function joinRoom(code){clearTimeout(ui.joinT);ui.onl={step:'joining',code:code};var c=ui.octl=makeGuestCtl(code);
  c.onLobby(function(){guestUpd(c)});c.onChange(function(){guestUpd(c)});
  c.link.onState(function(s){if(s==='failed'&&ui.octl===c&&!c.lobby&&!c.view){clearTimeout(ui.joinT);c.stop();ui.octl=null;ui.onl={step:'noconn'};render()}});
- ui.joinT=setTimeout(function(){if(ui.octl===c&&!c.lobby&&!c.view&&!c.wait){c.stop();ui.octl=null;ui.onl={step:'nosuch',code:''};lsSet('pk_room',null);render()}},8000);
+ ui.joinT=setTimeout(function(){if(ui.octl===c&&!c.lobby&&!c.view&&!c.wait){c.stop();ui.octl=null;ui.onl={step:'nosuch',code:''};lsSet(SK('room'),null);render()}},8000);
  render()}
 function onlClick(x){var o=ui.onl,c;
  if(x==='host'||x==='join'){if(ui.mode==='h')ui.mode=3;onlStop();
@@ -2517,7 +2571,7 @@ function onlHTML(){var o=ui.onl,c=ui.octl,back='<button class="btn gold obk" dat
  if(o.step==='noconn')return '<div class="onl"><div class="bigpic nc" data-pic="noconn">'+I('nocon')+'<span>NO CONNECTION</span></div>'+back+'</div>';
  if(o.step==='nosuch')return '<div class="onl"><div class="bigpic nt" data-pic="notable">'+I('notable')+'<span>NO TABLE</span></div><button class="btn big" data-on="again">'+I('again')+'AGAIN</button>'+back+'</div>';
  if(o.step==='host'){if(!c||!c.ready)return '<div class="onl"><div class="bigpic">'+I('globe')+'<span class="dots3"><span></span><span></span><span></span></span></div>'+back+'</div>';
-  var l=c.lobby();return '<div class="onl">'+askHTML(c)+'<div class="roomno" id="roomno" aria-label="table number '+c.room.split('').join(' ')+'">'+codeFmt(c.room)+'</div>'+lobbySeatsHTML(l.seats,1)+botsRowHTML(c)+rebuyRowHTML()
+  var l=c.lobby();return '<div class="onl">'+askHTML(c)+'<div class="roomno" id="roomno" aria-label="table number '+c.room.split('').join(' ')+'">'+codeFmt(c.room)+'</div>'+lobbySeatsHTML(l.seats,1)+botsRowHTML(c)+rebuyRowHTML()+autoRowHTML()
    +'<button class="btn big" data-on="deal"'+(c.seatsN()>=2?'':' disabled')+'>'+I('play')+'DEAL</button>'+back+'</div>'}
  if(o.step==='guestlobby'&&c&&c.lobby)return '<div class="onl"><div class="roomno sm">'+codeFmt(c.room)+'</div>'+lobbySeatsHTML(c.lobby.seats,9)+'<div class="bigpic">'+I('hourglass')+'</div>'+back+'</div>';
  var dg='<div class="digs" aria-label="table number">';for(i=0;i<4;i++)dg+='<b>'+(o.code[i]||'')+'</b>';dg+='</div>';
@@ -2527,6 +2581,38 @@ function onlHTML(){var o=ui.onl,c=ui.octl,back='<button class="btn gold obk" dat
  var pad='<div class="pad">';for(i=1;i<=9;i++)pad+='<button data-on="d'+i+'">'+i+'</button>';
  pad+='<button class="bk" data-on="bs" aria-label="back one">'+I('bs')+'</button><button data-on="d0">0</button><button class="ok" data-on="ok" aria-label="join"'+(o.code.length===4?'':' disabled')+'>'+I('tick')+'</button></div>';
  return '<div class="onl">'+dg+pad+back+'</div>'}
+/* == PART: auto-advance (v14) == "Next hand: Tap / Auto 2 s / 4 s / 6 s", saved under SK('auto'). A quarter-second poll: when the hand is over and a plain NEXT button is on screen
+   (never the rebuy ask, never table over / all out, never a guest), it counts down on the button and then goes. Pop-ups, badges, the showdown tray, settings,
+   the leave sheet and a hidden page hold it (the count starts again when they close). Only the host or local controller runs it. */
+function akey(){return typeof SK==='function'?SK('auto'):'pk_auto'}
+ui.auto=0;(function(){var a=+lsGet(akey());ui.auto=a===2||a===4||a===6?a:0})();
+function autoRowHTML(){var o=[[0,'TAP','next hand by tap'],[2,'2 s','next hand after 2 seconds'],[4,'4 s','next hand after 4 seconds'],[6,'6 s','next hand after 6 seconds']];
+ return '<div class="rebrow autorow" data-autorow="'+ui.auto+'"><span class="rbl">'+I('next')+'</span>'+o.map(function(x){return '<button class="rbb'+(ui.auto===x[0]?' sel':'')+'" data-au="'+x[0]+'" aria-pressed="'+(ui.auto===x[0])+'" aria-label="'+x[2]+'">'+x[1]+'</button>'}).join('')+'</div>'}
+function autoLab(el,n){var s=el.querySelector('.acd');if(!n){if(s)s.remove();return}if(!s){s=document.createElement('span');s.className='acd';el.appendChild(s)}if(s.textContent!==String(n))s.textContent=String(n)}
+function autoPoll(){var el=null,k,now=Date.now();
+ if(ui.auto>0&&!ui.intro&&ui.screen==='table'&&ui.phase==='end'&&!(ui.ctl&&ui.ctl.kind==='guest')){el=document.querySelector('#app button[data-go=next],#app button[data-go=tnext]');if(el&&el.closest('[data-rebask]'))el=null}
+ if(!el){ui.autoAt=0;ui.autoK=null;return}
+ k=(ui.multi?(ui.mv&&ui.mv.handNo):ui.m.handNo)+':'+ui.multi;
+ var blk=!!(document.hidden||ui.settings||ui.leaveAsk||ui.badges||ui.defCur||BG.cur||BG.q.length||(ui.sd&&!ui.sd.done));
+ if(blk||k!==ui.autoK){ui.autoK=blk?null:k;ui.autoAt=blk?0:now+ui.auto*1000;autoLab(el,blk?0:ui.auto);return}
+ var left=Math.ceil((ui.autoAt-now)/1000);
+ if(left<=0){ui.autoAt=0;ui.autoK='done:'+k;if(el.dataset.go==='next')deal();else if(ui.ctl)ui.ctl.next();return}
+ autoLab(el,left)}
+setInterval(autoPoll,250);
+/* == END PART == */
+/* == PART: check/fold (v14) == a toggle while it is not his turn; on his turn: check if legal, else fold, at once. Kept for this hand only (keyed to the hand). */
+function cfRef(){return ui.multi?ui.ctl:ui.m}
+function cfNo(){return ui.multi?(ui.mv&&ui.mv.handNo):ui.m.handNo}
+function cfOn(){var c=ui.cf;return !!(c&&c.on&&c.ref===cfRef()&&c.no===cfNo())}
+function cfCan(){if(ui.multi){var v=ui.mv;if(!v||!v.started||v.over||v.you<0)return false;var s=v.seats[v.you];return !!s&&!!s.inHand&&!s.folded&&!s.out&&s.stack>0&&v.toAct!==v.you}
+ var m=ui.m;return ui.phase==='play'&&!m.over&&m.toAct!==0&&m.stack[0]>0}
+function cfHTML(){if(!cfCan())return '';var on=cfOn();return '<button class="btn cfb'+(on?' sel':'')+'" data-cf="1" aria-pressed="'+on+'" aria-label="check or fold">'+(on?I('tick'):'')+'CHECK / FOLD</button>'}
+function cfToggle(){ui.cf=cfOn()?null:{ref:cfRef(),no:cfNo(),on:true};render()}
+function cfFire(canCheck){if(!cfOn())return false;/* v14 review M1/M4: one action per decision, deferred so a nested step()/onTbl on the next street acts again; guests re-render */
+ var m=ui.m,v=ui.mv,key=ui.multi?('t'+(v&&v.handNo)+':'+(v&&v.street)+':'+(v&&v.pot)+':'+(v&&v.L&&v.L.call)):('h'+m.handNo+':'+m.street+':'+m.pot+':'+m.log.length);if(ui.cfKey===key)return true;ui.cfKey=key;
+ setTimeout(function(){if(!cfOn())return;var a={type:canCheck?'check':'fold'};if(ui.multi){if(ui.ctl)ui.ctl.act(a);render()}else playerAct(a)},0);return true}
+
+/* == END PART == */
 function codeFmt(c){return c}
 function askHTML(c){var a=c&&c.asks?c.asks():[];if(!a.length)return '';var q=a[0];
  return '<div class="letin" role="dialog" aria-label="'+esc(q.name)+' wants to join">'+portrait({kind:'human',av:q.av,lvl:1},0,true)+'<b class="lnm">'+esc(q.name)+'</b><div class="lbt"><button class="btn gold" data-on="letin:'+q.id+'">'+I('tick')+'LET IN</button><button class="btn fold lno" data-on="deny:'+q.id+'" aria-label="no"><svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M5 5l14 14M19 5L5 19" stroke="#fff" stroke-width="4" stroke-linecap="round"/></svg></button></div>'+(a.length>1?'<span class="lmore">+'+(a.length-1)+'</span>':'')+'</div>'}
@@ -2542,7 +2628,7 @@ function nextBtnHTML(){var c=ui.ctl;
 
 function startTable(){stopTable();ui.multi=true;ui.ctl=makeLocalCtl(ui.mode);ui.ckey=null;ui.reb=null;ui.flash={};ui.tHand=-1;ui.endNo=-1;ui.prevBoard=0;
  ui.ctl.onChange(onTbl);ui.mv=ui.ctl.view;ui.phase='play';ui.ctl.next()}
-function stopTable(){ui.sigT='';defClear();clearTimeout(ui.sdT);ui.sd=null;if(ui.ctl&&ui.ctl.stop)ui.ctl.stop();ui.ctl=null;ui.multi=false;ui.mv=null}
+function stopTable(){ui.autoAt=0;ui.autoK=null;ui.roK=null;/* v14 review M2 */ui.sigT='';defClear();roStop();clearTimeout(ui.sdT);ui.sd=null;if(ui.ctl&&ui.ctl.stop)ui.ctl.stop();ui.ctl=null;ui.multi=false;ui.mv=null}
 function goHome(){stopTable();onlStop();clearTimeout(ui.timer);stopVoice();ui.screen='table';newMatch();if(!ui.fast)ui.intro='entry';ui.nmDraft=null;render()}
 /* v13.1 (3): a cheap signature of what the table shows; same signature = nothing to draw */
 function tblSig(v,c){var a=[v.seq,v.handNo,v.street,v.toAct,v.over?1:0,v.pot,(v.board||[]).join(','),v.tableOver?1:0,v.humansOut?1:0,c&&c.stale?1:0,c&&c.wait?1:0,v.L?v.L.call+'/'+v.L.minTo+'/'+v.L.maxTo:'',v.result?JSON.stringify(v.result):''];
@@ -2551,14 +2637,15 @@ function tblSig(v,c){var a=[v.seq,v.handNo,v.street,v.toAct,v.over?1:0,v.pot,(v.
 function onTbl(){var c=ui.ctl;if(!c)return;var v=c.view;ui.mv=v;if(!v){ui.phase='play';if(ui.screen==='table')render();return}
  if(ui.reb)v.seats.forEach(function(s,i){if(s.rebuys>(ui.reb[i]||0)){ui.flash[i]={no:v.handNo,at:Date.now()}}});
  ui.reb=v.seats.map(function(s){return s.rebuys});
- if(v.handNo!==ui.tHand){ui.tHand=v.handNo;ui.stats.hands++;clearTimeout(ui.sdT);ui.sd=null}
- ui.phase=v.over?'end':'play';
+ if(v.handNo!==ui.tHand){if(ui.ro){var ro0=ui.ro,pv=ui.roV;roStop();if(pv&&pv.handNo===ro0.no&&pv.over){endT(pv);detectOut(pv)}}/* v14 review M3: a new hand mid-staging still finishes the old one */ui.tHand=v.handNo;ui.stats.hands++;clearTimeout(ui.sdT);ui.sd=null}
+ ui.phase=v.over&&!(ui.ro&&ui.ro.no===v.handNo)?'end':'play';
+ if(!v.over&&v.toAct===v.you&&v.L&&cfFire(v.L.canCheck))return;/*v14 check/fold*/
  var fresh=false;
  if(!v.over&&v.toAct===v.you&&v.L){var key=v.handNo+':'+v.street+':'+v.L.call+':'+v.pot+':'+v.board.length;
   if(ui.ckey!==key){ui.ckey=key;fresh=true;var cc=TB.coach(v,ui.rng2,400);ui.eq=cc.eq;ui.ins=cc.ins;ui.adv=cc.adv;ui.nuts=cc.nuts||null;if(ui.nuts&&ui.nuts.isNuts)bfGet().nuts=true;ui.L=v.L;ui.nOpp=cc.nOpp;ui.read=cc.read?{name:v.seats[cc.read.seat].name,bluff:cc.read.bluff}:null;ui.dseat=-1;ui.cname='Someone';
    if(cc.nOpp===1)v.seats.forEach(function(s,i){if(i!==v.you&&s.inHand&&!s.folded){ui.dseat=i;ui.cname=s.name}})}}
  var ended=v.over&&ui.endNo!==v.handNo;
- if(ended){ui.endNo=v.handNo;endT(v);detectOut(v)}
+ if(ended){ui.endNo=v.handNo;if(v.runout&&v.result&&!v.result.fold&&roGo(v.handNo,v.runFrom,Object.keys(v.result.shown||{}).map(function(j){return {av:avT(+j,v),name:v.seats[j].name}}),function(){roFinT(v.handNo)})){ended=false;ui.phase='play'}else{endT(v);detectOut(v)}}
  var sg=tblSig(v,c);if(ui.screen==='table'&&(ended||fresh||sg!==ui.sigT||ui.dirtyR)){ui.sigT=sg;ui.dirtyR=0;render()}
  if(ended&&v.result&&!v.result.fold&&v.result.best!=null){ui.sd={no:v.handNo,done:false};if(ui.fast||ui.reduce)runSD(false);else ui.sdT=setTimeout(function(){runSD(true)},1000)}
  if(fresh){if(ui.coach)say(coachLine());else speak('Your turn.')}}
@@ -2574,6 +2661,22 @@ function drawPop(){var el=document.getElementById('pop');if(!el)return;var n=ui.
 function defNext(){clearTimeout(ui.defT);stopVoice();ui.defCur=(ui.defQ&&ui.defQ.shift())||null;drawPop();if(ui.defCur)speak(ui.defCur+' is out.')}
 function defeat(name){ui.defQ=ui.defQ||[];ui.defQ.push(name);if(!ui.defCur)defNext()}
 function defClear(){clearTimeout(ui.defT);ui.defQ=[];ui.defCur=null;drawPop()}
+/* == PART: all-in runout (v14): when an all in is called, the hands are face up (the view shows them once betting is over), an ALL IN! pop-up for about 1.8 s with a sound, then the board one street at a time, then the normal end == */
+try{document.head.insertAdjacentHTML('beforeend','<style>.ropov{position:fixed;inset:0;z-index:85;display:flex;align-items:center;justify-content:center;pointer-events:none;background:rgba(0,0,0,.5);padding:12px}.rocard{display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--panel,#2a1c12);border:4px solid #e0301e;border-radius:22px;padding:14px 18px;animation:pop .3s;max-width:92vw;color:var(--ink,#fff)}.roi{width:96px;height:96px;border-radius:16px;object-fit:cover}.rot{font-weight:900;font-size:calc(44px*var(--ts));color:#ff5a3c;letter-spacing:2px;line-height:1}.rowho{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}.rw{display:flex;flex-direction:column;align-items:center;gap:4px;font-weight:900;font-size:calc(16px*var(--ts))}.rw .avatar{width:56px;height:56px;animation:none}.watchb{position:absolute;left:50%;top:2%;transform:translateX(-50%);z-index:8;background:rgba(0,0,0,.65);color:#ffd23c;font-weight:900;font-size:calc(16px*var(--ts));border-radius:12px;padding:2px 12px;display:flex;gap:6px;align-items:center;pointer-events:none}.card.wch{outline:2px solid #ffd23c}</style>')}catch(e){}
+function roD(x){return ui.fast?30:ui.reduce?Math.min(x,400):x}
+function roHide(i,no){return !!ui.ro&&ui.ro.no===no&&i>=ui.ro.n}
+function roPop(on){var el=document.getElementById('ropop');if(!el){el=document.createElement('div');el.id='ropop';document.body.appendChild(el)}var r=ui.ro;
+ el.innerHTML=on&&r?'<div class="ropov" data-ro="1" role="alert" aria-label="all in"><div class="rocard"><img class="roi" alt="" src="'+(BI.allin||BP.allin)+'"><div class="rot">ALL IN!</div><div class="rowho">'+r.who.map(function(w){return '<div class="rw">'+w.av+'<b>'+esc(w.name)+'</b></div>'}).join('')+'</div></div></div>':''}
+function roStop(){clearTimeout(ui.roT);ui.ro=null;roPop(false)}
+function roGo(no,from,who,done){var k=(ui.multi?'t':'h')+no;if(ui.roK===k||from==null||from>=5)return false;ui.roK=k;roStop();ui.roV=ui.multi?ui.mv:null;/* v14 review M3: the view being staged */ui.ro={no:no,n:from,who:who,done:done};render();roPop(true);try{SFX.allin()}catch(e){}ui.roT=setTimeout(roStep,roD(1800));return true}
+function roStep(){var r=ui.ro;if(!r)return;roPop(false);if(r.n<5){r.n=r.n<3?3:r.n+1;render();ui.roT=setTimeout(roStep,roD(1000));return}ui.ro=null;r.done()}
+function roFinT(no){var v=ui.mv;if(!v||v.handNo!==no||!v.over)return;ui.phase='end';endT(v);detectOut(v);ui.sigT='';render();
+ if(v.result&&!v.result.fold&&v.result.best!=null){ui.sd={no:no,done:false};if(ui.fast||ui.reduce)runSD(false);else ui.sdT=setTimeout(function(){runSD(true)},1000)}}
+/* == END PART == */
+/* == PART: watch when out (v14): the WATCH THE REST button on the table-end screen == */
+document.addEventListener('click',function(e){var el=e.target.closest&&e.target.closest('[data-watch]');if(!el)return;buzz();if(ui.ctl&&ui.ctl.watchRest){ui.ctl.watchRest();ui.sigT='';render()}});
+/* == END PART == */
+
 /* a computer seat is out when the engine says so (no chips, computers never rebuy) */
 function seatOut(s){return !!s&&s.kind==='bot'&&s.out===true}
 function detectOut(v){if(ui.outCtl!==ui.ctl){ui.outCtl=ui.ctl;ui.outSeen={}}
@@ -2584,7 +2687,7 @@ function endT(v){var r=v.result,s=ui.stats,me=v.you,mine=0,top=null;
  if(mine>0){s.won++;s.streak++;if(netMine>s.biggest)s.biggest=netMine;var sh=r.shown&&r.shown[me];if(!r.fold&&sh&&sh.cat>s.best)s.best=sh.cat}else s.streak=0;
  save();
  var wk='other',ws0=r.winners[0]&&v.seats[r.winners[0].seat];if(mine>0)wk='you';else if(ws0&&ws0.kind==='bot')wk=CK[ws0.name]||'other';
- winSting(wk,ui.ctl||0,v.handNo,{amount:r.winners[0]?r.winners[0].amount:0,bb:v.bb,inPlay:v.seats.reduce(function(a,x){return a+x.stack},0),allin:!r.fold&&(v.alls||[]).length>0,bust:(v.outs||[]).length>0||v.seats.some(function(x){return x.kind==='human'&&x.stack===0&&!x.out}),table:true,seats:v.seats.length,left:v.seats.filter(function(x){return !x.out&&x.stack>0}).length,cheer:!!v.tableOver&&v.winner===me});
+ winSting(wk,ui.ctl||0,v.handNo,{net:mine>0?netMine:r.winners[0]?(r.winners[0].net!=null?r.winners[0].net:r.winners[0].amount):0,amount:r.winners[0]?r.winners[0].amount:0,bb:v.bb,inPlay:v.seats.reduce(function(a,x){return a+x.stack},0),allin:!r.fold&&(v.alls||[]).length>0,bust:(v.outs||[]).length>0||v.seats.some(function(x){return x.kind==='human'&&x.stack===0&&!x.out}),table:true,seats:v.seats.length,left:v.seats.filter(function(x){return !x.out&&x.stack>0}).length,cheer:!!v.tableOver&&v.winner===me});
  try{bgHand(bgInfoV(v))}catch(e){}
  speak(v.tableOver?(v.winner===me?'You win the table.':v.winner>=0?v.seats[v.winner].name+' wins the table.':'You are out.'):mine>0?'You win '+netMine+'.':top?v.seats[top.seat].name+' wins '+(top.net!=null?top.net:top.amount)+'.':'')}
 
@@ -2614,7 +2717,7 @@ function tableTHTML(){var pv=!ui.multi||!ui.mv,v=pv?previewView():ui.mv,n=v.seat
  function cl(c,base){return base+(strong[c]?' glow':soft[c]?' soft':'')}
  function seat(i){var s=v.seats[i],me=i===v.you,cards='',cls='seat'+(me?' me':'')+(s.folded?' fold':'')+(s.out?' out':'')+(played&&!v.over&&v.toAct===i?' turn':''),fl=ui.flash&&ui.flash[i],st,nm=esc(me&&ui.me.name&&ui.me.name!=='You'&&ui.multi?ui.me.name:s.name),bm=s.kind==='bot'?/ (\d)$/.exec(nm):null;
   if(me){if(s.cards)cards=s.cards.map(function(c){return cardHTML(c,cl(c,'pc')+(s.folded?' dim':'')+(ui.lastShown===v.handNo?'':' deal'))}).join('');else cards='<div class="slot" style="--cw:var(--pw)"></div><div class="slot" style="--cw:var(--pw)"></div>'}
-  else if(s.cards)cards=s.cards.map(function(c){return cardHTML(c,cl(c,'oc'))}).join('');
+  else if(s.cards)cards=s.cards.map(function(c){return cardHTML(c,cl(c,'oc')+(s.watch?' wch':''))}).join('');
   else if(played&&s.inHand&&!s.folded)cards=backHTML('oc')+backHTML('oc');
   st=cls+(me?'':pos[sl(i)-1][0]<22?' el':pos[sl(i)-1][0]>78?' er':'')+'" data-seat="'+i;
   var plate='<div class="splate"><div class="who">'+avT(i,v)+(v.button===i&&played?'<div class="dbtn">D</div>':'')+(s.away?'<span class="away">'+I('plug')+'</span>':'')+(bm?'<span class="lvb">'+bm[1]+'</span>':'')+'</div><div class="pinfo">'+'<div class="nm'+(s.kind==='human'?' hn':'')+'">'+nm+'</div>'+mstack(s.stack)+'</div>'+(s.allin&&!s.out?'<span class="allb">'+I('flame')+'ALL IN</span>':'')+(s.out?'<span class="outf">'+FLAGSVG+'</span>':'')+'</div>';
@@ -2623,12 +2726,12 @@ function tableTHTML(){var pv=!ui.multi||!ui.mv,v=pv?previewView():ui.mv,n=v.seat
  function betAt(i){var s=v.seats[i];if(!(s.bet>0)||v.over)return '';var x,y;if(i===v.you){x=50;y=72}else{var p=pos[sl(i)-1];if(pos===POSN){if(p[1]<20){x=p[0]<25?p[0]+13:p[0]>75?p[0]-13:p[0];y=p[1]+(x===p[0]?14.5:13)}else{x=p[0]<50?p[0]+17:p[0]-17;y=p[1]}}else{x=p[0]+(CEN[0]-p[0])*.18;y=p[1]+13}}
   return '<div class="sbet" style="left:'+x+'%;top:'+y+'%">'+pile(s.bet,{me:i===v.you})+'</div>'}
  var h='<div class="felt mt"'+(SKINS[ui.skin].images.table?' style="--tbl:url('+SKINS[ui.skin].images.table+')"':'')+'><div class="bline"></div>',bd='';
- for(i=0;i<5;i++)bd+=v.board[i]!==undefined?cardHTML(v.board[i],cl(v.board[i],'bc')+(i<(ui.prevBoard||0)&&!pv?'':' deal')):'<div class="slot"></div>';
+ for(i=0;i<5;i++)bd+=v.board[i]!==undefined&&!roHide(i,v.handNo)?cardHTML(v.board[i],cl(v.board[i],'bc')+(i<(ui.prevBoard||0)&&!pv?'':' deal')):'<div class="slot"></div>';
  ui.prevBoard=v.board.length;
  for(i=1;i<n;i++)h+=seat((v.you+i)%n);
  h+=seat(v.you);
  for(i=0;i<n;i++)h+=betAt(i);
- h+='<div class="cboard"><div class="board">'+bd+'</div></div>';
+ h+=(v.watching&&!pv?'<div class="watchb" data-watching="1">'+I('cards')+'WATCHING</div>':'')+'<div class="cboard"><div class="board">'+bd+'</div></div>';
  h+='<div class="cpot">'+(v.pot>0&&!v.over?pile(v.pot,{}):'')+'</div>';
  h+='<div class="tray" id="tray"><span class="tcrown">'+I('crown')+'</span><span class="tav"></span><div class="trow"></div></div>'+(ui.multi&&ui.ctl&&ui.ctl.kind==='guest'&&(!ui.mv||ui.ctl.stale)?'<div class="cover" data-cover="'+(ui.mv?'stale':'wait')+'">'+(ui.mv?I('nocon')+'<span>CONNECTING</span>':I('hourglass')+'<span>WAIT</span>')+'</div>':'')+'</div>';
  if(mc&&played)ui.lastShown=v.handNo;
@@ -2638,10 +2741,11 @@ function rowT(seat,v,amt,sm){var r=v.result,hd=r.shown&&r.shown[seat],w=r.winner
 function tableEndHTML(v){var me=v.seats[v.you],w=v.winner,h='<div class="banner tend" data-tend="1">';
  if(w>=0)h+='<div class="crown">'+I('crown')+'</div><div class="wpic" data-wpic="1"><img alt="" src="'+PW+'"></div><div class="wnr" data-winner="'+w+'">'+avT(w,v)+'</div><div class="wnm">'+esc(v.seats[w].name)+'</div><div class="wst">'+pile(v.seats[w].stack,{})+'</div>'+(w===v.you?'<div class="crown" style="animation-duration:.8s">'+I('trophy')+'</div>':'');
  if(me.out)h+='<div class="outme" data-outme="1">'+FLAGSVG+'<span>'+esc(me.name)+'</span></div>';
+ if(v.humansOut&&!v.tableOver&&ui.ctl&&ui.ctl.kind==='local')h+='<button class="btn big" data-watch="1" aria-label="watch the rest">'+I('play')+'WATCH THE REST</button>';
  return h+'<button class="btn big gold" data-t="home">'+I('again')+'NEW GAME</button></div>'}
 /* going out: a human with no chips and rebuys left is offered the rebuy (the setting from the table chooser) */
 function rebuyAskHTML(v){var me=v.seats[v.you],left=me.rebuysLeft;return '<div class="rebask" data-rebask="1"><button class="btn big" data-go="tnext" aria-label="rebuy">'+I('chips')+'1000'+(left>0?'<span class="rbleft">'+left+' LEFT</span>':'')+'</button><button class="btn gold rbno" data-t="home" aria-label="leave">'+I('home')+'</button></div>'}
-function endTHTML(){var v=ui.mv;if(v.tableOver||v.humansOut)return tableEndHTML(v);var r=v.result,h='<div class="banner"><div class="crown">'+I('crown')+'</div><div class="rhs">',won={};
+function endTHTML(){var v=ui.mv;if(v.tableOver||(v.humansOut&&!(ui.ctl&&ui.ctl.watching)))return tableEndHTML(v);var r=v.result,h='<div class="banner"><div class="crown">'+I('crown')+'</div><div class="rhs">',won={};
  r.winners.forEach(function(w){won[w.seat]=1;h+=rowT(w.seat,v,w.net!=null?w.net:w.amount)});
  if(!r.fold&&r.shown)Object.keys(r.shown).forEach(function(k){if(!won[k])h+=rowT(+k,v,null)});
  var me0=v.seats[v.you];ui.dockH=(me0.stack<=0&&!me0.out&&me0.rebuysLeft!==0&&ui.ctl&&ui.ctl.kind!=='guest'?rebuyAskHTML(v):nextBtnHTML());return h+'</div></div>'}
@@ -2650,7 +2754,7 @@ function seatIcon(nb){var dots='',pts=[],i;
  pts.forEach(function(p,k){var l=nb===1?1:LVS[nb][k],col=['#7bd84f','#7fd0ff','#ff6a5a'][l-1];dots+='<circle cx="'+(p[0]*.9+5)+'" cy="'+(p[1]*.62+4)+'" r="6.5" fill="'+col+'" stroke="#0008" stroke-width="1.5"/>'});
  return '<svg viewBox="0 0 100 70" aria-hidden="true"><ellipse cx="50" cy="35" rx="46" ry="30" fill="#1f7a45" stroke="#8a5a2c" stroke-width="5"/>'+dots+'<circle cx="50" cy="62" r="7" fill="#ffd23c" stroke="#0008" stroke-width="1.5"/></svg>'}
 function chooserHTML(){var b=function(m,lab,sub){return '<button class="mode'+(ui.mode===m?' sel':'')+'" data-mode="'+m+'" aria-label="'+sub+'">'+seatIcon(m==='h'?1:m)+'<b>'+lab+'</b></button>'};
- return '<div class="modes">'+b(2,'2','table, 2 computer players')+b(3,'3','table, 3 computer players')+b(4,'4','table, 4 computer players')+b(5,'5','table, 5 computer players')+b('h','1 v 1','one against one')+'</div>'+(ui.mode==='h'?'':rebuyRowHTML())}
+ return '<div class="modes">'+b(2,'2','table, 2 computer players')+b(3,'3','table, 3 computer players')+b(4,'4','table, 4 computer players')+b(5,'5','table, 5 computer players')+b('h','1 v 1','one against one')+'</div>'+rebuyRowHTML()+autoRowHTML()}
 /* REBUYS: how many times a person who has lost all their chips may start again with 1000. Off / 1 / 3 / Unlimited (-1). Computer players never rebuy. */
 function rebuyRowHTML(){var o=[[0,'OFF','no rebuys'],[1,'1','1 rebuy'],[3,'3','3 rebuys'],[-1,'\u221E','unlimited rebuys']];
  return '<div class="rebrow" data-rebuys="'+ui.rebuys+'"><span class="rbl">'+I('again')+'</span>'+o.map(function(x){return '<button class="rbb'+(ui.rebuys===x[0]?' sel':'')+'" data-rb="'+x[0]+'" aria-label="'+x[2]+'">'+x[1]+'</button>'}).join('')+'</div>'}
@@ -2695,7 +2799,7 @@ function render0(){applySkin();var app=document.getElementById('app'),nm0=docume
 /* ---------- (x) FEEL: a short buzz on Android, settings, Back button, pause when hidden ---------- */
 function buzz(){try{if(navigator.vibrate&&!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches))navigator.vibrate(10)}catch(e){}}
 function settingsHTML(){var sz=[[1,'Normal'],[1.15,'Large'],[1.3,'Larger']];
- return '<div class="setov" data-settings="1" role="dialog" aria-label="settings"><div class="setcard"><div class="settit">'+I('gear')+'SETTINGS</div>'
+ return '<div class="setov" data-settings="1" role="dialog" aria-label="settings"><div class="setcard"><div class="settit">'+I('gear')+'SETTINGS</div><div data-version="1" style="text-align:center;opacity:.75;font-weight:700;font-size:calc(14px*var(--ts))">Version '+VERSION+'</div>'
   +'<div class="setlab">Text size</div><div class="setrow" data-row="size">'+sz.map(function(x,i){return '<button class="setb'+(ui.ts===x[0]?' sel':'')+'" data-set="size:'+x[0]+'" aria-pressed="'+(ui.ts===x[0])+'"><span class="aa" style="font-size:'+(18+i*4)+'px">Aa</span>'+x[1]+'</button>'}).join('')+'</div>'
   +'<div class="setlab">Text style</div><div class="setrow two" data-row="font"><button class="setb'+(ui.font==='default'?' sel':'')+'" data-set="font:default" aria-pressed="'+(ui.font==='default')+'"><span class="aa">Aa</span>Current font</button><button class="setb lexb'+(ui.font==='lexend'?' sel':'')+'" data-set="font:lexend" aria-pressed="'+(ui.font==='lexend')+'"><span class="aa">Aa</span>Lexend<small>(easy-read)</small></button></div>'
   +'<div class="setlab">More</div><div class="setrow two" data-row="more"><button class="setb" data-t="me" aria-label="you"><span class="mepic sm">'+profPic()+'</span>You</button><button class="setb" data-t="screen" aria-label="screen">'+(ui.screen==='table'?I('dice')+'Make a hand':I('cards')+'Back to the table')+'</button><button class="setb" data-t="skin" aria-label="skin">'+I('brush')+'Table look</button><button class="setb'+(ui.vpanel?' sel':'')+'" data-t="voice" aria-label="voice">'+I('voice')+'Voice</button><button class="setb wide" data-t="badges" aria-label="badges">'+I('trophy')+'Badges '+bgCount()+'/'+BDS.length+'</button></div>'+(ui.vpanel?vpanelHTML():'')
@@ -2706,9 +2810,9 @@ function leaveTable(){ui.leaveAsk=false;stopTable();onlStop();clearTimeout(ui.ti
 function setClick(x){var m;
  if(x==='close')ui.settings=false;
  else if(x==='bclose')ui.badges=false;
- else if((m=/^size:(1|1\.15|1\.3)$/.exec(x))){ui.ts=+m[1];lsSet('pk_ts',m[1]);applyText()}
- else if(x==='font:lexend'||x==='font:default'){ui.font=x.slice(5);lsSet('pk_font',ui.font);applyText()}
- else if(x==='music:1'||x==='music:0'){ui.music=x==='music:1';lsSet('pk_music',ui.music?'1':'0');SFX.musicSync()}
+ else if((m=/^size:(1|1\.15|1\.3)$/.exec(x))){ui.ts=+m[1];lsSet(SK('ts'),m[1]);applyText()}
+ else if(x==='font:lexend'||x==='font:default'){ui.font=x.slice(5);lsSet(SK('font'),ui.font);applyText()}
+ else if(x==='music:1'||x==='music:0'){ui.music=x==='music:1';lsSet(SK('music'),ui.music?'1':'0');SFX.musicSync()}
  else if(x==='stay')ui.leaveAsk=false;
  else if(x==='leave'){leaveTable();return}
  render()}
@@ -2738,13 +2842,15 @@ try{window.addEventListener('popstate',function(e){try{var s=e.state||{};
 /* sound, speech and music stop when the page is hidden; only sound is resumed on return (speech is never replayed) */
 document.addEventListener('visibilitychange',function(){try{if(document.hidden){stopVoice();SFX.musicSync();SFX.hush()}else{SFX.back();SFX.musicSync()}}catch(e){}});
 
-document.addEventListener('click',function(e){SFX.unlock();var el=e.target.closest&&e.target.closest('[data-bg],[data-df],[data-set],[data-rb],[data-amt],[data-in],[data-av],[data-on],[data-a],[data-go],[data-t],[data-mode],[data-lv],[data-i],[data-rep],[data-vs],[data-vp],[data-nq]');if(!el||el.disabled)return;
+document.addEventListener('click',function(e){SFX.unlock();var el=e.target.closest&&e.target.closest('[data-bg],[data-cf],[data-au],[data-df],[data-set],[data-rb],[data-amt],[data-in],[data-av],[data-on],[data-a],[data-go],[data-t],[data-mode],[data-lv],[data-i],[data-rep],[data-vs],[data-vp],[data-nq]');if(!el||el.disabled)return;
  var d=el.dataset;buzz();
  if(d.bg!==undefined){bgClose();return}
+ if(d.cf!==undefined){cfToggle();return}/*v14 check/fold*/
+ if(d.au!==undefined){ui.auto=+d.au;lsSet(akey(),String(ui.auto));ui.autoK=null;render();return}/*v14 auto-advance*/
  if(d.a!==undefined||d.go!==undefined||d.set!==undefined||d.t==='settings'||d.t==='home'||d.t==='me'||d.t==='screen'||d['in']!==undefined||d.on!==undefined)stopVoice();
  if(d.set!==undefined){setClick(d.set);return}
  if(d.df!==undefined){defNext();return}
- if(d.rb!==undefined){ui.rebuys=+d.rb;lsSet('pk_rebuys',d.rb==='-1'?'u':String(d.rb));render();return}
+ if(d.rb!==undefined){ui.rebuys=+d.rb;lsSet(SK('rebuys'),d.rb==='-1'?'u':String(d.rb));render();return}
  if(d.amt!==undefined){amtStep(d.amt);return}
  if(d['in']!==undefined){introClick(d['in']);return}
  if(d.av!==undefined){if(okAv(d.av)){ui.me.av=d.av;if(ui.meSaved)saveMe()}render();return}
@@ -2752,7 +2858,7 @@ document.addEventListener('click',function(e){SFX.unlock();var el=e.target.close
  if(d.t){if(d.t==='settings'){ui.settings=true;render();return}if(d.t==='home'){ui.settings=false;goHome();return}if(d.t==='badges'){ui.settings=false;ui.badges=true;render();return}if(d.t==='me'){ui.settings=false;ui.intro='who';ui.whoBack=null;ui.nmDraft=null;render();return}if(d.t==='screen'){ui.settings=false;ui.screen=ui.screen==='table'?'make':'table';if(ui.screen==='make'&&!ui.mh)mkNew()}else if(d.t==='voice')ui.vpanel=!ui.vpanel;else if(d.t==='coach')ui.coach=!ui.coach;else if(d.t==='sound'){ui.sound=!ui.sound;if(!ui.sound)stopVoice();SFX.musicSync()}else if(d.t==='skin')ui.skin=SKIN_ORDER[(SKIN_ORDER.indexOf(ui.skin)+1)%SKIN_ORDER.length];save();render();return}
  if(d.nq!==undefined){ui.nq=!ui.nq;render();return}
  if(d.rep!==undefined){if(ui.lastSay)speak(ui.lastSay);return}
- if(d.vs!==undefined||d.vp!==undefined){var vv=VOICES[+(d.vs!==undefined?d.vs:d.vp)];if(!vv)return;if(d.vs!==undefined){ui.voiceName=vv.name;try{localStorage.setItem('pk_voice',vv.name)}catch(x){}render()}speakWith('Hello. I am your poker coach.',vv);return}
+ if(d.vs!==undefined||d.vp!==undefined){var vv=VOICES[+(d.vs!==undefined?d.vs:d.vp)];if(!vv)return;if(d.vs!==undefined){ui.voiceName=vv.name;try{localStorage.setItem(SK('voice'),vv.name)}catch(x){}render()}speakWith('Hello. I am your poker coach.',vv);return}
  if(d.mode){ui.mode=d.mode==='h'?'h':+d.mode;render();return}
  if(d.lv){ui.level=+d.lv;save();render();return}
  if(d.a){var ac=d.a==='raise'?{type:'raise',to:+d.to}:{type:d.a};if(ac.type==='raise'&&typeof ui.eq==='number'&&ui.eq<.25)bfGet().bluff=true;if(ui.multi){if(ui.ctl)ui.ctl.act(ac)}else playerAct(ac);return}
@@ -2761,26 +2867,19 @@ document.addEventListener('click',function(e){SFX.unlock();var el=e.target.close
  else if(d.go==='tnext'){if(ui.ctl)ui.ctl.next()}
  else if(d.go==='deal'||d.go==='next')deal();
  else if(d.go==='new'||d.go==='again'){newMatch();render()}
+ else if(d.go==='hureb')huRebuy();
  else if(d.go==='roll')mkRoll();
  else if(d.go==='tick')mkCheck()});
 document.addEventListener('input',function(e){if(e.target&&e.target.id==='nm')ui.nmDraft=e.target.value});
 document.addEventListener('keydown',function(e){var t=e.target;if(t&&t.getAttribute&&t.getAttribute('role')==='button'&&t.tagName!=='BUTTON'&&(e.key==='Enter'||e.key===' ')){e.preventDefault();t.click()}});
 document.addEventListener('keydown',function(e){if(e.target&&e.target.id==='nm'&&(e.key==='Enter'||e.keyCode===13)){e.preventDefault();if(ui.intro==='who')introClick('ok')}});
 load();loadMe();newMatch();mkNew();applySkin();applyText();
-Object.defineProperty(window,'__game',{get:function(){return {m:ui.m,ui:ui,ctl:ui.ctl,lastSay:ui.lastSay,lastSting:ui.lastSting}}});
-window.__phr=PHR;window.__test={onTbl:onTbl,Net:Net,avName:avName,speak:speak,render:render,tbl:function(){return ui.ctl&&ui.ctl._t?ui.ctl._t():null},defeat:defeat,DEF:DEF,defCur:function(){return ui.defCur},amt:function(){return ui.amt},deal:function(a,b,c){ui.mode='h';clearTimeout(ui.timer);deal({h0:a,h1:b,b:c})},pic:function(k){return AVP[k]},sfx:SFX,CHAT:CHAT,chatOK:chatOK,winSting:winSting,CHEER:CHEER,WIN_CLIPS:WIN_CLIPS,bdg:{eval:bgEval,hand:bgHand,infoH:bgInfoH,infoV:bgInfoV,earn:bgEarn,has:bgHas,count:bgCount,cur:function(){return BG.cur},queue:function(){return BG.q.map(function(x){return x.id})},data:function(){return JSON.parse(JSON.stringify(bgLoad()))},close:bgClose,list:BDS}};
-window.__mh={bestIdx:function(){return ui.mh&&ui.mh.up?mkBest().idx:null}};
-(function(){var r=lsGet('pk_room');if(!r)return;try{r=JSON.parse(r)}catch(e){return}if(r&&/^\d{4}$/.test(r.room)&&Date.now()-r.at<6*3600000){ui.intro=null;joinRoom(r.room)}else lsSet('pk_room',null)})();
+
+(function(){var r=lsGet(SK('room'));if(!r)return;try{r=JSON.parse(r)}catch(e){return}if(r&&/^\d{4}$/.test(r.room)&&Date.now()-r.at<6*3600000){ui.intro=null;joinRoom(r.room)}else lsSet(SK('room'),null)})();
 render();
 })();
 </script>
-<script>
-/* Usage tracker (GoatCounter, same account as Shanghai and Le Stylo Rouge): counts which parts are used, never who. No cookies. */
-(function(){var P={learn:'tuition',guided:'guided-play',plain:'just-poker',deal:'deal'};
-document.addEventListener('click',function(e){try{var b=e.target.closest&&e.target.closest('[data-in],[data-go],[data-t]');if(!b)return;
-var k=b.getAttribute('data-in')||b.getAttribute('data-go')||b.getAttribute('data-t');var part=P[k]||(k==='badges'||k==='settings'?k:null);if(!part)return;
-if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:'poker/'+part,title:'Poker: '+part,event:true})}catch(x){}},true)})();
-</script>
+<script>(function(){var M={learn:'tuition',guided:'guided-play',plain:'just-poker',deal:'deal',badges:'badges',settings:'settings'};document.addEventListener('click',function(e){var el=e.target&&e.target.closest&&e.target.closest('[data-in],[data-go],[data-t]');if(!el)return;var x=el.dataset,k=x['in']||x.go||x.t,p=M[k];if(!p)return;try{if(window.goatcounter&&window.goatcounter.count)window.goatcounter.count({path:'poker/'+p,event:true})}catch(z){}},true)})();</script>
 <script data-goatcounter="https://glassfiles.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
