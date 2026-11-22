@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Le Stylo Rouge — Parlez !</title>
+<meta property="og:type" content="website">
+<meta property="og:title" content="New in Le Stylo Rouge: Parlez !">
+<meta property="og:description" content="Say it in French: the app listens and marks you. Tap to open the newest Le Stylo Rouge.">
+<meta property="og:url" content="https://glassfiles.github.io/pas-a-pas/parlez/">
+<meta property="og:image" content="https://glassfiles.github.io/pas-a-pas/parlez/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" sizes="32x32" href="../favicon-32.png">
+<style>html,body{margin:0;background:#fbf6ec;color:#23324a;font:18px/1.4 "Iowan Old Style",Palatino,Georgia,serif}main{max-width:420px;margin:30vh auto 0;padding:0 20px;text-align:center}a{color:#c0182f}</style>
+</head>
+<body>
+<main>
+<p id="msg">Opening the newest Le Stylo Rouge…</p>
+<p><a id="go" href="../?go=parlez">Tap here if it does not open</a></p>
+</main>
+<script>
+/* Le Stylo Rouge, the Parlez ! link (3.6.4; Guy, 22 Nov 2026 22:27: 'can u create a link to it that forces her to latest verison and advertise the
+   speaking feature'). It clears the app's saved copy of the page (the offline copy only: her progress is kept elsewhere and is not touched), asks the
+   phone for the newest offline helper, then opens the app on Parlez !. Nothing else is read or sent. */
+(function () {
+  var done = false;
+  function go() { if (done) return; done = true; location.replace('../?go=parlez&v=' + Date.now()); }
+  setTimeout(go, 4000);   /* whatever happens, open the app within four seconds */
+  var jobs = [];
+  try {
+    if (window.caches && caches.keys) jobs.push(caches.keys().then(function (ks) {
+      return Promise.all(ks.filter(function (k) { return k.indexOf('pas-a-pas-') === 0; }).map(function (k) { return caches.delete(k); }));
+    }));
+  } catch (e) {}
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+      return Promise.all(rs.map(function (r) { return r.update().catch(function () {}); }));
+    }));
+  } catch (e) {}
+  Promise.all(jobs).then(go, go);
+})();
+</script>
+<script data-goatcounter="https://glassfiles.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</body>
+</html>
