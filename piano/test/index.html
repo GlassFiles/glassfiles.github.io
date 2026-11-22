@@ -75,6 +75,8 @@ h2{font-size:20px;margin:18px 0 8px}
 .overlay{position:fixed;inset:0;background:#0009;display:none;align-items:center;justify-content:center;z-index:10;padding:16px}
 .overlay.on{display:flex}
 .sheet{background:var(--panel);border-radius:18px;padding:18px;max-width:440px;width:100%;max-height:90svh;overflow:auto}
+.sheet ul{padding-left:20px;margin:6px 0}
+.sheet li{margin-bottom:6px}
 .sheet .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .sheet .row button{flex:1}
 .big-stars{font-size:44px;text-align:center;color:var(--warn)}
@@ -110,6 +112,7 @@ textarea{width:100%;font:16px/1.4 inherit;border-radius:10px;border:0;padding:10
         <b>Keyboard by cable (MIDI)</b>
         <span class="state" id="midi-state">Plug the keyboard's USB port into this device, then tap Connect.</span>
         <button data-pick="midi" id="midi-btn">Connect keyboard</button>
+        <button id="howto-btn">How to connect a keyboard</button>
       </div>
       <div class="card" id="in-mic">
         <b>Microphone</b>
@@ -127,7 +130,7 @@ textarea{width:100%;font:16px/1.4 inherit;border-radius:10px;border:0;padding:10
     </div>
 
     <div class="credits">
-      Piano sound: Salamander Grand Piano by Alexander Holm, licensed <a href="https://creativecommons.org/licenses/by/3.0/" rel="noopener">CC BY 3.0</a>; samples as prepared for Tone.js (MP3). Tunes: traditional, and Beethoven (1824), all in the public domain; arranged for this app. Version 0.1.0.
+      Piano sound: Salamander Grand Piano by Alexander Holm, licensed <a href="https://creativecommons.org/licenses/by/3.0/" rel="noopener">CC BY 3.0</a>; samples as prepared for Tone.js (MP3). Tunes: traditional, and Beethoven (1824), all in the public domain; arranged for this app. Version 0.1.1.
     </div>
   </div>
 </section>
@@ -179,6 +182,21 @@ textarea{width:100%;font:16px/1.4 inherit;border-radius:10px;border:0;padding:10
   <div class="row"><button id="tolist-btn">All lessons</button></div>
 </div></div>
 
+<div class="overlay" id="howto"><div class="sheet">
+  <h2 style="margin-top:0">Connecting a keyboard</h2>
+  <p><b>1. Find the port on the back of the keyboard.</b></p>
+  <ul>
+    <li><b>A square USB port</b> (often marked "USB to Host" or "Computer"): the easy one. Use a USB-B to USB-C cable for most Android devices and newer computers, or USB-B to USB-A for older computers.</li>
+    <li><b>Round 5-pin sockets marked MIDI OUT</b>: use a USB-MIDI lead. Its IN plug goes into the keyboard's MIDI OUT.</li>
+    <li><b>Only headphone or audio sockets</b>: no cable route. Use the microphone instead.</li>
+  </ul>
+  <p><b>2.</b> Turn the keyboard on and plug it into this device. Open this page in Chrome (on Android or a computer), tap <b>Connect keyboard</b>, and allow it when asked.</p>
+  <p><b>3.</b> Press a key. The card shows the note it heard. If nothing shows, unplug it, plug it back in and tap Connect again.</p>
+  <p><b>4.</b> The keyboard makes its own sound, so the app's note sound turns off when connected.</p>
+  <p class="muted">iPhone and iPad: Safari can't read a keyboard by cable, so use the microphone. Bluetooth keyboards weren't tried in this test version, so use a cable.</p>
+  <div class="row"><button class="primary" id="howto-close">Got it</button></div>
+</div></div>
+
 <div class="overlay" id="report"><div class="sheet">
   <h2 style="margin-top:0" id="rep-title">What is wrong?</h2>
   <div id="rep-choices"></div>
@@ -188,7 +206,7 @@ textarea{width:100%;font:16px/1.4 inherit;border-radius:10px;border:0;padding:10
 
 <script>
 "use strict";
-const VERSION = "0.1.0";
+const VERSION = "0.1.1";
 const EDITION = "test";
 const STORE = "pno_" + EDITION + "_";
 
@@ -292,8 +310,8 @@ const Input = {
       if(!m){ st.count=0; return; }
       if(m===st.cand) st.count++; else { st.cand=m; st.count=1; }
       if(st.count<MIC.stable) return;
-      const now=performance.now(), rise = r.rms > st.trough*MIC.attack && st.trough < st.peak*0.7; // a new strike: a clear rise after a real dip
-      if(m!==st.held || (rise && now-st.lastAt>150)){
+      const now=performance.now(), rise = r.rms > st.trough*MIC.attack && st.trough < st.peak*0.5; // a new strike: a clear rise after a real dip
+      if(m!==st.held || (rise && now-st.lastAt>200)){
         if(st.held && st.held!==m) this.emitOff(st.held,"mic");
         st.held=m; st.lastAt=now; st.peak=r.rms; st.trough=r.rms; this.emit(m,Math.min(1,r.rms*6),"mic");
       }
@@ -301,7 +319,7 @@ const Input = {
   },
   stopMic(){ clearInterval(this.micTimer); if(this.micStream) this.micStream.getTracks().forEach(t=>t.stop()); this.micStream=null; }
 };
-const MIC = {floor:0.012, stable:2, attack:1.8};
+const MIC = {floor:0.012, stable:2, attack:2.0};
 // YIN pitch detection (de Cheveigné and Kawahara, 2002), written for this app. Range 150 to 1100 Hz.
 function detectPitch(x, sr){
   const n=x.length; let rms=0; for(let i=0;i<n;i++) rms+=x[i]*x[i]; rms=Math.sqrt(rms/n);
@@ -391,6 +409,7 @@ const UI = {
     $("flag-btn").onclick=()=>this.report("lesson");
     $("feedback-btn").onclick=()=>this.report("feedback");
     $("rep-cancel").onclick=()=>$("report").classList.remove("on");
+    $("howto-btn").onclick=()=>$("howto").classList.add("on"); $("howto-close").onclick=()=>$("howto").classList.remove("on");
     window.addEventListener("popstate",()=>this.route());
     window.addEventListener("resize",()=>{ if(this.cur) this.buildKeys(); });
     document.addEventListener("visibilitychange",()=>{ if(document.hidden) Game.lastTs=performance.now(); });
@@ -428,7 +447,7 @@ const UI = {
   route(){
     const h=location.hash;
     if(h.startsWith("#play")&&this.cur){ show("play"); }
-    else { Game.stop(); ["intro","done","report"].forEach(id=>$(id).classList.remove("on")); this.list(); show("home"); }
+    else { Game.stop(); ["intro","done","report","howto"].forEach(id=>$(id).classList.remove("on")); this.list(); show("home"); }
   },
   open(L,replace){
     this.cur=L; const ms=L.notes.map(n=>n.midi); let lo=Math.min(...ms), hi=Math.max(...ms);
