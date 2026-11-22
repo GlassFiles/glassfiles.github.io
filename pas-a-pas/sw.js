@@ -1,6 +1,6 @@
-/* Le Stylo Rouge, the offline copy (version 3.5.2). Caches the page and the icons on install and serves them cache-first. A new version has a new cache name:
+/* Le Stylo Rouge, the offline copy (version 3.5.3). Caches the page and the icons on install and serves them cache-first. A new version has a new cache name:
    it is filled on install and the old ones are deleted when it takes over. No network address is written here; it fetches only the page's own files. */
-var CACHE = 'pas-a-pas-3.5.2';
+var CACHE = 'pas-a-pas-3.5.3';
 var FILES = ["./", "index.html", "icon-192.png", "icon-512.png", "manifest.webmanifest"];
 self.addEventListener('install', function (e) {
   e.waitUntil(caches.open(CACHE).then(function (c) { return c.addAll(FILES); }).then(function () { return self.skipWaiting(); }));
