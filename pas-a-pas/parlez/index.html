@@ -19,15 +19,15 @@
 <body>
 <main>
 <p id="msg">Opening the newest Le Stylo Rouge…</p>
-<p><a id="go" href="../?go=parlez">Tap here if it does not open</a></p>
+<p><a id="go" href="../">Tap here if it does not open</a></p>
 </main>
 <script>
 /* Le Stylo Rouge, the Parlez ! link (3.6.4; Guy, 22 Nov 2026 22:27: 'can u create a link to it that forces her to latest verison and advertise the
    speaking feature'). It clears the app's saved copy of the page (the offline copy only: her progress is kept elsewhere and is not touched), asks the
-   phone for the newest offline helper, then opens the app on Parlez !. Nothing else is read or sent. */
+   phone for the newest offline helper, then opens the app at its splash screen (3.6.5, Guy 22:55: the splash, not straight into Parlez !). Nothing else is read or sent. */
 (function () {
   var done = false;
-  function go() { if (done) return; done = true; location.replace('../?go=parlez&v=' + Date.now()); }
+  function go() { if (done) return; done = true; location.replace('../?v=' + Date.now()); }
   setTimeout(go, 4000);   /* whatever happens, open the app within four seconds */
   var jobs = [];
   try {
