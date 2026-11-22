@@ -130,7 +130,7 @@ textarea{width:100%;font:16px/1.4 inherit;border-radius:10px;border:0;padding:10
     </div>
 
     <div class="credits">
-      Piano sound: Salamander Grand Piano by Alexander Holm, licensed <a href="https://creativecommons.org/licenses/by/3.0/" rel="noopener">CC BY 3.0</a>; samples as prepared for Tone.js (MP3). Tunes: traditional, and Beethoven (1824), all in the public domain; arranged for this app. Version 0.1.1.
+      Piano sound: Salamander Grand Piano by Alexander Holm, licensed <a href="https://creativecommons.org/licenses/by/3.0/" rel="noopener">CC BY 3.0</a>; samples as prepared for Tone.js (MP3). Tunes: traditional, and Beethoven (1824), all in the public domain; arranged for this app. Version 0.1.2. Visits are counted — no cookies, no names.
     </div>
   </div>
 </section>
@@ -142,6 +142,7 @@ textarea{width:100%;font:16px/1.4 inherit;border-radius:10px;border:0;padding:10
     <div class="title" id="play-title">Lesson</div>
     <span class="pill" id="score">0</span>
     <span class="pill streak" id="streak">Streak 0</span>
+    <button class="pill" id="mic-pill" style="display:none" aria-label="Microphone on: tap to turn it off">&#127908; on &times;</button>
   </div>
   <div class="modes">
     <button id="mode-wait" class="sel">Wait for me</button>
@@ -175,6 +176,7 @@ textarea{width:100%;font:16px/1.4 inherit;border-radius:10px;border:0;padding:10
     <div><b id="d-streak">0</b>best streak</div>
     <div><b id="d-best">0</b>your best score</div>
   </div>
+  <p class="muted" id="done-mic" style="text-align:center;display:none">Microphone off. It turns on again when you start a lesson.</p>
   <div class="row">
     <button id="again-btn">Play again</button>
     <button class="primary" id="next-btn">Next lesson</button>
@@ -206,7 +208,9 @@ textarea{width:100%;font:16px/1.4 inherit;border-radius:10px;border:0;padding:10
 
 <script>
 "use strict";
-const VERSION = "0.1.1";
+/* == PART: usage tracker (GoatCounter, DES-673): visits and parts opened; no cookies, no names == */
+function countPart(part,title){ try{ window.goatcounter && window.goatcounter.count && window.goatcounter.count({path:"piano/"+part, title:title||part, event:true}); }catch(e){} }
+const VERSION = "0.1.2";
 const EDITION = "test";
 const STORE = "pno_" + EDITION + "_";
 
@@ -294,8 +298,9 @@ const Input = {
   },
   midiInputs(){ return this.midiAccess? [...this.midiAccess.inputs.values()].filter(i=>i.state!=="disconnected").map(i=>i.name||"keyboard"):[]; },
   midiMsg(d){ const cmd=d[0]&0xf0; if(cmd===0x90&&d[2]>0) this.emit(d[1],d[2]/127,"midi"); else if(cmd===0x80||(cmd===0x90&&d[2]===0)) this.emitOff(d[1],"midi"); },
+  micOn(){ return !!this.micStream; },
   async startMic(){
-    Audio_.unlock();
+    Audio_.unlock(); if(this.micStream) return;
     this.micStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}});
     const src=Audio_.ctx.createMediaStreamSource(this.micStream); this.analyser=Audio_.ctx.createAnalyser(); this.analyser.fftSize=2048; src.connect(this.analyser);
     const buf=new Float32Array(this.analyser.fftSize); const st={cand:0,count:0,held:0,quiet:9,peak:0,trough:0,lastAt:0};
@@ -317,7 +322,7 @@ const Input = {
       }
     }, 23);
   },
-  stopMic(){ clearInterval(this.micTimer); if(this.micStream) this.micStream.getTracks().forEach(t=>t.stop()); this.micStream=null; }
+  stopMic(){ clearInterval(this.micTimer); if(this.micStream) this.micStream.getTracks().forEach(t=>t.stop()); this.micStream=null; this.lastMic={f:0,rms:0}; if(window.UI&&UI.micShow) UI.micShow(); }
 };
 const MIC = {floor:0.012, stable:2, attack:2.0};
 // YIN pitch detection (de Cheveigné and Kawahara, 2002), written for this app. Range 150 to 1100 Hz.
@@ -384,12 +389,13 @@ const Game = {
     const stars = acc>=0.9?3:acc>=0.7?2:1;
     const b = best[this.L.id]||{stars:0,score:0,streak:0};
     best[this.L.id]={stars:Math.max(b.stars,stars),score:Math.max(b.score,this.score),streak:Math.max(b.streak,this.bestStreak)};
+    Input.stopMic();   // the microphone turns itself off after a lesson (Guy, 22 Nov 2026)
     save.set("best",best); Audio_.fanfare(); UI.done(stars,acc,this);
   }
 };
 
 /* == PART: screens (drawing and controls) == */
-const UI = {
+var UI; UI = {
   keyEls:{}, range:[60,67], layout:{},
   init(){
     this.list();
@@ -402,19 +408,22 @@ const UI = {
     $("names-btn").onclick=()=>{prefs.names=!prefs.names; save.set("prefs",prefs); this.labels();};
     $("sound-btn").onclick=()=>{this.appSound=!this.appSound; this.labels();};
     $("listen-btn").onclick=()=>this.listen();
-    $("start-btn").onclick=()=>{ Audio_.unlock(); $("intro").classList.remove("on"); Game.start(this.cur); };
+    $("start-btn").onclick=async()=>{ Audio_.unlock(); $("intro").classList.remove("on");
+      if(prefs.input==="mic"&&!Input.micOn()){ try{ await Input.startMic(); }catch(e){ prefs.input="screen"; this.appSound=true; this.mark("screen"); this.labels(); this.flash("Microphone refused: using screen keys","bad"); } this.micShow(); }
+      Game.start(this.cur); };
+    $("mic-pill").onclick=()=>{ Input.stopMic(); prefs.input="screen"; this.appSound=true; save.set("prefs",prefs); this.mark("screen"); this.labels(); this.flash("Microphone off: screen keys","good"); };
     $("again-btn").onclick=()=>{ $("done").classList.remove("on"); this.open(this.cur,true); };
     $("next-btn").onclick=()=>{ $("done").classList.remove("on"); const i=LESSONS.indexOf(this.cur); this.open(LESSONS[(i+1)%LESSONS.length],true); };
     $("tolist-btn").onclick=()=>{ $("done").classList.remove("on"); history.back(); };
     $("flag-btn").onclick=()=>this.report("lesson");
     $("feedback-btn").onclick=()=>this.report("feedback");
     $("rep-cancel").onclick=()=>$("report").classList.remove("on");
-    $("howto-btn").onclick=()=>$("howto").classList.add("on"); $("howto-close").onclick=()=>$("howto").classList.remove("on");
+    $("howto-btn").onclick=()=>{ $("howto").classList.add("on"); countPart("howto","How to connect"); }; $("howto-close").onclick=()=>$("howto").classList.remove("on");
     window.addEventListener("popstate",()=>this.route());
     window.addEventListener("resize",()=>{ if(this.cur) this.buildKeys(); });
-    document.addEventListener("visibilitychange",()=>{ if(document.hidden) Game.lastTs=performance.now(); });
+    document.addEventListener("visibilitychange",()=>{ if(document.hidden){ Game.lastTs=performance.now(); Input.stopMic(); } });
     Input.onNote=(m,v,src)=>this.note(m,v,src); Input.onOff=(m,src)=>this.noteUp(m,src);
-    this.appSound=true; this.labels(); this.route();
+    this.appSound=true; this.labels(); this.micShow(); this.route();
   },
   list(){
     $("lesson-list").innerHTML = LESSONS.map((L,i)=>{const s=(best[L.id]||{}).stars||0;
@@ -432,14 +441,21 @@ const UI = {
     }
     if(which==="mic"){
       const s=$("mic-state");
+      if(Input.micOn()){ Input.stopMic(); prefs.input="screen"; this.appSound=true; save.set("prefs",prefs); this.mark("screen"); this.labels(); return; }
       try{ await Input.startMic(); prefs.input="mic"; this.appSound=false; s.textContent="Listening. Play one note at a time; the bar shows what it hears."; s.className="state ok"; }
-      catch(e){ s.textContent="The microphone was refused ("+(e.name||e.message)+"). Allow it in the site settings and try again."; s.className="state no"; return; }
+      catch(e){ this.micShow(); s.textContent="The microphone was refused ("+(e.name||e.message)+"). Allow it in the site settings and try again."; s.className="state no"; return; }
     }
-    save.set("prefs",prefs); this.mark(prefs.input); this.labels();
+    save.set("prefs",prefs); this.mark(prefs.input); this.labels(); this.micShow(); if(which==="mic"&&Input.micOn()){ $("mic-state").textContent="Listening. Play one note at a time; the bar shows what it hears."; $("mic-state").className="state ok"; } countPart("input-"+which,"Input: "+which);
   },
   midiStatus(){ const s=$("midi-state"); const n=Input.midiInputs();
     if(n.length){ s.textContent="Connected: "+n.join(", ")+". Press a key to check."; s.className="state ok"; }
     else { s.textContent="MIDI is on, but no keyboard is plugged in. Plug it into this device's USB port; it shows here when found."; s.className="state no"; } },
+  micShow(){
+    const on=Input.micOn(), b=$("mic-btn"), pill=$("mic-pill"), s=$("mic-state");
+    if(b) b.textContent = on ? "Turn off microphone" : "Turn on microphone";
+    if(pill) pill.style.display = on ? "" : "none";
+    if(!on){ this.micMeter(0); if(s && prefs.input==="mic"){ s.textContent="Microphone off. It turns on when a lesson starts and off when it ends."; s.className="state"; } }
+  },
   micMeter(r){ const el=$("mic-meter"); if(el) el.style.width=Math.min(100,r*600)+"%"; },
   labels(){ $("names-btn").textContent="Letters: "+(prefs.names?"on":"off"); $("sound-btn").textContent="Note sound: "+(this.appSound?"on":"off");
     $("mode-wait").classList.toggle("sel",prefs.mode==="wait"); $("mode-go").classList.toggle("sel",prefs.mode==="go"); this.buildKeys(); },
@@ -447,9 +463,10 @@ const UI = {
   route(){
     const h=location.hash;
     if(h.startsWith("#play")&&this.cur){ show("play"); }
-    else { Game.stop(); ["intro","done","report","howto"].forEach(id=>$(id).classList.remove("on")); this.list(); show("home"); }
+    else { Game.stop(); Input.stopMic(); ["intro","done","report","howto"].forEach(id=>$(id).classList.remove("on")); this.list(); show("home"); }
   },
   open(L,replace){
+    countPart("lesson-"+(LESSONS.indexOf(L)+1), "Lesson "+(LESSONS.indexOf(L)+1));
     this.cur=L; const ms=L.notes.map(n=>n.midi); let lo=Math.min(...ms), hi=Math.max(...ms);
     const white=m=>[0,2,4,5,7,9,11].includes(m%12);
     while(!white(lo)) lo--; while(!white(hi)) hi++;
@@ -524,6 +541,7 @@ const UI = {
     $("done-stars").innerHTML="★".repeat(stars)+`<span class="off">${"★".repeat(3-stars)}</span>`;
     $("done-title").textContent= stars===3?"Brilliant!":stars===2?"Well played":"Lesson finished";
     $("d-score").textContent=G.score; $("d-acc").textContent=Math.round(acc*100)+"%"; $("d-streak").textContent=G.bestStreak; $("d-best").textContent=best[G.L.id].score;
+    $("done-mic").style.display = prefs.input==="mic" ? "" : "none";
     $("done").classList.add("on");
   },
   listen(){
@@ -565,5 +583,6 @@ UI.init();
 /* == PART: test hooks (test edition only) == */
 window.__pno={Game,UI,Input,detectPitch,LESSONS,MIC,Audio_};
 </script>
+<script data-goatcounter="https://glassfiles.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
 </body>
 </html>
