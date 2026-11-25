@@ -161,7 +161,7 @@ body.cloth-charcoal{--cloth1:#4a5058;--cloth2:#2d3137;--page1:#3a3f46;--felt:#22
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .buybar .bq .muted{font-size:12px}
 .buybar .bq .tipline{margin-top:0;font-size:13px}
-.buybar .bb{flex:1 1 100%;display:flex;align-items:center;gap:6px}
+.buybar .bb{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px}@media (max-width:360px){.buybar .bb{gap:4px}.buybar .bb .btn{padding-left:9px;padding-right:9px}}
 .buybar .btn{padding:6px 12px;min-height:44px}
 .buybar .ask{display:flex;align-items:center;gap:4px;font-size:12px;color:#cfe}
 .buybar .ask select{font-size:16px;min-height:44px;padding:2px 4px;max-width:150px}
@@ -193,7 +193,7 @@ table.sc td.n{text-align:right}
 .coach ul{margin:4px 0 0;padding-left:18px}.coach li{margin:2px 0}
 .tipline{font-size:14px;color:#81d4fa;margin-top:4px}
 .hand .card.tip{outline:3px dashed #81d4fa;outline-offset:1px}
-.hand .card.barred{box-shadow:inset 0 -5px 0 #e53935}
+.hand .card.barred{box-shadow:inset 0 -5px 0 #e53935}.hand .card.joker.barred{box-shadow:inset 0 -6px 0 #b71c1c}
 .hand .card{touch-action:none}
 .hand .card.dragging{opacity:.35}
 .hand .card.drop-before{box-shadow:-5px 0 0 0 var(--gold)}
@@ -2081,7 +2081,7 @@ if(B.setDiscardOracle&&C.bestThrow)B.setDiscardOracle(function(st,pi){if(!G||AUT
 var Q=new URLSearchParams(location.search);
 var AUTO=Q.get('autoplay')==='1', FAST=Q.get('fast')==='1'||AUTO;
 var KEY='shanghai.v1.';
-var VERSION='1.1 (25 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
+var VERSION='1.2 (25 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
 function store(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v));}catch(e){}}
 function load(k){try{var s=localStorage.getItem(KEY+k);return s?JSON.parse(s):null;}catch(e){return null;}}
 function drop(k){try{localStorage.removeItem(KEY+k);}catch(e){}}
@@ -2902,11 +2902,17 @@ function render(){
     h+='<div class="buybar" role="group" aria-label="Buy the face-up card"><div class="bq"><b>Buy the '+esc(cardText(st.top))+'?</b> <span class="muted">+'+cfg.buyPenalty+' card'+(cfg.buyPenalty===1?'':'s')+'</span></div>'+
       '<label class="ask" for="askbuy"><span class="sr">Ask me</span>'+sel('askbuy',G.noBuyRound===st.round?'round':G.buyAsk,[['always','Ask every time'],['helps','Ask when it helps'],['round','Not this round'],['never','Never ask']])+'</label>'+
       (adv2?'<div class="tipline">Coach: '+esc(adv2.pick?'buy it':'let it go')+'. '+esc(buyReason())+'</div>':'')+
-      '<div class="bb"><button class="btn primary" id="buyyes">Buy it</button><button class="btn" id="buyno">No thanks</button>'+hintBtn()+'</div></div>';
+      '<div class="bb"><button class="btn primary" id="buyyes">Buy it</button><button class="btn" id="buyno">No thanks</button>'+hintBtn()+handTools(true)+'</div></div>';
   }
   var mustD2=waiter&&waiter.kind==='play'&&S.mustDrawTwo(st,G.human);
   var msgText=esc(mustD2?'No card in your hand may be thrown, so you draw 2 from the pile (you may still go down or lay off first).':G.msg||(waiter&&waiter.kind==='play'?buildText():st.turn!==G.human&&st.phase!=='roundOver'?st.players[st.turn].name+' is playing…':''));
   var n=selectedCards().length,sortLbl=orderLabel()+' ▾';
+  // sort and move your cards: also on the buy bar, so "Ask every time" never locks your hand (Guy, 25 Nov 2026)
+  function handTools(onBar){var t='',n=selectedCards().length,sortLbl=onBar?'⇅':orderLabel()+' ▾';
+    if(n===1)t+='<button class="btn ghost" id="mvl" aria-label="Move card left">◀</button><button class="btn ghost" id="mvr" aria-label="Move card right">▶</button>';
+    t+='<button class="btn ghost" id="sort"'+(onBar?' aria-label="Sort your cards ('+esc(orderLabel())+')" title="Sort your cards"':'')+'>'+sortLbl+'</button>';
+    if(n)t+='<button class="btn ghost" id="clear">Clear</button>';
+    return t;}
   if(waiter&&waiter.kind==='play'){
     h+='<div class="msg" aria-live="polite">'+msgText+'</div>';
     h+='<div class="actions">';
@@ -2921,12 +2927,7 @@ function render(){
     h+='<div class="actions" style="align-items:center"><div class="msg'+(drawNow?' drawcue':'')+'" aria-live="polite" style="flex:1 1 140px;margin:0">'+(drawNow?'Your turn: draw a card':msgText)+'</div>';
     if(waiter&&waiter.kind==='draw')h+=hintBtn();
   }
-  if(!(waiter&&waiter.kind==='buy')){
-  if(n===1)h+='<button class="btn ghost" id="mvl" aria-label="Move card left">◀</button><button class="btn ghost" id="mvr" aria-label="Move card right">▶</button>';
-  h+='<button class="btn ghost" id="sort">'+sortLbl+'</button>';
-  if(n)h+='<button class="btn ghost" id="clear">Clear</button>';
-  h+='</div>';
-  }
+  if(!(waiter&&waiter.kind==='buy')){h+=handTools()+'</div>';}
   var tipId=adv2&&adv2.discardId,layIds=(adv2&&adv2.layIds)||[],barIds=(st.phase==='play'||st.phase==='draw')?S.barredDiscards(st,G.human):[];
   h+='<div class="hand" id="hand">';
   var bIds=builtIds(),rIds=relatedIds();
