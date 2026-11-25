@@ -161,7 +161,7 @@ body.cloth-charcoal{--cloth1:#4a5058;--cloth2:#2d3137;--page1:#3a3f46;--felt:#22
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .buybar .bq .muted{font-size:12px}
 .buybar .bq .tipline{margin-top:0;font-size:13px}
-.buybar .bb{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px}@media (max-width:360px){.buybar .bb{gap:4px}.buybar .bb .btn{padding-left:9px;padding-right:9px}}
+.buybar .bb{flex:1 1 100%;display:flex;flex-wrap:wrap;align-items:center;gap:6px}@media (max-width:360px){.buybar .bb{gap:4px}.buybar .bb .btn{padding-left:8px;padding-right:8px;font-size:15px}}
 .buybar .btn{padding:6px 12px;min-height:44px}
 .buybar .ask{display:flex;align-items:center;gap:4px;font-size:12px;color:#cfe}
 .buybar .ask select{font-size:16px;min-height:44px;padding:2px 4px;max-width:150px}
@@ -2113,7 +2113,7 @@ if(B.setDiscardOracle&&C.bestThrow)B.setDiscardOracle(function(st,pi){if(!G||AUT
 var Q=new URLSearchParams(location.search);
 var AUTO=Q.get('autoplay')==='1', FAST=Q.get('fast')==='1'||AUTO;
 var KEY='shanghai.v1.';
-var VERSION='1.3 (25 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
+var VERSION='1.4 (25 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
 function store(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v));}catch(e){}}
 function load(k){try{var s=localStorage.getItem(KEY+k);return s?JSON.parse(s):null;}catch(e){return null;}}
 function drop(k){try{localStorage.removeItem(KEY+k);}catch(e){}}
@@ -2921,7 +2921,8 @@ function render(){
     });
     var tipStock=adv&&adv.pick==='stock',tipFace=adv&&adv.pick==='discard';
     h+='<div class="centre"><button type="button" class="pile'+(myDraw?' live':'')+(tipStock?' tip':'')+'" id="stock"'+(myDraw?'':' disabled')+' aria-label="Draw from the pile"><div class="back"></div><span class="muted">pile '+st.stock.length+'</span></button>';
-    h+='<button type="button" class="pile'+(myDraw&&st.top?' live':'')+(tipFace?' tip':'')+'" id="faceup"'+(myDraw&&st.top?'':' disabled')+' aria-label="Take the face-up card">'+(st.top?cardHTML(st.top,cfg):'<div class="card" style="opacity:.25"></div>')+'<span class="muted">face up</span></button></div>';
+    var under=!st.top&&st.dead&&st.dead.length?st.dead[st.dead.length-1]:null;  // the card underneath: shown, never takeable (Guy, 25 Nov 2026)
+    h+='<button type="button" class="pile'+(myDraw&&st.top?' live':'')+(tipFace?' tip':'')+(under?' under':'')+'" id="faceup"'+(myDraw&&st.top||under?'':' disabled')+' aria-label="'+(under?'The discard pile: the top card has been taken':'Take the face-up card')+'">'+(st.top?cardHTML(st.top,cfg):under?cardHTML(under,cfg):'<div class="card" style="opacity:.25"></div>')+'<span class="muted">face up</span></button></div>';
     h+='</div>';
     // a player's melds full size, when their cards on the table are tapped
     if(G.zoom!=null&&st.melds.some(function(m){return m.owner===G.zoom;})){
@@ -2950,7 +2951,7 @@ function render(){
   var msgText=esc(mustD2?'No card in your hand may be thrown, so you draw 2 from the pile (you may still go down or lay off first).':G.msg||(waiter&&waiter.kind==='play'?buildText():st.turn!==G.human&&st.phase!=='roundOver'?st.players[st.turn].name+' is playing…':''));
   var n=selectedCards().length,sortLbl=orderLabel()+' ▾';
   // sort and move your cards: also on the buy bar, so "Ask every time" never locks your hand (Guy, 25 Nov 2026)
-  function handTools(onBar){var t='',n=selectedCards().length,sortLbl=onBar?'⇅':orderLabel()+' ▾';
+  function handTools(onBar){var t='',n=selectedCards().length,sortLbl=onBar?'Sort':orderLabel()+' ▾';  // on the buy bar a word, not just ⇅ (Guy, 25 Nov 2026 23:16)
     if(n===1)t+='<button class="btn ghost" id="mvl" aria-label="Move card left">◀</button><button class="btn ghost" id="mvr" aria-label="Move card right">▶</button>';
     t+='<button class="btn ghost" id="sort"'+(onBar?' aria-label="Sort your cards ('+esc(orderLabel())+')" title="Sort your cards"':'')+'>'+sortLbl+'</button>';
     if(n)t+='<button class="btn ghost" id="clear">Clear</button>';
@@ -3017,7 +3018,9 @@ function hintBtn(){return G.coach==='tap'?'<button class="btn ghost" id="hint">H
 function wire(){
   function on(id,fn){var el=document.getElementById(id);if(el)el.addEventListener('click',fn);}
   on('stock',function(){if(waiter&&waiter.kind==='draw')resolve('stock');});
-  on('faceup',function(){if(waiter&&waiter.kind==='draw')resolve('discard');});
+  on('faceup',function(){
+    if(!G.st.top){SND.play('nope');G.msg='That card is underneath: only the top card of the discard pile can be taken.';render();return;}
+    if(waiter&&waiter.kind==='draw')resolve('discard');});
   on('buyyes',function(){if(waiter&&waiter.kind==='buy')resolve(true);});
   var ab=document.getElementById('askbuy');if(ab)ab.addEventListener('change',function(){
     var v=this.value;if(v==='round'){G.noBuyRound=G.st.round;}else{G.noBuyRound=null;G.buyAsk=v;} // this game only: the next game offers every buy again
@@ -3310,6 +3313,7 @@ var SND=(function(){
     buy:function(t){burst(t,0.07,2800,1,0.25);tone(t+0.05,r(860,900),0.18,0.12);tone(t+0.14,r(1300,1340),0.22,0.10);},
     down:function(t){[523,659,784].forEach(function(f,i){tone(t+i*0.09,f*r(0.995,1.005),0.32,0.12);});},
     win:function(t){[523,659,784,1047].forEach(function(f,i){tone(t+i*0.1,f,0.4,0.13);});tone(t+0.45,1568,0.6,0.06,'sine');},
+    nope:function(t){tone(t,r(196,206),0.13,0.10,'square');tone(t+0.15,r(150,158),0.2,0.10,'square');},
     bell:function(t){tone(t,r(1170,1220),0.5,0.08,'sine');tone(t,r(2340,2440),0.3,0.03,'sine');}
   };
   return {
