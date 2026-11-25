@@ -354,7 +354,11 @@ table.sc td.n{text-align:right}
     jokerSwap: true,            // a player who is down may swap the natural card for a joker in a run
     noPlayableDiscard: 'never', // may you throw a card that would go on a meld on the table? 'never' barred (anyone may),
                                 // 'untilDown' (barred until you have gone down), 'always' (barred for everyone).
-                                // If every card in your hand is barred, you may throw any of them.
+                                // If every card in your hand is barred: see allBarred.
+    jokerThrow: 'any',          // 'any', or 'beforeAnyDown': once anyone has gone down nobody may throw a joker, as a
+                                // joker always goes somewhere (Guy, 25 Nov 2026)
+    allBarred: 'throwAny',      // when no card in the hand may be thrown: 'throwAny' (throw any of them) or 'drawTwo'
+                                // (draw 2 from the pile, then throw as normal; forced, never a choice: Guy, 25 Nov 2026)
     scoring: { low: 5, high: 10, ace: 15, joker: 50, wildTwo: 20, lowMax: 9 }, // low = 2..lowMax, high = above lowMax to K
     rounds: null,               // filled from a preset if absent
     stockOut: 'reshuffle',      // when the stock runs out: 'reshuffle' the dead discards, or 'end' the round (nobody out)
@@ -401,6 +405,9 @@ table.sc td.n{text-align:right}
       decks: 2, jokersPerDeck: 2, aceMode: 'both',
       wildLimit: { mode: 'fewerThanNaturals' },
       noPlayableDiscard: 'untilDown',
+      jokerSwap: false,          // the family does not swap jokers (Guy, 25 Nov 2026)
+      jokerThrow: 'beforeAnyDown',
+      allBarred: 'drawTwo',
       buyPenalty: 2,
       // you cannot go out on a discard, in any round (Guy, 17 Nov 2026): the last cards are laid down together
       rounds: [
@@ -757,20 +764,35 @@ table.sc td.n{text-align:right}
     return out;
   }
 
-  // Cards player pi may not throw under the noPlayableDiscard rule: every card that would go on a meld on the table
-  // (a lay-off, or a real card that a joker in a run stands for). If that is every card in the hand, none is barred.
+  // Cards player pi may not throw. (1) noPlayableDiscard: a card that would go on a meld on the table: the same number
+  // as a set, or the next card at either end of a run (and, only where jokers may be swapped, the real card a joker in
+  // a run stands for). (2) jokerThrow 'beforeAnyDown': once anything is on the table, no joker may be thrown.
+  // If that is every card in the hand: with allBarred 'throwAny' none is barred; with 'drawTwo' all stay barred and
+  // the player must draw 2 (mustDrawTwo / the drawTwo action).
   function barredDiscards(st, pi) {
     var cfg = st.cfg, p = st.players[pi], rule = cfg.noPlayableDiscard;
-    if (!rule || rule === 'never' || (rule === 'untilDown' && p.down) || !st.melds || !st.melds.length) return [];
+    if (!st.melds || !st.melds.length || !p.hand.length) return [];
+    var tableRule = !!rule && rule !== 'never' && !(rule === 'untilDown' && p.down);
+    var jokerRule = cfg.jokerThrow === 'beforeAnyDown';
+    if (!tableRule && !jokerRule) return [];
     var out = p.hand.filter(function (c) {
+      if (jokerRule && isWild(c, cfg)) return true;
+      if (!tableRule) return false;
       return st.melds.some(function (m) {
         if (layOffSpots(c, m, cfg).length) return true;
-        if (m.t !== 'run' || isWild(c, cfg) || c.suit !== m.suit) return false;
+        if (!cfg.jokerSwap || m.t !== 'run' || isWild(c, cfg) || c.suit !== m.suit) return false;
         for (var k = 0; k < m.cards.length; k++) if (isWild(m.cards[k], cfg) && c.rank === rankAtPos(m.start + k)) return true;
         return false;
       });
     }).map(function (c) { return c.id; });
-    return out.length === p.hand.length ? [] : out;
+    if (out.length === p.hand.length && cfg.allBarred !== 'drawTwo') return [];
+    return out;
+  }
+  // True when player pi, in the play phase, has no card they may throw and the rules say draw 2.
+  function mustDrawTwo(st, pi) {
+    var p = st.players[pi];
+    return st.cfg.allBarred === 'drawTwo' && st.phase === 'play' && st.turn === pi && p.hand.length > 0 &&
+      barredDiscards(st, pi).length === p.hand.length;
   }
 
   // ---------- game state ----------
@@ -948,7 +970,15 @@ table.sc td.n{text-align:right}
       if (!p.hand.length) endRound(st, st.turn);
       return st;
     }
+    if (a.type === 'drawTwo') {
+      if (!mustDrawTwo(st, st.turn)) err(cfg.allBarred === 'drawTwo' ? 'you can still throw a card' : 'not with these rules');
+      for (var d2 = 0; d2 < 2; d2++) { var dc2 = drawStock(st); if (!dc2) { endRound(st, null); return st; } p.hand.push(dc2); }
+      st.roundLog.push({ t: 'draw2', p: st.turn, down: !!p.down });
+      return st;
+    }
     if (a.type === 'discard') {
+      var jc = p.hand.filter(function (c) { return c.id === a.cardId; })[0];
+      if (jc && isWild(jc, cfg) && cfg.jokerThrow === 'beforeAnyDown' && barredDiscards(st, st.turn).indexOf(a.cardId) >= 0) err('a joker may not be thrown once anyone is down');
       if (barredDiscards(st, st.turn).indexOf(a.cardId) >= 0) err(cfg.noPlayableDiscard === 'always' ? 'that card goes on the table, so you may not throw it' : 'that card goes on the table, so you may not throw it until you are down');
       var dc = takeFromHand(p, a.cardId);
       var wasDown = !!p.down;
@@ -1008,7 +1038,7 @@ table.sc td.n{text-align:right}
     rng: rng, shuffle: shuffle, buildDeck: buildDeck, isWild: isWild, cardName: cardName, cardPoints: cardPoints,
     posRange: posRange, rankAtPos: rankAtPos, maxWilds: maxWilds, validMeld: validMeld,
     indexHand: indexHand, candidates: candidates, contractDistance: contractDistance, findContract: findContract, findAllContracts: findAllContracts,
-    layOffSpots: layOffSpots, swapSpots: swapSpots, barredDiscards: barredDiscards,
+    layOffSpots: layOffSpots, swapSpots: swapSpots, barredDiscards: barredDiscards, mustDrawTwo: mustDrawTwo,
     newGame: newGame, startRound: startRound, apply: apply, tryApply: tryApply, buyers: buyers,
     current: current, roundInfo: roundInfo, allCards: allCards
   };
@@ -1117,6 +1147,15 @@ table.sc td.n{text-align:right}
     if (st.phase !== 'play') return;
     if (me.down && (!st.wentDownThisTurn || cfg.layOffSameTurn)) this.layOffAll(st, pi);
     if (st.phase !== 'play') return;
+    // no card may be thrown: draw 2 (forced), then try again to go down and lay off (Guy, 25 Nov 2026)
+    for (var g2 = 0; g2 < 30 && S.mustDrawTwo && S.mustDrawTwo(st, pi); g2++) {
+      S.apply(st, { type: 'drawTwo' });
+      if (st.phase !== 'play') return;
+      if (!me.down) this.tryGoDown(st, pi);
+      if (st.phase !== 'play') return;
+      if (me.down && (!st.wentDownThisTurn || cfg.layOffSameTurn)) this.layOffAll(st, pi);
+      if (st.phase !== 'play') return;
+    }
     var card = this.pickDiscard(st, pi);
     var r = S.tryApply(st, { type: 'discard', cardId: card.id });
     if (!r.ok) {
@@ -1211,7 +1250,7 @@ table.sc td.n{text-align:right}
   Bot.prototype.pickDiscard = function (st, pi) {
     var me = st.players[pi], rd = S.roundInfo(st), self = this;
     if (rd.noDiscardOut && me.hand.length === 1) return me.hand[0]; // will be refused; engine guards
-    if (this.p.ev && ORACLE) { try { var judged = ORACLE(st, pi, this); if (judged) return judged; } catch (e) { /* fall back to the rules below */ } }
+    if (this.p.ev && ORACLE) { try { var judged = ORACLE(st, pi, this); if (judged && S.barredDiscards(st, pi).indexOf(judged.id) < 0) return judged; } catch (e) { /* fall back to the rules below */ } }
     var scored = this.discardScores(st, pi), best = null, bestScore = Infinity;
     scored.forEach(function (x) { if (x.s < bestScore) { bestScore = x.s; best = x.c; } });
     if (self.p.mistake && self.rand() < self.p.mistake && scored.length > 1) {
@@ -1517,8 +1556,9 @@ table.sc td.n{text-align:right}
     var cfg = st.cfg, me = st.players[pi], rd = S.roundInfo(st);
     if (!me.hand.length) return null;
     var bot = new B.Bot('hard', 1); bot.p = Object.assign({}, bot.p, { mistake: 0 });
+    if (S.mustDrawTwo && S.mustDrawTwo(st, pi)) return null; // no card may be thrown: the page says draw 2
     var c = bot.pickDiscard(st, pi);
-    if (!c) return null;
+    if (!c || S.barredDiscards(st, pi).indexOf(c.id) >= 0) return null;
     var why = [];
     if (me.down) {
       var fits = st.melds.some(function (m) { return S.layOffSpots(c, m, cfg).length > 0; });
@@ -1540,7 +1580,11 @@ table.sc td.n{text-align:right}
     if (barred.length) {
       var bn = me.hand.filter(function (x) { return barred.indexOf(x.id) >= 0; }).map(name);
       bn = bn.filter(function (v, i) { return bn.indexOf(v) === i; });
-      why.push('you may not throw the ' + (bn.length > 1 ? bn.slice(0, -1).join(', ') + ' or the ' + bn[bn.length - 1] : bn[0]) + ': ' + (bn.length > 1 ? 'they go' : 'it goes') + ' on the table' + (cfg.noPlayableDiscard === 'always' ? '' : ' and you are not down yet'));
+      var jk = me.hand.some(function (x) { return barred.indexOf(x.id) >= 0 && S.isWild(x, cfg); }) && cfg.jokerThrow === 'beforeAnyDown';
+      var bnat = me.hand.filter(function (x) { return barred.indexOf(x.id) >= 0 && !S.isWild(x, cfg); }).map(name);
+      bnat = bnat.filter(function (v, i) { return bnat.indexOf(v) === i; });
+      if (bnat.length) why.push('you may not throw the ' + (bnat.length > 1 ? bnat.slice(0, -1).join(', ') + ' or the ' + bnat[bnat.length - 1] : bnat[0]) + ': ' + (bnat.length > 1 ? 'they go' : 'it goes') + ' on the table' + (cfg.noPlayableDiscard === 'always' ? '' : ' and you are not down yet'));
+      if (jk) why.push('you may not throw a joker: someone has gone down, so it always goes somewhere');
     }
     var warn = danger(st, pi, c);
     var equal = scores.filter(function (x) { return mine && x.s - mine.s <= 8; }).map(function (x) { return x.c; });
@@ -2037,6 +2081,7 @@ if(B.setDiscardOracle&&C.bestThrow)B.setDiscardOracle(function(st,pi){if(!G||AUT
 var Q=new URLSearchParams(location.search);
 var AUTO=Q.get('autoplay')==='1', FAST=Q.get('fast')==='1'||AUTO;
 var KEY='shanghai.v1.';
+var VERSION='1.1 (25 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
 function store(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v));}catch(e){}}
 function load(k){try{var s=localStorage.getItem(KEY+k);return s?JSON.parse(s):null;}catch(e){return null;}}
 function drop(k){try{localStorage.removeItem(KEY+k);}catch(e){}}
@@ -2110,7 +2155,7 @@ function presetFields(name){
   var c=S.makeConfig(name);
   return {decks:c.decks,jokers:c.jokersPerDeck!=null?c.jokersPerDeck:c.jokers,jokersPerDeck:c.jokersPerDeck!=null,noPlayableDiscard:c.noPlayableDiscard,twosWild:c.twosWild,aceMode:c.aceMode,wildMode:c.wildLimit.mode==='fixed'?'fixed'+c.wildLimit.fixed:c.wildLimit.mode,
     initialMeldRules:c.initialMeldRules,layOffSameTurn:c.layOffSameTurn,mustDiscardToGoOut:c.mustDiscardToGoOut,buyPenalty:c.buyPenalty,buyAfterDown:c.buyAfterDown,
-    jokerSwap:c.jokerSwap,stockOut:c.stockOut==='end'?'end':'reshuffle'+c.maxReshuffles,
+    jokerSwap:c.jokerSwap,jokerThrow:c.jokerThrow,allBarred:c.allBarred,stockOut:c.stockOut==='end'?'end':'reshuffle'+c.maxReshuffles,
     ptLow:c.scoring.low,ptHigh:c.scoring.high,ptAce:c.scoring.ace,ptJoker:c.scoring.joker,lowMax:c.scoring.lowMax,rounds:roundsToText(c.rounds)};
 }
 function fieldsToConfig(su,f){
@@ -2120,7 +2165,7 @@ function fieldsToConfig(su,f){
   if(/^fixed/.test(f.wildMode)){wl.mode='fixed';wl.fixed=+f.wildMode.slice(5);}
   var so=f.stockOut==='end'?{stockOut:'end',maxReshuffles:0}:{stockOut:'reshuffle',maxReshuffles:+f.stockOut.slice(9)};
   var o={players:1+(+su.bots),decks:+f.decks,jokers:f.jokersPerDeck?(+f.decks)*(+f.jokers):+f.jokers,jokersPerDeck:f.jokersPerDeck?+f.jokers:null,noPlayableDiscard:f.noPlayableDiscard||'never',twosWild:!!f.twosWild,aceMode:f.aceMode,wildLimit:wl,initialMeldRules:!!f.initialMeldRules,
-    layOffSameTurn:!!f.layOffSameTurn,mustDiscardToGoOut:!!f.mustDiscardToGoOut,buyPenalty:+f.buyPenalty,buyAfterDown:!!f.buyAfterDown,jokerSwap:!!f.jokerSwap,
+    layOffSameTurn:!!f.layOffSameTurn,mustDiscardToGoOut:!!f.mustDiscardToGoOut,buyPenalty:+f.buyPenalty,buyAfterDown:!!f.buyAfterDown,jokerSwap:!!f.jokerSwap,jokerThrow:f.jokerThrow||'any',allBarred:f.allBarred||'throwAny',
     stockOut:so.stockOut,maxReshuffles:so.maxReshuffles,
     scoring:{low:+f.ptLow,high:+f.ptHigh,ace:+f.ptAce,joker:+f.ptJoker,wildTwo:20,lowMax:+f.lowMax},rounds:tr.rounds,
     name:S.PRESETS[su.preset]?S.PRESETS[su.preset].name:'Custom'};
@@ -2150,6 +2195,7 @@ function renderEntry(editName){
   if(editName)h+='<div class="namerow"><input type="text" id="ename" value="'+esc(su.name==='You'?'':su.name)+'" placeholder="Your name" maxlength="16" autocomplete="off" autocapitalize="words" enterkeyhint="done" aria-label="Your name"><button class="btn primary" id="enameok" aria-label="Done">✓</button></div>';
   else h+='<button class="mechip" id="mechip" aria-label="Your name: '+esc(su.name)+' (tap to change)">'+esc(su.name)+' ✎</button>';
   h+='<button class="setbtn" id="settings">⚙ Settings</button></div>';
+  h+='<p class="muted" style="text-align:center;margin:10px 0 0;font-size:13px">Version '+VERSION+'</p>';
   if(saved&&saved.st&&!saved.st.over)h+='<div class="prompt"><b>A game is in progress</b> (round '+(saved.st.round+1)+' of '+saved.st.cfg.rounds.length+').<div class="row" style="margin-top:8px"><button class="btn primary" id="cont">Carry on</button></div></div>';
   h+='<div class="big3">'+
     '<button class="modebtn learn" id="mode-learn" style="background-image:'+modePic('learn')+'"><span class="ribbon">SOON</span><span class="lb">LEARN TO PLAY<span class="sub">Lessons</span></span></button>'+
@@ -2194,6 +2240,8 @@ function renderSetup(){
   h+=chk('layOffSameTurn',f.layOffSameTurn,'May lay off in the turn you go down');
   h+=chk('mustDiscardToGoOut',f.mustDiscardToGoOut,'Your last card must be a discard');
   h+='<div class="field"><label for="noPlayableDiscard">Throwing a card that goes on the table</label>'+sel('noPlayableDiscard',f.noPlayableDiscard||'never',[['never','Allowed'],['untilDown','Not until you are down'],['always','Never allowed']])+'</div>';
+  h+='<div class="field"><label for="jokerThrow">Throwing a joker</label>'+sel('jokerThrow',f.jokerThrow||'any',[['any','Allowed'],['beforeAnyDown','Not once anyone is down']])+'</div>';
+  h+='<div class="field"><label for="allBarred">When no card may be thrown</label>'+sel('allBarred',f.allBarred||'throwAny',[['throwAny','Throw any card'],['drawTwo','Draw 2 from the pile']])+'</div>';
   h+=chk('jokerSwap',f.jokerSwap,'Swap a real card for a joker in a run (once you are down)');
   h+='<div class="field"><label for="buyPenalty">Penalty cards per buy</label>'+num('buyPenalty',f.buyPenalty,0,3)+'</div>';
   h+=chk('buyAfterDown',f.buyAfterDown,'May still buy after going down');
@@ -2217,7 +2265,7 @@ function renderSetup(){
   h+='<div class="sect"><h2>Play a deal again</h2><div class="field"><label for="seed">Deal number</label><input type="text" inputmode="numeric" id="seed" value="'+esc(su.seed)+'" placeholder="random" autocomplete="off" enterkeyhint="done" style="width:140px"><span class="muted">Same number, same cards.</span></div></div>';
   h+='<div id="warn"></div><div class="row"><button class="btn primary" id="start">Deal</button></div></div>';
   $app.innerHTML=h;
-  var ids=['decks','jokers','jokersPerDeck','noPlayableDiscard','twosWild','aceMode','wildMode','initialMeldRules','layOffSameTurn','mustDiscardToGoOut','buyPenalty','buyAfterDown','jokerSwap','stockOut','ptLow','ptHigh','ptAce','ptJoker','lowMax','rounds'];
+  var ids=['decks','jokers','jokersPerDeck','noPlayableDiscard','twosWild','aceMode','wildMode','initialMeldRules','layOffSameTurn','mustDiscardToGoOut','buyPenalty','buyAfterDown','jokerSwap','jokerThrow','allBarred','stockOut','ptLow','ptHigh','ptAce','ptJoker','lowMax','rounds'];
   function readSu(){return {chances:document.getElementById('chances').value,openHands:document.getElementById('openHands').value,review:document.getElementById('review').value,name:(document.getElementById('name').value||'You').trim().slice(0,16)||'You',bots:+document.getElementById('bots').value,level:document.getElementById('level').value,
     preset:document.getElementById('preset').value,speed:document.getElementById('speed').value,buyAsk:'always',coach:document.getElementById('coach').value,goDownMode:document.getElementById('goDownMode').value,seed:document.getElementById('seed').value.replace(/\D/g,'').slice(0,9)};}
   function readF(){var o={};ids.forEach(function(id){var el=document.getElementById(id);o[id]=el.type==='checkbox'?el.checked:el.value;});return o;}
@@ -2282,10 +2330,11 @@ function noteLog(from){
     else if(e.t==='down')t=who+(e.p===G.human?' went down!':' went down.');
     else if(e.t==='layoff')t=who+' laid off the '+cn+'.';
     else if(e.t==='swap')t=who+' swapped the '+cn+' for a joker.';
+    else if(e.t==='draw2')t=who+(e.p===G.human?' drew 2: no card could be thrown.':' drew 2: no card could be thrown.');
     else if(e.t==='discard')t=who+' threw the '+cn+'.';
     if(t)G.log.push(t);
     if(e.t==='discard'&&st.players[e.p].hand.length===1){var ak=st.round+'-'+e.p;if(!G.alerted[ak]){G.alerted[ak]=1;toast(e.p===G.human?'You have one card left!':st.players[e.p].name+' has one card left!');}}
-    var sh={take:'took '+cn,buy:'bought '+cn,stock:'drew',down:'went down',layoff:'laid off '+cn,swap:'won a joker',discard:'threw '+cn}[e.t];
+    var sh={take:'took '+cn,buy:'bought '+cn,stock:'drew',down:'went down',layoff:'laid off '+cn,swap:'won a joker',draw2:'drew 2',discard:'threw '+cn}[e.t];
     if(sh){G.last=G.last||[];G.last[e.p]=sh;}
   }
   if(G.log.length>4)G.log=G.log.slice(-4);
@@ -2496,7 +2545,7 @@ function humanAct(action,okMsg){
   return true;
 }
 function friendly(e){
-  var map={'keep a card to discard':'Keep one card to throw at the end of your turn.','go down first':'Go down with your contract before laying off.',
+  var map={'a joker may not be thrown once anyone is down':'Someone has gone down, so a joker always goes somewhere: you may not throw it.','you can still throw a card':'You can still throw a card, so no drawing 2.','not with these rules':'Not with these rules.','keep a card to discard':'Keep one card to throw at the end of your turn.','go down first':'Go down with your contract before laying off.',
     'lay off from your next turn':'With these rules you lay off from your next turn.','this round you go out without discarding':'You cannot win on a throw: lay down your last cards together to win (try "Lay off all").',
     'that card goes on the table, so you may not throw it until you are down':'That card goes on someone\'s meld, so you may not throw it until you are down. Cards marked red underneath are the ones you must keep.',
     'that card goes on the table, so you may not throw it':'That card goes on someone\'s meld, so you may not throw it. Cards marked red underneath are the ones you must keep.',
@@ -2855,7 +2904,8 @@ function render(){
       (adv2?'<div class="tipline">Coach: '+esc(adv2.pick?'buy it':'let it go')+'. '+esc(buyReason())+'</div>':'')+
       '<div class="bb"><button class="btn primary" id="buyyes">Buy it</button><button class="btn" id="buyno">No thanks</button>'+hintBtn()+'</div></div>';
   }
-  var msgText=esc(G.msg||(waiter&&waiter.kind==='play'?buildText():st.turn!==G.human&&st.phase!=='roundOver'?st.players[st.turn].name+' is playing…':''));
+  var mustD2=waiter&&waiter.kind==='play'&&S.mustDrawTwo(st,G.human);
+  var msgText=esc(mustD2?'No card in your hand may be thrown, so you draw 2 from the pile (you may still go down or lay off first).':G.msg||(waiter&&waiter.kind==='play'?buildText():st.turn!==G.human&&st.phase!=='roundOver'?st.players[st.turn].name+' is playing…':''));
   var n=selectedCards().length,sortLbl=orderLabel()+' ▾';
   if(waiter&&waiter.kind==='play'){
     h+='<div class="msg" aria-live="polite">'+msgText+'</div>';
@@ -2863,7 +2913,8 @@ function render(){
     if(!me.down){var able=canGoDown();h+='<button class="btn primary" id="godown"'+(able||G.goDownMode==='always'||curBuild()?'':' disabled')+'>Go down</button>';if(curBuild())h+='<button class="btn" id="buildreset">Start over</button>';}
     else if(n>=1&&selectedFit().length)h+='<button class="btn primary" id="laysel">Lay off '+(n===1?'this card':'these '+n)+'</button>';
     else h+='<button class="btn primary" id="layall">Lay off all</button>';
-    h+='<button class="btn" id="discard"'+(n===1?'':' disabled')+'>Throw</button>';
+    if(S.mustDrawTwo(st,G.human))h+='<button class="btn primary" id="draw2">Draw 2</button>';  // forced: no card may be thrown (Guy, 25 Nov 2026)
+    else h+='<button class="btn" id="discard"'+(n===1?'':' disabled')+'>Throw</button>';
     h+=hintBtn();
   }else if(!(waiter&&waiter.kind==='buy')){
     var drawNow=waiter&&waiter.kind==='draw';
@@ -2931,6 +2982,7 @@ function wire(){
   });on('buyno',function(){if(waiter&&waiter.kind==='buy')resolve(false);});
   on('godown',goDown);
   [].slice.call(document.querySelectorAll('.choose .way')).forEach(function(b){b.addEventListener('click',function(){var dc=G.downChoices,w=dc&&dc.ways[+b.getAttribute('data-k')];G.downChoices=null;if(w)finishDown(w);});});
+  on('draw2',function(){humanAct({type:'drawTwo'},'You drew 2: no card could be thrown.');});
   on('waycancel',function(){G.downChoices=null;G.msg='';render();});on('buildreset',function(){G.build=null;G.sel={};G.msg='Pick the cards for one set or run, or press Go down to let the game choose.';render();});on('layall',layOffAll);on('laysel',layOffSelected);on('discard',discard);
   on('hint',function(){G.hintFor=posKey();render();var t=document.querySelector('.coach');if(t)t.scrollIntoView({block:'nearest'});});
   on('sort',function(){G.menu=!G.menu;render();});
@@ -3139,6 +3191,7 @@ function animateMoves(){
     var sr=rectOf(seatEl(e.p));
     if(e.t==='down'){SND.play('down',d);d+=200;continue;}
     if(e.t==='stock'){flyFrom(stockR,sr,BACKHTML,d);SND.play('flick',d);d+=120;}
+    else if(e.t==='draw2'){for(var q2=0;q2<2;q2++){flyFrom(stockR,sr,BACKHTML,d);SND.play('flick',d);d+=150;}}
     else if(e.t==='take'&&byId[e.c]){flyFrom(faceR,sr,cardHTML(byId[e.c],st.cfg),d);SND.play('slide',d);d+=120;}
     else if(e.t==='buy'&&byId[e.c]){flyFrom(faceR,sr,cardHTML(byId[e.c],st.cfg),d);SND.play('buy',d);d+=150;for(var q=0;q<(e.n||0);q++){flyFrom(stockR,sr,BACKHTML,d);SND.play('flick',d);d+=150;}}
     else if(e.t==='discard'&&byId[e.c]){flyFrom(sr,faceR,cardHTML(byId[e.c],st.cfg),d);SND.play('throw',d);d+=120;}
