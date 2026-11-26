@@ -2220,7 +2220,7 @@ if(B.setDiscardOracle&&C.bestThrow)B.setDiscardOracle(function(st,pi){if(!G||AUT
 var Q=new URLSearchParams(location.search);
 var AUTO=Q.get('autoplay')==='1', FAST=Q.get('fast')==='1'||AUTO;
 var KEY='shanghai.test.';
-var VERSION='1.9 test (26 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
+var VERSION='1.9 (26 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
 function store(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v));}catch(e){}}
 function load(k){try{var s=localStorage.getItem(KEY+k);return s?JSON.parse(s):null;}catch(e){return null;}}
 function drop(k){try{localStorage.removeItem(KEY+k);}catch(e){}}
