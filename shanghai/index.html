@@ -728,7 +728,7 @@ table.sc td.n{text-align:right}
   // Every different way to make the contract from this hand (Guy, 19 Nov 2026: Go down should ask which combination).
   // Two ways count as different when their melds differ (a set's rank, a run's suit and start); which of two identical
   // cards or which wild card fills a gap does not make a new way. At most `limit` ways (default 8).
-  function findAllContracts(hand, contract, cfg, limit) {
+  function findAllContracts(hand, contract, cfg, limit, grow) {
     limit = limit || 8;
     var ih = indexHand(hand, cfg), idx = ih.idx, out = [], seen = {};
     var order = contract.map(function (p, i) { return { p: p, i: i }; }).sort(function (a, b) { return b.p.n - a.p.n; });
@@ -739,11 +739,13 @@ table.sc td.n{text-align:right}
       if (out.length >= limit || nodes++ > 200000) return;
       if (d === order.length) {
         if (cfg.initialMeldRules && !initialRulesOk(chosen)) return;
-        var sig = chosen.map(function (c) { return c.t === 'set' ? 's' + c.rank : 'r' + c.suit + ':' + c.start; }).sort().join(',');
-        if (seen[sig]) return; seen[sig] = 1;
         var res = [];
         order.forEach(function (o, k) { res[o.i] = chosen[k]; });
-        out.push(res.map(function (c) { return { t: c.t, rank: c.rank, suit: c.suit, start: c.start, cards: c.cards.slice() }; }));
+        var ways = res.map(function (c) { return { t: c.t, rank: c.rank, suit: c.suit, start: c.start, cards: c.cards.slice() }; });
+        if (grow) ways = extendMelds(ways, hand, cfg);   // put down every card that fits (Guy, 26 Nov 2026)
+        var sig = ways.map(function (c) { return c.t === 'set' ? 's' + c.rank + 'x' + c.cards.length : 'r' + c.suit + ':' + c.start + 'x' + c.cards.length; }).sort().join(',');
+        if (seen[sig]) return; seen[sig] = 1;
+        out.push(ways);
         return;
       }
       var part = order[d].p, list = cands[d];
@@ -768,6 +770,46 @@ table.sc td.n{text-align:right}
         for (var z = taken.length - 1; z >= 0; z--) avail[taken[z][0]].push(taken[z][1]);
       }
     })(0);
+    return out;
+  }
+
+  // Grow melds with the cards still in `hand` (Guy, 26 Nov 2026 00:17: "the run is a minimum of 4 ... I can actually go
+  // down with 3 4s and 2, 3, 4, 5, joker, 7, 8, 9 of hearts ... It shouldn't assume only 4 cards down"). A set takes
+  // every natural card of its number; a run takes the next natural card at either end, and a wild card may bridge a
+  // one-card gap to a natural card beyond it, within the wild-card limit. Wild cards are never added just to lengthen
+  // a meld. Returns new melds (the originals untouched); if the grown melds break a rule, the originals.
+  function extendMelds(melds, hand, cfg) {
+    var used = {}; melds.forEach(function (m) { m.cards.forEach(function (c) { used[c.id] = 1; }); });
+    var rem = hand.filter(function (c) { return !used[c.id]; });
+    var out = melds.map(function (m) { return { t: m.t, rank: m.rank, suit: m.suit, start: m.start, cards: m.cards.slice() }; });
+    var pr = posRange(cfg);
+    function find(pred) { for (var i = 0; i < rem.length; i++) if (pred(rem[i])) return i; return -1; }
+    function take(pred) { var i = find(pred); return i < 0 ? null : rem.splice(i, 1)[0]; }
+    function nat(su, p) { return function (c) { return !isWild(c, cfg) && c.suit === su && c.rank === rankAtPos(p); }; }
+    function wild(c) { return isWild(c, cfg); }
+    var changed = true, guard = 0;
+    while (changed && guard++ < 80) {
+      changed = false;
+      out.forEach(function (m) {
+        if (m.t === 'set') { var c = take(function (x) { return !isWild(x, cfg) && x.rank === m.rank; }); if (c) { m.cards.push(c); changed = true; } return; }
+        var n = m.cards.length, w = meldWilds(m, cfg), hi = m.start + n, lo = m.start - 1;
+        if (hi <= pr[1] && find(nat(m.suit, hi)) >= 0) { m.cards.push(take(nat(m.suit, hi))); changed = true; return; }
+        if (lo >= pr[0] && find(nat(m.suit, lo)) >= 0) { m.cards.unshift(take(nat(m.suit, lo))); m.start = lo; changed = true; return; }
+        if (hi + 1 <= pr[1] && find(wild) >= 0 && find(nat(m.suit, hi + 1)) >= 0 && w + 1 <= maxWilds(n + 2, cfg)) {
+          m.cards.push(take(wild)); m.cards.push(take(nat(m.suit, hi + 1))); changed = true; return;
+        }
+        if (lo - 1 >= pr[0] && find(wild) >= 0 && find(nat(m.suit, lo - 1)) >= 0 && w + 1 <= maxWilds(n + 2, cfg)) {
+          var wc = take(wild), nc = take(nat(m.suit, lo - 1)); m.cards.unshift(wc); m.cards.unshift(nc); m.start = lo - 1; changed = true; return;
+        }
+      });
+    }
+    // a run may not use the same rank twice (aces both ways: A at both ends is not allowed here)
+    for (var i = 0; i < out.length; i++) {
+      var m = out[i];
+      if (validMeld(m, cfg)) return melds;
+      if (m.t === 'run' && m.start === 1 && m.start + m.cards.length - 1 === 14) return melds;
+    }
+    if (cfg.initialMeldRules && !initialRulesOk(out.map(function (m) { return { t: m.t, rank: m.rank, suit: m.suit, start: m.start, len: m.cards.length }; }))) return melds;
     return out;
   }
 
@@ -1070,7 +1112,7 @@ table.sc td.n{text-align:right}
     rng: rng, shuffle: shuffle, buildDeck: buildDeck, isWild: isWild, cardName: cardName, cardPoints: cardPoints,
     posRange: posRange, rankAtPos: rankAtPos, maxWilds: maxWilds, validMeld: validMeld,
     indexHand: indexHand, candidates: candidates, contractDistance: contractDistance, findContract: findContract, findAllContracts: findAllContracts,
-    layOffSpots: layOffSpots, swapSpots: swapSpots, barredDiscards: barredDiscards, mustDrawTwo: mustDrawTwo,
+    layOffSpots: layOffSpots, swapSpots: swapSpots, barredDiscards: barredDiscards, mustDrawTwo: mustDrawTwo, extendMelds: extendMelds,
     newGame: newGame, startRound: startRound, apply: apply, tryApply: tryApply, buyers: buyers,
     current: current, roundInfo: roundInfo, allCards: allCards
   };
@@ -2113,7 +2155,7 @@ if(B.setDiscardOracle&&C.bestThrow)B.setDiscardOracle(function(st,pi){if(!G||AUT
 var Q=new URLSearchParams(location.search);
 var AUTO=Q.get('autoplay')==='1', FAST=Q.get('fast')==='1'||AUTO;
 var KEY='shanghai.v1.';
-var VERSION='1.5 (25 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
+var VERSION='1.6 (26 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
 function store(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v));}catch(e){}}
 function load(k){try{var s=localStorage.getItem(KEY+k);return s?JSON.parse(s):null;}catch(e){return null;}}
 function drop(k){try{localStorage.removeItem(KEY+k);}catch(e){}}
@@ -2657,7 +2699,7 @@ function goDown(){
       finishDown(order.map(function(x){return x.meld;}));return;
     }
     // or, with nothing set aside yet, the picked cards may hold the whole contract at once
-    if(!b){var all=S.findContract(chosen,rd.contract,cfg);if(all){finishDown(all);return;}}
+    if(!b){var all=S.findContract(chosen,rd.contract,cfg);if(all){finishDown(S.extendMelds?S.extendMelds(all,chosen,cfg):all);return;}}  // every picked card that fits goes down
     G.msg='Those '+chosen.length+' cards do not make a '+open.map(function(x){return partName(x.p);}).join(' or a ')+'. Pick the cards for one set or one run (wild cards count), then press Go down.';render();return;
   }
   var found=S.findContract(me.hand,rd.contract,cfg);
@@ -2670,7 +2712,7 @@ function goDown(){
 // The different ways to go down from your hand, allowed by the rules, the ones leaving the fewest points in your hand first.
 function downWays(){
   var st=G.st,me=st.players[G.human],rd=S.roundInfo(st),cfg=st.cfg;
-  var ways=S.findAllContracts?S.findAllContracts(me.hand,rd.contract,cfg,8):[];
+  var ways=S.findAllContracts?S.findAllContracts(me.hand,rd.contract,cfg,24,true):[];  // each way grown with every card that fits (Guy, 26 Nov 2026)
   ways=ways.filter(function(w){
     var used=w.reduce(function(n,m){return n+m.cards.length;},0);
     if(rd.allAtOnce&&!B.planAllOut(st,G.human,w,true))return false;
