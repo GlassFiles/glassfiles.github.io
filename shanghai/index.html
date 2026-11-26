@@ -191,6 +191,7 @@ table.sc td.n{text-align:right}
 .pile.tip .card,.pile.tip .back{box-shadow:0 0 0 3px #81d4fa}
 .coach{background:rgba(129,212,250,.14);border-left:4px solid #81d4fa;border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:14px}
 .coach ul{margin:4px 0 0;padding-left:18px}.coach li{margin:2px 0}
+.coach{position:relative;padding-right:46px}.coach .tipx{position:absolute;top:0;right:0;width:44px;height:44px;border:0;background:none;color:#81d4fa;font-size:24px;line-height:44px;padding:0;border-radius:8px}.coach .tipx:active{background:rgba(129,212,250,.25)}
 .tipline{font-size:14px;color:#81d4fa;margin-top:4px}
 .hand .card.tip{outline:3px dashed #81d4fa;outline-offset:1px}
 .hand .card.barred{box-shadow:inset 0 -5px 0 #e53935}.hand .card.joker.barred{box-shadow:inset 0 -6px 0 #b71c1c}
@@ -346,6 +347,31 @@ table.sc td.n{text-align:right}
 .hand.st-shade .card.joker.barred::after,.hand.st-real .card.joker.barred::after{background:rgba(183,28,28,.30)}
 .hand.st-shade .card.sel,.hand.st-real .card.sel{box-shadow:0 0 0 3px var(--sel),0 4px 10px rgba(0,0,0,.5)}
 .hand.st-shade .card.tip,.hand.st-real .card.tip{outline:3px dashed #81d4fa;outline-offset:1px}
+/* the face-up card and the cards on the table in the style chosen for your hand (Guy, 26 Nov 2026 07:44: "the cards in the center, the style, should match what we selected as our cards") */
+.cs-shade :where(.pile .card,.meld .card),.cs-real :where(.pile .card,.meld .card){border:1px solid #7d7663;box-shadow:-2px 0 4px rgba(0,0,0,.28),0 -2px 5px rgba(0,0,0,.35)}
+.cs-shade :where(.pile .card:not(.joker),.meld .card:not(.joker)),.cs-real :where(.meld .card:not(.joker)){background:linear-gradient(180deg,#fffdf6 0%,#f3eee0 55%,#ddd6c4 100%)}
+.cs-shade :where(.mc:not(.jk)),.cs-real :where(.mc:not(.jk)){background:linear-gradient(180deg,#fffdf6 0%,#f3eee0 55%,#ddd6c4 100%);border-color:#7d7663;box-shadow:-1px 0 2px rgba(0,0,0,.35)}
+.cs-shade .pile .card .r{position:absolute;left:4px;top:4px;font-size:21px;letter-spacing:-1px}
+.cs-shade .pile .card .s{position:absolute;left:5px;top:27px;font-size:16px}
+.cs-shade .pile .card.joker .jstar{position:absolute;left:3px;top:2px;font-size:24px}
+.cs-shade .pile .card.joker .jw{position:absolute;left:4px;top:29px;font-size:8px}
+.cs-shade .meld .card .r{position:absolute;left:3px;top:3px;font-size:14px;letter-spacing:-1px}
+.cs-shade .meld .card .s{position:absolute;left:3px;top:18px;font-size:12px}
+.cs-shade .meld .card.joker .jstar{position:absolute;left:2px;top:2px;font-size:16px}
+.cs-real .pile .card,.cs-real .meld .card{background:#fff;overflow:hidden}
+.cs-real .pile .card img.face,.cs-real .meld .card img.face{position:absolute;left:0;top:0;width:100%;height:100%;display:block;pointer-events:none}
+.cs-real .pile .card .r,.cs-real .pile .card .s,.cs-real .pile .card.joker .jstar,.cs-real .meld .card .r,.cs-real .meld .card .s,.cs-real .meld .card.joker .jstar{position:absolute;left:0;background:#fff;text-align:center;z-index:2;line-height:1}
+.cs-real .pile .card .r,.cs-real .pile .card .s,.cs-real .pile .card.joker .jstar{width:21px}
+.cs-real .pile .card .r{top:0;height:20px;padding-top:3px;box-sizing:border-box;font-size:16px;letter-spacing:-2px}
+.cs-real .pile .card .s{top:20px;height:17px;font-size:14px;border-bottom-right-radius:6px}
+.cs-real .pile .card.joker .jstar{top:0;height:23px;font-size:18px;border-bottom-right-radius:6px;color:#5b1a8b}
+.cs-real .meld .card .r,.cs-real .meld .card .s,.cs-real .meld .card.joker .jstar{width:14px}
+.cs-real .meld .card .r{top:0;height:13px;padding-top:2px;box-sizing:border-box;font-size:11px;letter-spacing:-1.5px}
+.cs-real .meld .card .s{top:13px;height:11px;font-size:10px;border-bottom-right-radius:4px}
+.cs-real .meld .card.joker .jstar{top:0;height:16px;font-size:13px;border-bottom-right-radius:4px;color:#5b1a8b}
+.cs-real .card .s .si{margin:0 auto}
+.cs-real :where(.pile,.meld) .card.joker .jw{display:none}
+.cs-real :where(.pile,.meld) .card .as,.cs-real :where(.pile,.meld) .card .w{z-index:2;background:rgba(255,248,214,.92);border-radius:3px;padding:0 2px}
 .handsw{display:flex;flex-wrap:wrap;gap:6px}
 </style>
 </head>
@@ -384,6 +410,10 @@ table.sc td.n{text-align:right}
     buyPenalty: 1,              // extra cards from the stock with each buy
     buyAfterDown: false,        // may a player who has gone down still buy?
     jokerSwap: true,            // a player who is down may swap the natural card for a joker in a run
+    wildsApart: false,          // true: two wild cards may never sit side by side in a run, going down or laying off
+                                // (Guy, 26 Nov 2026 07:44: "in a run, you can't have one joker next to the other")
+    oneWildDown: false,         // true: going down, each set or run holds at most one wild card (laying off later is not limited by this)
+                                // (Guy, 26 Nov 2026 08:33: "when you go down with anything you can't put 2 jokers in the same run or set")
     noPlayableDiscard: 'never', // may you throw a card that would go on a meld on the table? 'never' barred (anyone may),
                                 // 'untilDown' (barred until you have gone down), 'always' (barred for everyone).
                                 // If every card in your hand is barred: see allBarred.
@@ -438,6 +468,8 @@ table.sc td.n{text-align:right}
       wildLimit: { mode: 'fewerThanNaturals' },
       noPlayableDiscard: 'untilDown',
       jokerSwap: false,          // the family does not swap jokers (Guy, 25 Nov 2026)
+      wildsApart: true,
+      oneWildDown: true,
       jokerThrow: 'beforeAnyDown',
       allBarred: 'drawTwo',
       buyPenalty: 2,
@@ -587,6 +619,7 @@ table.sc td.n{text-align:right}
       if (isWild(cc, cfg)) continue;
       if (cc.suit !== m.suit || cc.rank !== rankAtPos(m.start + k)) return 'run out of order';
     }
+    if (cfg.wildsApart) for (var k2 = 1; k2 < n; k2++) if (isWild(m.cards[k2], cfg) && isWild(m.cards[k2 - 1], cfg)) return 'two wild cards side by side';
     return null;
   }
 
@@ -632,6 +665,9 @@ table.sc td.n{text-align:right}
     out.sort(function (a, b) { return a.missing - b.missing; });
     return out;
   }
+
+  // True when a run candidate's gaps (null) touch, so two wild cards would sit side by side (cfg.wildsApart).
+  function gapsTouch(cards) { for (var i = 1; i < cards.length; i++) if (!cards[i] && !cards[i - 1]) return true; return false; }
 
   function initialRulesOk(chosen) {
     for (var i = 0; i < chosen.length; i++) for (var j = i + 1; j < chosen.length; j++) {
@@ -711,7 +747,7 @@ table.sc td.n{text-align:right}
         var size = part.n;
         if (cd.t === 'set') { while (cards.length < size) { cards.push(null); need++; } }
         var naturals = size - need;
-        if (naturals >= 1 && need <= wildsLeft.length && need <= maxWilds(size, cfg)) {
+        if (naturals >= 1 && need <= wildsLeft.length && need <= maxWilds(size, cfg) && !(cfg.oneWildDown && need > 1) && !(cd.t === 'run' && cfg.wildsApart && gapsTouch(cards))) {
           var usedW = [];
           for (var x = 0; x < cards.length; x++) if (!cards[x]) { var w = wildsLeft.pop(); usedW.push(w); cards[x] = w; }
           chosen.push({ t: cd.t, rank: cd.rank, suit: cd.suit, start: cd.start, len: size, cards: cards });
@@ -759,7 +795,7 @@ table.sc td.n{text-align:right}
         var size = part.n;
         if (cd.t === 'set') { while (cards.length < size) { cards.push(null); need++; } }
         var naturals = size - need;
-        if (naturals >= 1 && need <= wildsLeft.length && need <= maxWilds(size, cfg)) {
+        if (naturals >= 1 && need <= wildsLeft.length && need <= maxWilds(size, cfg) && !(cfg.oneWildDown && need > 1) && !(cd.t === 'run' && cfg.wildsApart && gapsTouch(cards))) {
           var usedW = [];
           for (var x = 0; x < cards.length; x++) if (!cards[x]) { var w = wildsLeft.pop(); usedW.push(w); cards[x] = w; }
           chosen.push({ t: cd.t, rank: cd.rank, suit: cd.suit, start: cd.start, len: size, cards: cards });
@@ -795,10 +831,12 @@ table.sc td.n{text-align:right}
         var n = m.cards.length, w = meldWilds(m, cfg), hi = m.start + n, lo = m.start - 1;
         if (hi <= pr[1] && find(nat(m.suit, hi)) >= 0) { m.cards.push(take(nat(m.suit, hi))); changed = true; return; }
         if (lo >= pr[0] && find(nat(m.suit, lo)) >= 0) { m.cards.unshift(take(nat(m.suit, lo))); m.start = lo; changed = true; return; }
-        if (hi + 1 <= pr[1] && find(wild) >= 0 && find(nat(m.suit, hi + 1)) >= 0 && w + 1 <= maxWilds(n + 2, cfg)) {
+        var apartHi = !(cfg.wildsApart && isWild(m.cards[n - 1], cfg)), apartLo = !(cfg.wildsApart && isWild(m.cards[0], cfg));
+        if (cfg.oneWildDown && w >= 1) { apartHi = false; apartLo = false; }
+        if (apartHi && hi + 1 <= pr[1] && find(wild) >= 0 && find(nat(m.suit, hi + 1)) >= 0 && w + 1 <= maxWilds(n + 2, cfg)) {
           m.cards.push(take(wild)); m.cards.push(take(nat(m.suit, hi + 1))); changed = true; return;
         }
-        if (lo - 1 >= pr[0] && find(wild) >= 0 && find(nat(m.suit, lo - 1)) >= 0 && w + 1 <= maxWilds(n + 2, cfg)) {
+        if (apartLo && lo - 1 >= pr[0] && find(wild) >= 0 && find(nat(m.suit, lo - 1)) >= 0 && w + 1 <= maxWilds(n + 2, cfg)) {
           var wc = take(wild), nc = take(nat(m.suit, lo - 1)); m.cards.unshift(wc); m.cards.unshift(nc); m.start = lo - 1; changed = true; return;
         }
       });
@@ -822,8 +860,9 @@ table.sc td.n{text-align:right}
       return spots;
     }
     var pr = posRange(cfg), lo = m.start - 1, hi = m.start + n;
-    if (lo >= pr[0] && (wild || (card.suit === m.suit && card.rank === rankAtPos(lo)))) spots.push({ meld: m.id, end: 'low' });
-    if (hi <= pr[1] && (wild || (card.suit === m.suit && card.rank === rankAtPos(hi)))) spots.push({ meld: m.id, end: 'high' });
+    var loOk = !(wild && cfg.wildsApart && isWild(m.cards[0], cfg)), hiOk = !(wild && cfg.wildsApart && isWild(m.cards[n - 1], cfg));
+    if (lo >= pr[0] && loOk && (wild || (card.suit === m.suit && card.rank === rankAtPos(lo)))) spots.push({ meld: m.id, end: 'low' });
+    if (hi <= pr[1] && hiOk && (wild || (card.suit === m.suit && card.rank === rankAtPos(hi)))) spots.push({ meld: m.id, end: 'high' });
     return spots;
   }
 
@@ -1000,6 +1039,7 @@ table.sc td.n{text-align:right}
         return false;
       })(0);
       if (!ok) err('melds do not meet the contract');
+      if (cfg.oneWildDown && built.some(function (m) { return meldWilds(m, cfg) > 1; })) err('going down, a set or run may hold only one joker');
       if (cfg.initialMeldRules && !initialRulesOk(built.map(function (m) { return { t: m.t, rank: m.rank, suit: m.suit, start: m.start, len: m.cards.length }; }))) err('first-meld rules broken');
       var remaining = p.hand.length - Object.keys(ids).length;
       if (!rd.noDiscardOut && cfg.mustDiscardToGoOut && remaining === 0) err('keep a card to discard');
@@ -2157,7 +2197,7 @@ if(B.setDiscardOracle&&C.bestThrow)B.setDiscardOracle(function(st,pi){if(!G||AUT
 var Q=new URLSearchParams(location.search);
 var AUTO=Q.get('autoplay')==='1', FAST=Q.get('fast')==='1'||AUTO;
 var KEY='shanghai.v1.';
-var VERSION='1.7 (26 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
+var VERSION='1.8 (26 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
 function store(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v));}catch(e){}}
 function load(k){try{var s=localStorage.getItem(KEY+k);return s?JSON.parse(s):null;}catch(e){return null;}}
 function drop(k){try{localStorage.removeItem(KEY+k);}catch(e){}}
@@ -2241,7 +2281,7 @@ function presetFields(name){
   var c=S.makeConfig(name);
   return {decks:c.decks,jokers:c.jokersPerDeck!=null?c.jokersPerDeck:c.jokers,jokersPerDeck:c.jokersPerDeck!=null,noPlayableDiscard:c.noPlayableDiscard,twosWild:c.twosWild,aceMode:c.aceMode,wildMode:c.wildLimit.mode==='fixed'?'fixed'+c.wildLimit.fixed:c.wildLimit.mode,
     initialMeldRules:c.initialMeldRules,layOffSameTurn:c.layOffSameTurn,mustDiscardToGoOut:c.mustDiscardToGoOut,buyPenalty:c.buyPenalty,buyAfterDown:c.buyAfterDown,
-    jokerSwap:c.jokerSwap,jokerThrow:c.jokerThrow,allBarred:c.allBarred,stockOut:c.stockOut==='end'?'end':'reshuffle'+c.maxReshuffles,
+    jokerSwap:c.jokerSwap,wildsApart:!!c.wildsApart,oneWildDown:!!c.oneWildDown,jokerThrow:c.jokerThrow,allBarred:c.allBarred,stockOut:c.stockOut==='end'?'end':'reshuffle'+c.maxReshuffles,
     ptLow:c.scoring.low,ptHigh:c.scoring.high,ptAce:c.scoring.ace,ptJoker:c.scoring.joker,lowMax:c.scoring.lowMax,rounds:roundsToText(c.rounds)};
 }
 function fieldsToConfig(su,f){
@@ -2251,7 +2291,7 @@ function fieldsToConfig(su,f){
   if(/^fixed/.test(f.wildMode)){wl.mode='fixed';wl.fixed=+f.wildMode.slice(5);}
   var so=f.stockOut==='end'?{stockOut:'end',maxReshuffles:0}:{stockOut:'reshuffle',maxReshuffles:+f.stockOut.slice(9)};
   var o={players:1+(+su.bots),decks:+f.decks,jokers:f.jokersPerDeck?(+f.decks)*(+f.jokers):+f.jokers,jokersPerDeck:f.jokersPerDeck?+f.jokers:null,noPlayableDiscard:f.noPlayableDiscard||'never',twosWild:!!f.twosWild,aceMode:f.aceMode,wildLimit:wl,initialMeldRules:!!f.initialMeldRules,
-    layOffSameTurn:!!f.layOffSameTurn,mustDiscardToGoOut:!!f.mustDiscardToGoOut,buyPenalty:+f.buyPenalty,buyAfterDown:!!f.buyAfterDown,jokerSwap:!!f.jokerSwap,jokerThrow:f.jokerThrow||'any',allBarred:f.allBarred||'throwAny',
+    layOffSameTurn:!!f.layOffSameTurn,mustDiscardToGoOut:!!f.mustDiscardToGoOut,buyPenalty:+f.buyPenalty,buyAfterDown:!!f.buyAfterDown,jokerSwap:!!f.jokerSwap,wildsApart:!!f.wildsApart,oneWildDown:!!f.oneWildDown,jokerThrow:f.jokerThrow||'any',allBarred:f.allBarred||'throwAny',
     stockOut:so.stockOut,maxReshuffles:so.maxReshuffles,
     scoring:{low:+f.ptLow,high:+f.ptHigh,ace:+f.ptAce,joker:+f.ptJoker,wildTwo:20,lowMax:+f.lowMax},rounds:tr.rounds,
     name:S.PRESETS[su.preset]?S.PRESETS[su.preset].name:'Custom'};
@@ -2329,6 +2369,8 @@ function renderSetup(){
   h+='<div class="field"><label for="jokerThrow">Throwing a joker</label>'+sel('jokerThrow',f.jokerThrow||'any',[['any','Allowed'],['beforeAnyDown','Not once anyone is down']])+'</div>';
   h+='<div class="field"><label for="allBarred">When no card may be thrown</label>'+sel('allBarred',f.allBarred||'throwAny',[['throwAny','Throw any card'],['drawTwo','Draw 2 from the pile']])+'</div>';
   h+=chk('jokerSwap',f.jokerSwap,'Swap a real card for a joker in a run (once you are down)');
+  h+=chk('wildsApart',f.wildsApart,'Two jokers may not sit side by side in a run');
+  h+=chk('oneWildDown',f.oneWildDown,'Going down: only one joker in each set or run');
   h+='<div class="field"><label for="buyPenalty">Penalty cards per buy</label>'+num('buyPenalty',f.buyPenalty,0,3)+'</div>';
   h+=chk('buyAfterDown',f.buyAfterDown,'May still buy after going down');
   h+='<div class="field"><label for="stockOut">When the pile runs out</label>'+sel('stockOut',f.stockOut,[['reshuffle2','Reshuffle discards (twice at most)'],['reshuffle1','Reshuffle once'],['reshuffle5','Reshuffle up to 5 times'],['end','Round ends, nobody out']])+'</div>';
@@ -2351,7 +2393,7 @@ function renderSetup(){
   h+='<div class="sect"><h2>Play a deal again</h2><div class="field"><label for="seed">Deal number</label><input type="text" inputmode="numeric" id="seed" value="'+esc(su.seed)+'" placeholder="random" autocomplete="off" enterkeyhint="done" style="width:140px"><span class="muted">Same number, same cards.</span></div></div>';
   h+='<div id="warn"></div><div class="row"><button class="btn primary" id="start">Deal</button></div></div>';
   $app.innerHTML=h;
-  var ids=['decks','jokers','jokersPerDeck','noPlayableDiscard','twosWild','aceMode','wildMode','initialMeldRules','layOffSameTurn','mustDiscardToGoOut','buyPenalty','buyAfterDown','jokerSwap','jokerThrow','allBarred','stockOut','ptLow','ptHigh','ptAce','ptJoker','lowMax','rounds'];
+  var ids=['decks','jokers','jokersPerDeck','noPlayableDiscard','twosWild','aceMode','wildMode','initialMeldRules','layOffSameTurn','mustDiscardToGoOut','buyPenalty','buyAfterDown','jokerSwap','wildsApart','oneWildDown','jokerThrow','allBarred','stockOut','ptLow','ptHigh','ptAce','ptJoker','lowMax','rounds'];
   function readSu(){return {chances:document.getElementById('chances').value,openHands:document.getElementById('openHands').value,review:document.getElementById('review').value,name:(document.getElementById('name').value||'You').trim().slice(0,16)||'You',bots:+document.getElementById('bots').value,level:document.getElementById('level').value,
     preset:document.getElementById('preset').value,speed:document.getElementById('speed').value,buyAsk:'always',coach:document.getElementById('coach').value,goDownMode:document.getElementById('goDownMode').value,seed:document.getElementById('seed').value.replace(/\D/g,'').slice(0,9)};}
   function readF(){var o={};ids.forEach(function(id){var el=document.getElementById(id);o[id]=el.type==='checkbox'?el.checked:el.value;});return o;}
@@ -2717,6 +2759,10 @@ function goDown(){
     }
     // or, with nothing set aside yet, the picked cards may hold the whole contract at once
     if(!b){var all=S.findContract(chosen,rd.contract,cfg);if(all){finishDown(S.extendMelds?S.extendMelds(all,chosen,cfg):all);return;}}  // every picked card that fits goes down
+    var nWild=chosen.filter(function(c){return S.isWild(c,cfg);}).length;
+    var loose=S.makeConfig('family',{wildsApart:false,oneWildDown:false});
+    if(cfg.oneWildDown&&nWild>1&&open.some(function(o){return chosen.length>=o.p.n&&S.findContract(chosen,[{t:o.p.t,n:chosen.length}],loose);})){G.msg='When you go down, a set or run may hold only one joker. Keep the other joker to lay off later.';render();return;}
+    if(cfg.wildsApart&&nWild>1&&S.findContract(chosen,[{t:'run',n:chosen.length}],loose)){G.msg='Two jokers may not sit side by side in a run. Pick the cards again so a real card sits between them.';render();return;}
     G.msg='Those '+chosen.length+' cards do not make a '+open.map(function(x){return partName(x.p);}).join(' or a ')+'. Pick the cards for one set or one run (wild cards count), then press Go down.';render();return;
   }
   var found=S.findContract(me.hand,rd.contract,cfg);
@@ -2916,7 +2962,7 @@ function meldHTML(m,cfg,can){
   m.cards.forEach(function(c,k){
     var as='';
     if(S.isWild(c,cfg))as=m.t==='set'?RK[m.rank]:RK[S.rankAtPos(m.start+k)]+SUITCH[m.suit];
-    h+=cardHTML(c,cfg,{mini:true,as:as});
+    h+=cardHTML(c,cfg,{mini:true,as:as,face:LOOK.hand==='real'});
   });
   return h+'</div>';
 }
@@ -2976,14 +3022,14 @@ function render(){
   var dots='';for(var di=0;di<cfg.rounds.length;di++)dots+='<i class="'+(di<st.round?'done':di===st.round?'now':'')+'">●</i>';
   h+='<div class="top"><div class="title"><div class="rnd"><b>Round '+(st.round+1)+'</b><span class="of">of '+cfg.rounds.length+'</span><span class="dots" aria-hidden="true">'+dots+'</span>'+(G.openHands==='on'?'<span class="of">· open hands</span>':'')+'</div><div class="contract">'+esc(contractText(rd.contract))+(rd.allAtOnce?' · all at once':rd.noDiscardOut?' · no discard to win':'')+'</div></div>';
   h+='<button class="btn ghost" id="scores">Scores</button><button class="btn ghost" id="lookbtn" aria-label="Sound">⚙</button><button class="btn ghost" id="menu" aria-label="Menu">☰</button></div>';
-  h+='<div class="table" id="table">';
+  h+='<div class="table'+(LOOK.hand==='shade'||LOOK.hand==='real'?' cs-'+LOOK.hand:'')+'" id="table">';
   if(G.showLook)h+=lookHTML();
   if(G.showScores)h+=scoresHTML();
   if(st.phase==='roundOver')h+=roundOverHTML();
   else{
     var adv=coachState(),myDraw=waiter&&waiter.kind==='draw';
     if(G.chances==='on')h+='<div class="chances" id="chances">'+chancesHTML()+'</div>';
-    if(adv)h+='<div class="coach" role="status">'+(G.mode==='guided'&&MODEPICS.tipface?'<div class="who"><img alt="" src="'+MODEPICS.tipface+'"><b>Tip</b></div>':'')+'<b>'+esc(adv.head)+'</b>'+(adv.lines.length?'<ul>'+adv.lines.map(function(l){return '<li>'+esc(l)+'</li>';}).join('')+'</ul>':'')+'</div>';
+    if(adv&&G.tipHide!==posKey())h+='<div class="coach" role="status"><button type="button" class="tipx" id="tipx" aria-label="Hide this tip">×</button>'+(G.mode==='guided'&&MODEPICS.tipface?'<div class="who"><img alt="" src="'+MODEPICS.tipface+'"><b>Tip</b></div>':'')+'<b>'+esc(adv.head)+'</b>'+(adv.lines.length?'<ul>'+adv.lines.map(function(l){return '<li>'+esc(l)+'</li>';}).join('')+'</ul>':'')+'</div>';
     // the oval table: seats round it, each player's melds on the felt in front of them, the pile and face-up card in the middle
     var spots=seatSpots(st.players.length),k=0,where={};
     st.players.forEach(function(p,i){if(i!==G.human)where[i]=spots[k++];});
@@ -3003,7 +3049,7 @@ function render(){
     var tipStock=adv&&adv.pick==='stock',tipFace=adv&&adv.pick==='discard';
     h+='<div class="centre"><button type="button" class="pile'+(myDraw?' live':'')+(tipStock?' tip':'')+'" id="stock"'+(myDraw?'':' disabled')+' aria-label="Draw from the pile"><div class="back"></div><span class="muted">pile '+st.stock.length+'</span></button>';
     var under=!st.top&&st.dead&&st.dead.length?st.dead[st.dead.length-1]:null;  // the card underneath: shown, never takeable (Guy, 25 Nov 2026)
-    h+='<button type="button" class="pile'+(myDraw&&st.top?' live':'')+(tipFace?' tip':'')+(under?' under':'')+'" id="faceup"'+(myDraw&&st.top||under?'':' disabled')+' aria-label="'+(under?'The discard pile: the top card has been taken':'Take the face-up card')+'">'+(st.top?cardHTML(st.top,cfg):under?cardHTML(under,cfg):'<div class="card" style="opacity:.25"></div>')+'<span class="muted">face up</span></button></div>';
+    h+='<button type="button" class="pile'+(myDraw&&st.top?' live':'')+(tipFace?' tip':'')+(under?' under':'')+'" id="faceup"'+(myDraw&&st.top||under?'':' disabled')+' aria-label="'+(under?'The discard pile: the top card has been taken':'Take the face-up card')+'">'+(st.top?cardHTML(st.top,cfg,{face:LOOK.hand==='real'}):under?cardHTML(under,cfg,{face:LOOK.hand==='real'}):'<div class="card" style="opacity:.25"></div>')+'<span class="muted">face up</span></button></div>';
     h+='</div>';
     // a player's melds full size, when their cards on the table are tapped
     if(G.zoom!=null&&st.melds.some(function(m){return m.owner===G.zoom;})){
@@ -3114,7 +3160,8 @@ function wire(){
   on('waycancel',function(){G.downChoices=null;G.msg='';render();});
   on('undo',doUndo);on('placecancel',function(){G.place=null;G.msg='';render();});
   [].slice.call(document.querySelectorAll('.placeopt')).forEach(function(b){b.addEventListener('click',function(){var pl=G.place,o=pl&&pl.opts[+b.getAttribute('data-k')];G.place=null;if(o)humanAct({type:'layOff',cardId:pl.cardId,meld:o.meld,end:o.end},'');});});on('buildreset',function(){G.build=null;G.sel={};G.msg='Pick the cards for one set or run, or press Go down to let the game choose.';render();});on('layall',layOffAll);on('laysel',layOffSelected);on('discard',discard);
-  on('hint',function(){G.hintFor=posKey();render();var t=document.querySelector('.coach');if(t)t.scrollIntoView({block:'nearest'});});
+  on('tipx',function(){G.tipHide=posKey();render();});
+  on('hint',function(){G.hintFor=posKey();G.tipHide=null;render();var t=document.querySelector('.coach');if(t)t.scrollIntoView({block:'nearest'});});
   on('sort',function(){G.menu=!G.menu;render();});
   ['suit','rank','lanes','mine'].forEach(function(m){on('ord-'+m,function(){chooseOrder(m);});});
   on('mvl',function(){var c=selectedCards()[0],ids=orderedHand().map(function(x){return x.id;});moveCard(c.id,ids.indexOf(c.id)-1);render();});
