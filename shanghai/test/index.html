@@ -2358,7 +2358,7 @@ function renderHero(){
   $app.innerHTML=h;
   [].forEach.call(document.querySelectorAll('.heropick'),function(b){b.addEventListener('click',function(){var su2=Object.assign({},DEFAULT_SETUP,load('setup')||{});su2.avatar=b.getAttribute('data-hero');store('setup',su2);renderHero();});});
   document.getElementById('heroback').addEventListener('click',function(){renderEntry(false);});
-  document.getElementById('heroplay').addEventListener('click',function(){startMode('tavern');});
+  document.getElementById('heroplay').addEventListener('click',function(){TAV.load();startMode('tavern');TAV.unlock();});
 }
 function startMode(mode){
   var su=Object.assign({},DEFAULT_SETUP,load('setup')||{},MODES[mode]||{},{mode:mode,seed:''});
@@ -2368,7 +2368,7 @@ function startMode(mode){
   newGame(r.cfg,Math.floor(Math.random()*1e9),su);
 }
 function renderEntry(editName){
-  $app.className='';setSkin(false);
+  $app.className='';setSkin(false);TAV.stopAll();
   var su=Object.assign({},DEFAULT_SETUP,load('setup')||{}),saved=load('game');
   var h='<div class="entry"><div class="top">';
   if(editName)h+='<div class="namerow"><input type="text" id="ename" value="'+esc(su.name==='You'?'':su.name)+'" placeholder="Your name" maxlength="16" autocomplete="off" autocapitalize="words" enterkeyhint="done" aria-label="Your name"><button class="btn primary" id="enameok" aria-label="Done">✓</button></div>';
@@ -2401,7 +2401,7 @@ function renderEntry(editName){
 }
 function home(){if(FAST)renderSetup();else renderEntry(false);}
 function renderSetup(){
-  $app.className='';setSkin(false);
+  $app.className='';setSkin(false);TAV.stopAll();
   var su=Object.assign({},DEFAULT_SETUP,load('setup')||{});
   var f=Object.assign(presetFields(su.preset),savedFields(su.preset));
   var saved=load('game');
@@ -2538,7 +2538,7 @@ async function loop(){
   while(true){
     if(st.phase==='gameOver'||st.over){drop('game');render();return;}
     if(st.phase==='roundOver'){
-      if(!AUTO&&st.outPlayer!=null&&G.celebrated!==st.round){G.celebrated=st.round;var sd=standings();celebrate(st.outPlayer===G.human?'You won the round!':st.players[st.outPlayer].name+' won the round!',(sd?sd.who+'. ':'')+(sd&&sd.you?sd.you+'.':''),SEATCOL[st.outPlayer],'Round '+(st.round+1)+' of '+st.cfg.rounds.length);}
+      if(!AUTO&&st.outPlayer!=null&&G.celebrated!==st.round){G.celebrated=st.round;TAV.roundWon(st.outPlayer);var sd=standings();celebrate(st.outPlayer===G.human?'You won the round!':st.players[st.outPlayer].name+' won the round!',(sd?sd.who+'. ':'')+(sd&&sd.you?sd.you+'.':''),SEATCOL[st.outPlayer],'Round '+(st.round+1)+' of '+st.cfg.rounds.length);}
       save();render();
       if(AUTO){await sleep(0);}else await waitFor('next');
       if(gone())return;
@@ -3075,6 +3075,7 @@ function posKey(){
 function render(){
   if(!G)return;
   setSkin(G.mode==='tavern');
+  if(G.mode==='tavern'){TAV.musicSync();try{var adv0=coachState(),k0=waiter?posKey():null;if(k0&&G.spokenKey!==k0&&(adv0||(S.mustDrawTwo&&S.mustDrawTwo(G.st,G.human)))&&!AUTO){G.spokenKey=k0;TAV.owl(adv0);}}catch(e){console.error(e);}}
   if(G.dragging){G.renderPending=true;return;}
   var st=G.st,cfg=st.cfg,me=st.players[G.human],rd=S.roundInfo(st)||cfg.rounds[cfg.rounds.length-1];
   var h='';
@@ -3229,7 +3230,9 @@ function wire(){
   on('clear',function(){G.sel={};G.msg='';render();});
   on('scores',function(){G.showScores=!G.showScores;render();});
   on('lookbtn',function(){G.showLook=!G.showLook;render();});
-  on('snd-toggle',function(){LOOK.sound=!LOOK.sound;saveLook();if(LOOK.sound)SND.play('flick');render();});
+  on('snd-toggle',function(){LOOK.sound=!LOOK.sound;saveLook();if(LOOK.sound)SND.play('flick');TAV.musicSync();render();});
+  on('voice-toggle',function(){LOOK.voice=LOOK.voice===false;saveLook();if(LOOK.voice)TAV.say(['o_your_turn']);render();});
+  on('music-toggle',function(){LOOK.music=LOOK.music===false;saveLook();TAV.musicSync();render();});
   [].slice.call(document.querySelectorAll('[data-hand]')).forEach(function(b){b.addEventListener('click',function(){LOOK.hand=b.getAttribute('data-hand');saveLook();render();});});
   [].slice.call(document.querySelectorAll('[data-back]')).forEach(function(b){b.addEventListener('click',function(){LOOK.back=b.getAttribute('data-back');saveLook();render();});});
   [].slice.call(document.querySelectorAll('[data-cloth]')).forEach(function(b){b.addEventListener('click',function(){LOOK.cloth=b.getAttribute('data-cloth');saveLook();render();});});
@@ -3375,7 +3378,7 @@ function roundOverHTML(){
 function renderGameOver(){
   var st=G.st,order=st.players.map(function(p,i){return {i:i,s:st.scores[i]};}).sort(function(a,b){return a.s-b.s;});
   var best=order[0].s,winners=order.filter(function(o){return o.s===best;});
-  if(!AUTO&&!G.celebratedGame){G.celebratedGame=true;var wy=winners.some(function(w){return w.i===G.human;});celebrate(wy?'You win!':st.players[winners[0].i].name+' wins!','Final score '+best+' (lowest wins)',SEATCOL[winners[0].i]);}
+  if(!AUTO&&!G.celebratedGame){G.celebratedGame=true;var wy=winners.some(function(w){return w.i===G.human;});TAV.gameOver(wy);celebrate(wy?'You win!':st.players[winners[0].i].name+' wins!','Final score '+best+' (lowest wins)',SEATCOL[winners[0].i]);}
   var h='<div class="setup"><h1>'+(winners.some(function(w){return w.i===G.human;})?(winners.length>1?'You tied for the win!':'You won!'):esc(st.players[winners[0].i].name)+' won')+'</h1>';
   h+='<table class="sc"><tr><th>Place</th><th>Player</th><th class="n">Points</th></tr>';
   order.forEach(function(o,k){h+='<tr><td>'+(k+1)+'</td><td>'+esc(o.i===G.human?'You':st.players[o.i].name+(G.levels[o.i]?' ('+(LVNAME[G.levels[o.i]]||G.levels[o.i])+')':''))+'</td><td class="n">'+o.s+'</td></tr>';});
@@ -3444,7 +3447,7 @@ function animateMoves(){
   for(var k=prev.log;k<st.roundLog.length;k++){
     var e=st.roundLog[k];if(e.p===G.human&&e.t!=='discard'&&e.t!=='down')continue;
     var sr=rectOf(seatEl(e.p));
-    if(e.t==='down'){SND.play('down',d);d+=200;continue;}
+    if(e.t==='down'){SND.play('down',d);TAV.down(e.p,d);d+=200;continue;}
     if(e.t==='stock'){flyFrom(stockR,sr,BACKHTML,d);SND.play('flick',d);d+=120;}
     else if(e.t==='draw2'){for(var q2=0;q2<2;q2++){flyFrom(stockR,sr,BACKHTML,d);SND.play('flick',d);d+=150;}}
     else if(e.t==='take'&&byId[e.c]){flyFrom(faceR,sr,cardHTML(byId[e.c],st.cfg),d);SND.play('slide',d);d+=120;}
@@ -3461,7 +3464,7 @@ function animateMoves(){
 var LOOK_CHOICES=true; // Guy, 19 Nov 2026 14:46: keep the new backs and cloths as choices, to be reworked later
 var BACKS_MADE=['avocado','baseball','beer','blue','faith','football','socal'];
 var BACKS=[['red','Classic red'],['blue','Classic blue'],['faith','Faith, a cross in stained glass'],['beer','Beer'],['avocado','Avocado'],['socal','Southern California sunset'],['baseball','Baseball, brown and gold'],['football','Football, black and white']].filter(function(x){return x[0]==='red'||BACKS_MADE.indexOf(x[0])>=0;}),CLOTHS=[['green','Green baize'],['blue','Blue'],['burgundy','Burgundy'],['charcoal','Charcoal'],['ballpark','Ballpark'],['pitch','Football pitch']];
-var LOOK=Object.assign({sound:true,back:'red',cloth:'green',hand:'grid'},(function(){try{return JSON.parse(localStorage.getItem(KEY+'look'))||{};}catch(e){return {};}})());
+var LOOK=Object.assign({sound:true,voice:true,music:true,back:'red',cloth:'green',hand:'grid'},(function(){try{return JSON.parse(localStorage.getItem(KEY+'look'))||{};}catch(e){return {};}})());
 function saveLook(){try{localStorage.setItem(KEY+'look',JSON.stringify(LOOK));}catch(e){}applyLook();}
 function applyLook(){var b=document.body;if(!b)return;if(!LOOK_CHOICES){LOOK.back='red';LOOK.cloth='green';}b.className=b.className.replace(/\b(back|cloth)-\w+/g,'').trim();if(BACKS_MADE.indexOf(LOOK.back)<0)LOOK.back='red';b.classList.add('back-'+LOOK.back);if(LOOK.cloth!=='green')b.classList.add('cloth-'+LOOK.cloth);}
 // how your hand is laid out (Guy, 25 Nov 2026 22:30: "final options shud be: C2 and E2 and A and F")
@@ -3469,6 +3472,10 @@ var HANDSTYLES=[['grid','Grid'],['two','Two rows'],['shade','Big, shaded'],['rea
 function lookHTML(){
   var h='<div class="look"><h2>'+(LOOK_CHOICES?'Sound and look':'Sound')+'</h2>';
   h+='<div class="lrow"><span>Sound</span><button class="btn'+(LOOK.sound?' primary':'')+'" id="snd-toggle" aria-pressed="'+LOOK.sound+'">'+(LOOK.sound?'🔊 On':'🔇 Off')+'</button></div>';
+  if(G&&G.mode==='tavern'){
+    h+='<div class="lrow"><span>The owl\'s voice</span><button class="btn'+(LOOK.voice!==false?' primary':'')+'" id="voice-toggle" aria-pressed="'+(LOOK.voice!==false)+'">'+(LOOK.voice!==false?'On':'Off')+'</button></div>';
+    h+='<div class="lrow"><span>Tavern music</span><button class="btn'+(LOOK.music!==false?' primary':'')+'" id="music-toggle" aria-pressed="'+(LOOK.music!==false)+'">'+(LOOK.music!==false?'On':'Off')+'</button></div>';
+  }
   h+='<div class="lrow"><span>Your cards</span><div class="sw handsw">'+HANDSTYLES.map(function(x){return '<button type="button" class="btn'+(LOOK.hand===x[0]?' primary':'')+'" data-hand="'+x[0]+'" aria-pressed="'+(LOOK.hand===x[0])+'">'+x[1]+'</button>';}).join('')+'</div></div>';
   if(LOOK_CHOICES)h+='<div class="lrow"><span>Card backs</span><div class="sw">'+BACKS.map(function(x){return '<button type="button" class="swb'+(LOOK.back===x[0]?' on':'')+'" data-back="'+x[0]+'" aria-label="'+x[1]+' card backs" aria-pressed="'+(LOOK.back===x[0])+'"><span class="back sample back-'+x[0]+'"></span></button>';}).join('')+'</div></div>';
   if(LOOK_CHOICES)h+='<div class="lrow"><span>Cloth</span><div class="sw">'+CLOTHS.map(function(x){return '<button type="button" class="swb'+(LOOK.cloth===x[0]?' on':'')+'" data-cloth="'+x[0]+'" aria-label="'+x[1]+' cloth" aria-pressed="'+(LOOK.cloth===x[0])+'"><span class="clothsw cloth-'+x[0]+'"></span></button>';}).join('')+'</div></div>';
@@ -3517,6 +3524,119 @@ var SND=(function(){
   };
 })();
 document.addEventListener('pointerdown',function(){SND.unlock();},{passive:true});
+// ---------- Tavern sounds, music and the owl's voice (Guy, 26 Nov 2026 14:44: "go and pls can u ger the voices and other effects") ----------
+// Only in a game started from the Tavern button. Music: the poker game's tavern tracks, streamed from the poker folder on the same site
+// (/poker/music/, made 26 Nov by the poker chat; Christmas tracks in December as there); none in the private file. The characters' win
+// lines, the cheer, the jingle and the orc laughs: copied from the poker page. The owl: short recorded pieces in the poker coach's
+// voice (Achird), played one after another; anything not recorded is said whole by the device's own voice.
+// The clips sit in the private file itself (TAUDIO); a web page loads them from tavern_audio.js beside it when Tavern starts.
+var TAUDIO=/*TAUDIO*/null;
+var OWLTEXT={o_draw_pile:'Draw from the pile.',o_take_the:'Take the',o_buy_it:'Buy it!',o_let_go:'Let it go.',o_careful:"Careful! Don't buy this one.",o_fits_table:'It goes straight on the table.',o_wild_any:'A wild card fits anywhere!',o_brings_closer:'It brings you closer.',o_then_ready:"Then you're ready to go down!",o_go_down_now2:'You can go down now! Tap Go down.',o_need_one:'You need one more card.',o_must_fit:'Not yet. Every card has to fit first.',o_you_need:'You need',o_more_card:'more card.',o_more_cards:'more cards.',o_lay_off:'Lay off your cards on the table.',o_throw_the:'Throw the',o_draw_two:"You can't throw anything, so draw two cards.",o_your_turn:'Your turn!',o_well_done:'Well done!',o_you_won_round:'You won the round!',o_you_won_game:'You won the game! Brilliant!',o_good_game:'Good game! Shall we play again?',o_joker:'joker',o_s_hearts:'of hearts.',o_s_diamonds:'of diamonds.',o_s_clubs:'of clubs.',o_s_spades:'of spades.'};
+(function(){var R={a:'ace',2:'two',3:'three',4:'four',5:'five',6:'six',7:'seven',8:'eight',9:'nine',10:'ten',j:'jack',q:'queen',k:'king'};for(var k in R)OWLTEXT['o_r_'+k]=R[k];['one','two','three','four','five','six','seven','eight'].forEach(function(w){OWLTEXT['o_n_'+w]=w;});})();
+// the poker game's music sets (its MSETS, 26 Nov 2026)
+var TMUSIC={tavern:{early:['tav_early_1','tav_early_2','tav_early_3','tav_early_4'],mid:['tav_mid_1','tav_mid_2'],end:['tav_end_1','tav_end_2']},christmas:{early:['xmas_early_1','xmas_early_2','xmas_early_3'],mid:['xmas_mid_1'],end:['xmas_end_1']}};
+var TAV=(function(){
+  var ctx=null,bufs={},loading=null,srcs=[],music=null,mKey='',wTurn={},laughN=0,st8={said:[],lines:0,music:'',loaded:false,device:0};
+  function clips(){return TAUDIO||window.__TAUDIO||null;}
+  function live(){return G&&G.mode==='tavern'&&LOOK.sound&&!document.hidden;}
+  function load(cb){
+    if(clips()){st8.loaded=true;if(cb)cb();return;}
+    if(loading){loading.push(cb);return;}
+    loading=[cb];
+    try{var sc=document.createElement('script');sc.src='tavern_audio.js';sc.onload=sc.onerror=function(){st8.loaded=!!clips();var l=loading;loading=null;l.forEach(function(f){if(f)f();});};document.head.appendChild(sc);}catch(e){loading=null;if(cb)cb();}
+  }
+  function ac(){
+    try{if(!ctx){var A=window.AudioContext||window.webkitAudioContext;if(!A)return null;ctx=new A();}if(ctx.state==='suspended')ctx.resume();return ctx;}catch(e){return null;}
+  }
+  function b64buf(b){var s=atob(b),u=new Uint8Array(s.length);for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u.buffer;}
+  function dec(id,cb){
+    if(bufs[id]){cb(bufs[id]);return;}
+    var c=ac(),C=clips(),b=C&&C[id];if(!c||!b){cb(null);return;}
+    var done=false,f=function(x){if(done)return;done=true;if(x)bufs[id]=x;cb(x||null);};
+    try{var p=c.decodeAudioData(b64buf(b),f,function(){f(null);});if(p&&p.then)p.then(f,function(){f(null);});}catch(e){f(null);}
+  }
+  function decAll(ids,cb){var out=new Array(ids.length),n=ids.length;if(!n){cb(out);return;}ids.forEach(function(id,i){dec(id,function(b){out[i]=b;if(--n===0)cb(out);});});}
+  function stopVoice(){srcs.forEach(function(x){try{x.stop();}catch(e){}});srcs=[];try{if(window.speechSynthesis)speechSynthesis.cancel();}catch(e){}}
+  function duck(sec){if(!music)return;music.volume=0.07;clearTimeout(duck.t);duck.t=setTimeout(function(){if(music)music.volume=0.22;},Math.max(800,sec*1000+300));}
+  function playSeq(ids,vol,text){
+    var c=ac();if(!c)return;
+    decAll(ids,function(bs){
+      if(bs.some(function(b){return !b;})){deviceSay(text);return;}
+      var t=c.currentTime+0.05;bs.forEach(function(b){var s=c.createBufferSource(),g=c.createGain();g.gain.value=vol||1;s.buffer=b;s.connect(g);g.connect(c.destination);s.start(t);srcs.push(s);t+=b.duration+0.04;});
+      duck(t-c.currentTime);
+    });
+  }
+  function deviceSay(text){
+    try{var ss=window.speechSynthesis;if(!ss||!text)return;ss.cancel();var u=new SpeechSynthesisUtterance(text);u.rate=0.95;u.pitch=1.05;
+      var vs=ss.getVoices().filter(function(v){return /^en/i.test(v.lang);});var pick=vs.filter(function(v){return /GB/.test(v.lang);})[0]||vs[0];if(pick){u.voice=pick;u.lang=pick.lang;}
+      ss.speak(u);st8.device++;duck(text.length*0.075);}catch(e){}
+  }
+  function card(c){
+    if(!c)return [];
+    if(c.suit===4)return ['o_joker'];
+    var r={1:'a',11:'j',12:'q',13:'k'}[c.rank]||String(c.rank);
+    return ['o_r_'+r,'o_s_'+['clubs','diamonds','hearts','spades'][c.suit]];
+  }
+  function text(ids){return ids.map(function(i){return OWLTEXT[i]||'';}).join(' ').replace(/\s+/g,' ').replace(/ \./g,'.');}
+  function say(ids){
+    if(!live()||LOOK.voice===false||!ids||!ids.length)return;
+    stopVoice();st8.said.push(ids.join('+'));if(st8.said.length>40)st8.said.shift();
+    var t=text(ids);load(function(){playSeq(ids,1,t);});
+  }
+  // the owl's short line for a tip (the tip's first sentence, said in a few words), plus which card to throw
+  function owlIds(adv,st,me){
+    var hd=(adv&&adv.head)||'',ids=[],n,m;
+    if(S.mustDrawTwo&&S.mustDrawTwo(st,G.human))return ['o_draw_two'];
+    if(/^Take the .*it lays off/.test(hd))ids=['o_take_the'].concat(card(st.top),['o_fits_table']);
+    else if(/^Take the .*a wild card fits/.test(hd))ids=['o_take_the'].concat(card(st.top),['o_wild_any']);
+    else if(/^Take the .*ready to go down/.test(hd))ids=['o_take_the'].concat(card(st.top),['o_then_ready']);
+    else if(/^Take the /.test(hd))ids=['o_take_the'].concat(card(st.top),['o_brings_closer']);
+    else if(/^Draw from the pile/.test(hd))ids=['o_draw_pile'];
+    else if(/^Buy it/.test(hd))ids=['o_buy_it'];
+    else if(/^Let it go/.test(hd))ids=[];   // quiet: every card thrown would bring "Let it go" (Claude's call, 26 Nov 2026)
+    else if(/^Careful: this round/.test(hd))ids=['o_careful'];
+    else if(/^You can go down now/.test(hd))ids=['o_go_down_now2'];
+    else if(/^You have the contract; this round every card/.test(hd))ids=['o_must_fit'];
+    else if((m=/^You are (\d+) cards? short/.exec(hd))){n=+m[1];var w=['','one','two','three','four','five','six','seven','eight'][n];if(n===1)ids=['o_need_one'];else if(w)ids=['o_you_need','o_n_'+w,'o_more_cards'];}
+    else if(/^Lay off: /.test(hd))ids=['o_lay_off'];
+    if(adv&&adv.discardId&&!/^You can go down now/.test(hd)&&!/^Lay off: /.test(hd)){var c=me.hand.filter(function(x){return x.id===adv.discardId;})[0];if(c)ids=ids.concat(['o_throw_the'],card(c));}
+    return ids;
+  }
+  function musicBase(){try{if(!/^https?:$/.test(location.protocol))return '';var p=location.pathname,k=p.indexOf('/shanghai/');return k>=0?p.slice(0,k)+'/poker/music/':'';}catch(e){return '';}}
+  function theme(){var d=new Date(),mo=d.getMonth();return mo===11||(mo===0&&d.getDate()<=6)?'christmas':'tavern';}
+  function phase(){var st=G&&G.st;if(!st)return 'early';var n=st.cfg.rounds.length,r=st.round;return r<Math.ceil(n*0.4)?'early':r<Math.ceil(n*0.75)?'mid':'end';}
+  function musicSync(){
+    var want=live()&&LOOK.music!==false&&musicBase();
+    if(!want){if(music){try{music.pause();}catch(e){}}return;}
+    var set=TMUSIC[theme()][phase()],key=theme()+'/'+phase();
+    if(music&&mKey===key){if(music.paused){var p0=music.play();if(p0&&p0.catch)p0.catch(function(){});}return;}
+    if(music){try{music.pause();}catch(e){}}
+    var id=set[Math.floor(Math.random()*set.length)];
+    music=new Audio(musicBase()+id+'.mp3');music.volume=0.22;mKey=key;st8.music=id;
+    music.addEventListener('ended',function(){mKey='';musicSync();});
+    var p=music.play();if(p&&p.catch)p.catch(function(){});
+  }
+  function stopAll(){stopVoice();if(music){try{music.pause();}catch(e){}}music=null;mKey='';}
+  function playOne(id,vol){if(!live())return;load(function(){var c=ac();if(!c)return;dec(id,function(b){if(!b)return;var s=c.createBufferSource(),g=c.createGain();g.gain.value=vol||1;s.buffer=b;s.connect(g);g.connect(c.destination);s.start(c.currentTime+0.05);duck(b.duration);});});}
+  return {
+    load:load,say:say,musicSync:musicSync,stopAll:stopAll,unlock:function(){if(G&&G.mode==='tavern'){ac();musicSync();}},
+    owl:function(adv){var st=G.st,me=st.players[G.human];say(owlIds(adv,st,me));},
+    owlIds:function(adv){return owlIds(adv,G.st,G.st.players[G.human]);},
+    // a character wins the round: their win line (three each, in turn); you win: the jingle, the cheer and the owl
+    roundWon:function(pi){
+      if(!G||G.mode!=='tavern')return;
+      if(pi===G.human){playOne('jingle',0.8);setTimeout(function(){playOne('cheer',0.9);},900);setTimeout(function(){say(['o_you_won_round']);},1800);return;}
+      var k=G.avatars&&G.avatars[pi];if(!k)return;wTurn[k]=((wTurn[k]||0)%3)+1;st8.lines++;playOne('win_'+k+'_'+wTurn[k],1);
+    },
+    gameOver:function(youWon){if(!G||G.mode!=='tavern')return;if(youWon){playOne('jingle',0.8);setTimeout(function(){playOne('cheer',1);},900);setTimeout(function(){say(['o_you_won_game']);},1900);}else say(['o_good_game']);},
+    // someone goes down: the orc laughs when it is him; well done when it is you
+    down:function(pi,delayMs){if(!G||G.mode!=='tavern')return;if(pi===G.human){setTimeout(function(){say(['o_well_done']);},(delayMs||0)+300);return;}if(G.avatars&&G.avatars[pi]==='orc'){laughN=laughN%2+1;var id='laugh_'+laughN;setTimeout(function(){playOne(id,0.9);},(delayMs||0)+200);}},
+    info:function(){return {loaded:!!clips(),clips:clips()?Object.keys(clips()).length:0,said:st8.said.slice(),lines:st8.lines,music:st8.music,musicPlaying:!!(music&&!music.paused),device:st8.device,ctx:ctx?ctx.state:'none'};}
+  };
+})();
+document.addEventListener('pointerdown',function(){TAV.unlock();},{passive:true});
+document.addEventListener('visibilitychange',function(){if(document.hidden)TAV.musicSync();else TAV.musicSync();});
+
 document.addEventListener('visibilitychange',function(){if(document.hidden)SND.pause();});
 document.addEventListener('DOMContentLoaded',applyLook);if(document.body)applyLook();
 function fxLayer(){return document.getElementById('fx')||document.body.appendChild(Object.assign(document.createElement('div'),{id:'fx'}));}
@@ -3599,7 +3719,7 @@ function showSplash(){
   function go(){d.style.opacity='0';setTimeout(function(){d.remove();},400);}
   d.addEventListener('click',go);
 }
-window.__shanghai={get G(){return G;},S:S,B:B,celebrate:celebrate,toast:toast,render:function(){render();},presetFields:presetFields,SND:SND};
+window.__shanghai={get G(){return G;},S:S,B:B,celebrate:celebrate,toast:toast,render:function(){render();},presetFields:presetFields,SND:SND,TAV:TAV};
 home();
 showSplash();
 if(AUTO){document.getElementById('start').click();}
