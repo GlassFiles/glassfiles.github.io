@@ -383,7 +383,9 @@ body[data-skin=tavern] .oval .felt{background:radial-gradient(ellipse at 50% 40%
 body[data-skin=tavern] .table{background:rgba(0,0,0,.22)}
 body[data-skin=tavern] .oval .seat{background:rgba(26,15,7,.92);border-color:rgba(255,210,60,.18)}
 body[data-skin=tavern] .oval .seat.turn{border-color:#ffd23c;box-shadow:0 0 0 2px rgba(255,210,60,.45)}
-body[data-skin=tavern] .seat .av{display:block;width:30px;height:30px;border-radius:50%;margin:-2px auto 1px;border:2px solid #c9a24a;object-fit:cover;background:#222}
+body[data-skin=tavern] .seat .av{display:inline-block;vertical-align:middle;width:22px;height:22px;border-radius:50%;margin:0 4px 0 0;border:2px solid #c9a24a;object-fit:cover;background:#222;box-sizing:border-box}
+body[data-skin=tavern] .oval .seat .fan.tav{display:flex;align-items:center;justify-content:center;gap:0;height:22px}
+body[data-skin=tavern] .seat .fan.tav span{margin-left:0}
 body[data-skin=tavern] .seat.turn .av{border-color:#ffd23c}
 body[data-skin=tavern] .actions .btn{min-height:52px;padding:10px 14px;font-size:17px;font-weight:800;letter-spacing:.4px;text-transform:uppercase;border-radius:14px;color:#fff;background:#6a4526;box-shadow:0 4px 0 rgba(0,0,0,.35)}
 body[data-skin=tavern] .actions .btn:active{transform:translateY(2px);box-shadow:0 2px 0 rgba(0,0,0,.35)}
@@ -2229,7 +2231,7 @@ if(B.setDiscardOracle&&C.bestThrow)B.setDiscardOracle(function(st,pi){if(!G||AUT
 var Q=new URLSearchParams(location.search);
 var AUTO=Q.get('autoplay')==='1', FAST=Q.get('fast')==='1'||AUTO;
 var KEY=/*KEYPREFIX*/'shanghai.v1.';
-var VERSION='1.9 (26 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
+var VERSION='1.9.1 (26 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
 function store(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v));}catch(e){}}
 function load(k){try{var s=localStorage.getItem(KEY+k);return s?JSON.parse(s):null;}catch(e){return null;}}
 function drop(k){try{localStorage.removeItem(KEY+k);}catch(e){}}
@@ -3056,9 +3058,10 @@ function seatHTML(i,spot){
   for(var k=0;k<Math.min(n,7);k++)fan+='<i></i>';
   var one=n===1&&st.phase!=='roundOver';
   var h='<div class="seat'+(turn?' turn':'')+(you?' you':'')+(one?' one':'')+'" data-seat="'+i+'" style="left:'+spot.x.toFixed(1)+'%;top:'+spot.y.toFixed(1)+'%;--c:'+SEATCOL[i]+'">';
-  if(G.mode==='tavern'&&G.avatars&&tavPic(G.avatars[i]))h+='<img class="av" alt="" src="'+tavPic(G.avatars[i])+'">';
-  h+='<div class="nm"><b>'+esc(you?'You':p.name)+'</b>'+(G.levels[i]?' <span class="lv">'+esc(LVNAME[G.levels[i]]||G.levels[i])+'</span>':'')+'</div>';
-  if(!you)h+='<div class="fan" aria-label="'+n+' cards">'+fan+'<span>'+n+'</span></div>';
+  // tavern: the portrait sits in the card-count row (and beside "You"), so the box is no taller than in the other games (26 Nov 2026 16:18)
+  var av=G.mode==='tavern'&&G.avatars&&tavPic(G.avatars[i])?'<img class="av" alt="" src="'+tavPic(G.avatars[i])+'">':'';
+  h+='<div class="nm">'+(you?av:'')+'<b>'+esc(you?'You':p.name)+'</b>'+(G.levels[i]?' <span class="lv">'+esc(LVNAME[G.levels[i]]||G.levels[i])+'</span>':'')+'</div>';
+  if(!you)h+=av?'<div class="fan tav" aria-label="'+n+' cards">'+av+'<span>'+n+' cards</span></div>':'<div class="fan" aria-label="'+n+' cards">'+fan+'<span>'+n+'</span></div>';
   h+='<div class="st">'+(p.down?'<span class="badge">DOWN</span>':'buys '+p.buysLeft)+' · '+st.scores[i]+'</div>';
   if(one)h+='<div class="onecard">1 card!</div>';
   var sp=seatPct();if(sp)h+='<div class="pc" data-i="'+i+'" title="'+esc(seatTitle(i))+'">'+pcText(sp[i],seatRange(i))+'</div>';
@@ -3197,7 +3200,7 @@ function render(){
     h+='</div>';
   }
   h+='</div>';
-  $app.innerHTML=h;
+  $app.innerHTML=h;placeZones();
   wire();
   wireReview();
   try{animateMoves();}catch(e){console.error(e);}
@@ -3413,6 +3416,16 @@ window.addEventListener('unhandledrejection',function(e){
 // Your own new cards fly into their place in your hand. Off in fast play, in tests and with reduced motion.
 var BACKHTML='<div class="card cardback"></div>';
 function rectOf(el){return el?el.getBoundingClientRect():null;}
+// each player's cards on the table sit just below that player's box, measured after drawing, so a taller box (a portrait in the tavern,
+// larger text) never covers them (Guy, 26 Nov 2026 16:18, a photo of the tavern table: "boxes covering hands")
+function placeZones(){
+  try{
+    var oval=document.querySelector('.oval');if(!oval)return;
+    var zs=[].slice.call(oval.querySelectorAll('.zone:not(.mine)'));
+    zs.forEach(function(z){var s=seatEl(z.getAttribute('data-owner'));if(!s)return;z.style.top=Math.round(s.offsetTop+s.offsetHeight/2+3)+'px';});
+  }catch(e){}
+}
+window.addEventListener('resize',function(){placeZones();});
 function seatEl(i){return document.querySelector('.seat[data-seat="'+i+'"]');}
 function flyFrom(fromR,toR,html,delay){
   if(!fromR||!toR||REDUCED)return;
