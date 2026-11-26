@@ -895,6 +895,7 @@ table.sc td.n{text-align:right}
     for (var c = 0; c < rd.deal; c++) for (var i = 1; i <= cfg.players; i++) st.players[(st.dealer + i) % cfg.players].hand.push(deck.pop());
     st.stock = deck;
     st.top = st.stock.pop();     // the face-up card
+    st.topBy = null;             // who threw the face-up card (nobody, at the start of a round)
     st.dead = [];                // discards no longer takeable (they go back in when the stock runs out)
     st.melds = []; st.meldSeq = 0;
     st.turn = (st.dealer + 1) % cfg.players;
@@ -931,6 +932,7 @@ table.sc td.n{text-align:right}
     if (!st.top) return out;
     for (var k = 1; k < cfg.players; k++) {
       var i = (st.turn + k) % cfg.players, p = st.players[i];
+      if (i === st.topBy) continue;   // you may not buy the card you have just thrown (Guy, 26 Nov 2026 00:31)
       if (p.buysLeft > 0 && (cfg.buyAfterDown || !p.down)) out.push(i);
     }
     return out;
@@ -1057,7 +1059,7 @@ table.sc td.n{text-align:right}
       var dc = takeFromHand(p, a.cardId);
       var wasDown = !!p.down;
       if (!p.hand.length && rd.noDiscardOut) { p.hand.push(dc); err('this round you go out without discarding'); }
-      st.top = dc;
+      st.top = dc; st.topBy = st.turn;
       st.roundLog.push({ t: 'discard', p: st.turn, c: dc.id, down: wasDown });
       if (!p.hand.length) { endRound(st, st.turn); return st; }
       st.turn = (st.turn + 1) % cfg.players;
@@ -2155,7 +2157,7 @@ if(B.setDiscardOracle&&C.bestThrow)B.setDiscardOracle(function(st,pi){if(!G||AUT
 var Q=new URLSearchParams(location.search);
 var AUTO=Q.get('autoplay')==='1', FAST=Q.get('fast')==='1'||AUTO;
 var KEY='shanghai.v1.';
-var VERSION='1.6 (26 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
+var VERSION='1.7 (26 Nov 2026)';  // shown on the first screen and in Settings, so a report can say which build it was
 function store(k,v){try{localStorage.setItem(KEY+k,JSON.stringify(v));}catch(e){}}
 function load(k){try{var s=localStorage.getItem(KEY+k);return s?JSON.parse(s):null;}catch(e){return null;}}
 function drop(k){try{localStorage.removeItem(KEY+k);}catch(e){}}
@@ -2619,10 +2621,25 @@ function buyReason(){
   return 'It does not bring you closer to '+contractText(rd.contract)+'.';
 }
 // ---------- human actions ----------
+// Undo (Guy, 26 Nov 2026 00:31: "once that was done, I couldn't undo it. So an undo thing might be good"): before each
+// card you put on the table in your turn (going down, laying off, swapping), the state is kept; Undo puts it back. Only
+// your own moves in this turn, before you throw: nothing new is seen in between, so nothing is learnt by undoing.
+var PLACING={goDown:1,layOff:1,layOffs:1,swap:1};
+function undoKey(){var st=G.st;return st.round+':'+st.turnsThisRound+':'+st.turn;}
+function keepUndo(){var st=G.st;if(st.phase!=='play'||st.turn!==G.human)return;var r=st.rand;st.rand=null;var j=JSON.stringify(st);st.rand=r;
+  if(!G.undo||G.undo.key!==undoKey())G.undo={key:undoKey(),list:[]};G.undo.list.push({json:j,build:G.build?JSON.stringify(G.build):null,wentDown:G.turnRev&&G.turnRev.wentDown});}
+function canUndo(){return !!(G.undo&&G.undo.key===undoKey()&&G.undo.list.length&&waiter&&waiter.kind==='play');}
+function doUndo(){
+  if(!canUndo())return;var u=G.undo.list.pop(),st=G.st,r=st.rand,o=JSON.parse(u.json);
+  Object.keys(st).forEach(function(k){if(k!=='rand')delete st[k];});Object.assign(st,o);st.rand=r;   // in place: the game loop keeps its reference
+  G.build=u.build?JSON.parse(u.build):null;if(G.turnRev)G.turnRev.wentDown=u.wentDown;
+  G.sel={};G.place=null;G.downChoices=null;G.msg='Undone.';save();render();
+}
 function humanAct(action,okMsg){
   var mark=G.st.roundLog.length;
+  if(PLACING[action.type])keepUndo();
   var r=S.tryApply(G.st,action);
-  if(!r.ok){G.msg=friendly(r.error);render();return false;}
+  if(!r.ok){if(PLACING[action.type]&&G.undo&&G.undo.list.length)G.undo.list.pop();G.msg=friendly(r.error);render();return false;}
   G.sel={};G.msg=okMsg||'';noteLog(mark);save();
   if(G.st.phase!=='play'&&waiter&&waiter.kind==='play'){resolve();render();}
   else render();
@@ -2734,8 +2751,8 @@ function chooserHTML(){
 }
 function layOffAll(){
   var st=G.st,mark=st.roundLog.length,helper=new B.Bot('medium',1);
-  helper.layOffAll(st,G.human);
-  if(st.roundLog.length===mark){G.msg='Nothing more fits on the table.';render();return;}
+  keepUndo();helper.layOffAll(st,G.human);
+  if(st.roundLog.length===mark){if(G.undo&&G.undo.list.length)G.undo.list.pop();G.msg='Nothing more fits on the table.';render();return;}
   G.sel={};G.msg='';noteLog(mark);save();
   if(st.phase!=='play'&&waiter&&waiter.kind==='play')resolve();else render();
 }
@@ -2753,7 +2770,28 @@ function selectedFit(){
   }
   return plan;
 }
+// Every place one card could go on the table: [{meld, end}]
+function placesFor(c){var st=G.st,out=[];st.melds.forEach(function(m){S.layOffSpots(c,m,st.cfg).forEach(function(s){out.push({meld:m.id,end:s.end});});});return out;}
+function placeLabel(o,c){
+  var st=G.st,m=st.melds.filter(function(x){return x.id===o.meld;})[0];if(!m)return '';
+  var owner=m.owner===G.human?'your':st.players[m.owner].name+'\'s';
+  if(m.t==='set')return 'On '+owner+' set of '+RK[m.rank]+'s';
+  var nat=m.cards.filter(function(x){return !S.isWild(x,st.cfg);}),lo=nat[0],hi=nat[nat.length-1];
+  var runName=owner+' '+SUITCH[m.suit]+' run '+RK[S.rankAtPos(m.start)]+'–'+RK[S.rankAtPos(m.start+m.cards.length-1)];
+  if(o.end==='low')return '◀ Before '+runName+': as the '+RK[S.rankAtPos(m.start-1)]+SUITCH[m.suit];
+  if(o.end==='high')return 'After '+runName+': as the '+RK[S.rankAtPos(m.start+m.cards.length)]+SUITCH[m.suit]+' ▶';
+  return 'On '+runName;
+}
+function placeHTML(){
+  var pl=G.place;if(!pl||pl.key!==undoKey()||!(waiter&&waiter.kind==='play'))return '';
+  var c=cardById(pl.cardId);if(!c)return '';
+  var h='<div class="choose" role="group" aria-label="Where should it go"><div class="ct"><b>Where should the '+cardText(c)+' go?</b></div>';
+  pl.opts.forEach(function(o,k){h+='<button type="button" class="btn placeopt" data-k="'+k+'">'+placeLabel(o,c)+'</button>';});
+  return h+'<button type="button" class="btn ghost" id="placecancel">Not now</button></div>';
+}
 function layOffSelected(){
+  var cs1=selectedCards();
+  if(cs1.length===1&&S.isWild(cs1[0],G.st.cfg)){var ps=placesFor(cs1[0]);if(ps.length>1){G.place={cardId:cs1[0].id,opts:ps,key:undoKey()};G.msg='';render();return;}}  // a wild card with a choice: ask
   var plan=selectedFit(),n=selectedCards().length;
   if(!plan.length){G.msg='None of those cards fits on the table.';render();return;}
   var skipped=n-plan.length;
@@ -2778,7 +2816,8 @@ function tapMeld(mid){
   if(sw.length){humanAct({type:'swap',cardId:c.id,meld:mid,slot:sw[0].slot},'You won a joker!');return;}
   var sp=S.layOffSpots(c,m,cfg);
   if(!sp.length){G.msg='The '+cardText(c)+' does not fit there.';render();return;}
-  var spot=sp.filter(function(s){return s.end==='high';})[0]||sp[0];
+  if(sp.length>1){G.place={cardId:c.id,opts:sp.map(function(s){return {meld:mid,end:s.end};}),key:undoKey()};G.msg='';render();return;}  // both ends: ask
+  var spot=sp[0];
   humanAct({type:'layOff',cardId:c.id,meld:mid,end:spot.end},'');
 }
 function discard(){
@@ -2981,7 +3020,7 @@ function render(){
   h+='</div>';
   // hand panel
   var adv2=st.phase!=='roundOver'?coachState():null;
-  h+='<div class="handpanel">'+reviewHTML()+chooserHTML();
+  h+='<div class="handpanel">'+reviewHTML()+chooserHTML()+placeHTML();
   if(waiter&&waiter.kind==='buy'){
     // a slim bar (Guy, 19 Nov 2026): the question, Buy it / No thanks / Hint, and how often to ask
     h+='<div class="buybar" role="group" aria-label="Buy the face-up card"><div class="bq"><b>Buy the '+esc(cardText(st.top))+'?</b> <span class="muted">+'+cfg.buyPenalty+' card'+(cfg.buyPenalty===1?'':'s')+'</span></div>'+
@@ -3006,6 +3045,7 @@ function render(){
     else h+='<button class="btn primary" id="layall">Lay off all</button>';
     if(S.mustDrawTwo(st,G.human))h+='<button class="btn primary" id="draw2">Draw 2</button>';  // forced: no card may be thrown (Guy, 25 Nov 2026)
     else h+='<button class="btn" id="discard"'+(n===1?'':' disabled')+'>Throw</button>';
+    if(canUndo())h+='<button class="btn ghost" id="undo" aria-label="Undo your last card on the table">↶ Undo</button>';
     h+=hintBtn();
   }else if(!(waiter&&waiter.kind==='buy')){
     var drawNow=waiter&&waiter.kind==='draw';
@@ -3071,7 +3111,9 @@ function wire(){
   on('godown',goDown);
   [].slice.call(document.querySelectorAll('.choose .way')).forEach(function(b){b.addEventListener('click',function(){var dc=G.downChoices,w=dc&&dc.ways[+b.getAttribute('data-k')];G.downChoices=null;if(w)finishDown(w);});});
   on('draw2',function(){humanAct({type:'drawTwo'},'You drew 2: no card could be thrown.');});
-  on('waycancel',function(){G.downChoices=null;G.msg='';render();});on('buildreset',function(){G.build=null;G.sel={};G.msg='Pick the cards for one set or run, or press Go down to let the game choose.';render();});on('layall',layOffAll);on('laysel',layOffSelected);on('discard',discard);
+  on('waycancel',function(){G.downChoices=null;G.msg='';render();});
+  on('undo',doUndo);on('placecancel',function(){G.place=null;G.msg='';render();});
+  [].slice.call(document.querySelectorAll('.placeopt')).forEach(function(b){b.addEventListener('click',function(){var pl=G.place,o=pl&&pl.opts[+b.getAttribute('data-k')];G.place=null;if(o)humanAct({type:'layOff',cardId:pl.cardId,meld:o.meld,end:o.end},'');});});on('buildreset',function(){G.build=null;G.sel={};G.msg='Pick the cards for one set or run, or press Go down to let the game choose.';render();});on('layall',layOffAll);on('laysel',layOffSelected);on('discard',discard);
   on('hint',function(){G.hintFor=posKey();render();var t=document.querySelector('.coach');if(t)t.scrollIntoView({block:'nearest'});});
   on('sort',function(){G.menu=!G.menu;render();});
   ['suit','rank','lanes','mine'].forEach(function(m){on('ord-'+m,function(){chooseOrder(m);});});
