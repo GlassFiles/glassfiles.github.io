@@ -2072,7 +2072,7 @@ safe-buffer/index.js:
 'use strict';
 var PK=window.PK;
 /* == PART: version and edition storage prefix (v14) == */
-var VERSION='15.4';
+var VERSION='15.5';
 /* the build sets window.PK_EDITION ('main' or 'test'); main keeps the old prefix so existing players keep their records; anything else gets the test prefix (no copying from main) */
 var PFX=window.PK_EDITION==='main'?'pk_':'pk'+'t_';
 function SK(name){return PFX+name}
@@ -2790,10 +2790,14 @@ function handSay(){var b=cxBoard();return b.length?handSayOf(cxHole(),b):startLi
 function handSayOf(hole,b){var h=PK.made(hole,b),pb=b.length===3?[]:b.slice(0,b.length-1),ph=PK.made(hole,pb),now=madeSay(hole,b);
  if(h.cat>=2&&h.cat>ph.cat&&ownPart(hole,b)&&now.indexOf('board')<0)return 'Great '+STREETW[b.length]+'! You hit '+HITW[h.cat]+'.';
  if(pb.length>=3&&madeSay(hole,pb)===now)return '';return now}
+function flushWarn(hole,b){if(!b||b.length<3)return false;var n={};b.forEach(function(c){var s=sd(c);n[s]=(n[s]||0)+1});var three=Object.keys(n).some(function(s){return n[s]>=3});return three&&PK.made(hole,b).cat<5}
 function coachLine(){var m=ui.m,nm=cxName(),hs=handSay(),p=hs?[hs]:[],dr=drawInfo(),dn=dangerInfo(),mv=ui.adv.move;
  if(dr){dr.items.forEach(function(x){var it=x.groups.map(function(g){return g.suit!==undefined?nA(SUITN[g.suit]):nA(RS[g.rank])}).join(' or ');
    p.push('Chance of '+DCAT[x.cat]+'.')});p.push(dr.n===1?'One card helps.':cap(NUMW[Math.min(dr.n,20)])+' cards help.')}
- if(dn&&dn.k>=2){if(dn.threat)p.push(nm+' may have '+THN[dn.threat]+'.');else if(dn.pair)p.push(nm+' may have a pair of '+RW[dn.pair]+'.')}
+ /* v15.5 (Guy, 27 Nov 2026 09:10: "u dont say they may have a flush when there is 3 cards suited on flop"): three or more of a suit on the board
+    and no flush or better in his hand: always warn of the flush, whatever hand beats him most often. A spoken warning only; the advice is unchanged. */
+ if(flushWarn(cxHole(),cxBoard()))p.push(nm+' may have a flush.');
+ else if(dn&&dn.k>=2){if(dn.threat)p.push(nm+' may have '+THN[dn.threat]+'.');else if(dn.pair)p.push(nm+' may have a pair of '+RW[dn.pair]+'.')}
  var sz=ui.adv.size,AI=!!ui.adv.allIn,FA=!!ui.adv.facingAllIn;
  if(!cxBoard().length&&ui.adv.seat)p.splice(1,0,cap(ui.adv.seat.toLowerCase())+'.');/* p[0] is the start line before the flop (handSay never empty there) */
  if(ui.nuts&&ui.nuts.isNuts)p.push('The nuts. Nothing beats you.');
