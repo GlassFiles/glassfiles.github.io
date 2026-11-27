@@ -2071,7 +2071,7 @@ safe-buffer/index.js:
 'use strict';
 var PK=window.PK;
 /* == PART: version and edition storage prefix (v14) == */
-var VERSION='15.4';
+var VERSION='15.5';
 /* the build sets window.PK_EDITION ('main' or 'test'); main keeps the old prefix so existing players keep their records; anything else gets the test prefix (no copying from main) */
 var PFX=window.PK_EDITION==='main'?'pk_':'pk'+'t_';
 function SK(name){return PFX+name}
@@ -2789,10 +2789,14 @@ function handSay(){var b=cxBoard();return b.length?handSayOf(cxHole(),b):startLi
 function handSayOf(hole,b){var h=PK.made(hole,b),pb=b.length===3?[]:b.slice(0,b.length-1),ph=PK.made(hole,pb),now=madeSay(hole,b);
  if(h.cat>=2&&h.cat>ph.cat&&ownPart(hole,b)&&now.indexOf('board')<0)return 'Great '+STREETW[b.length]+'! You hit '+HITW[h.cat]+'.';
  if(pb.length>=3&&madeSay(hole,pb)===now)return '';return now}
+function flushWarn(hole,b){if(!b||b.length<3)return false;var n={};b.forEach(function(c){var s=sd(c);n[s]=(n[s]||0)+1});var three=Object.keys(n).some(function(s){return n[s]>=3});return three&&PK.made(hole,b).cat<5}
 function coachLine(){var m=ui.m,nm=cxName(),hs=handSay(),p=hs?[hs]:[],dr=drawInfo(),dn=dangerInfo(),mv=ui.adv.move;
  if(dr){dr.items.forEach(function(x){var it=x.groups.map(function(g){return g.suit!==undefined?nA(SUITN[g.suit]):nA(RS[g.rank])}).join(' or ');
    p.push('Chance of '+DCAT[x.cat]+'.')});p.push(dr.n===1?'One card helps.':cap(NUMW[Math.min(dr.n,20)])+' cards help.')}
- if(dn&&dn.k>=2){if(dn.threat)p.push(nm+' may have '+THN[dn.threat]+'.');else if(dn.pair)p.push(nm+' may have a pair of '+RW[dn.pair]+'.')}
+ /* v15.5 (Guy, 27 Nov 2026 09:10: "u dont say they may have a flush when there is 3 cards suited on flop"): three or more of a suit on the board
+    and no flush or better in his hand: always warn of the flush, whatever hand beats him most often. A spoken warning only; the advice is unchanged. */
+ if(flushWarn(cxHole(),cxBoard()))p.push(nm+' may have a flush.');
+ else if(dn&&dn.k>=2){if(dn.threat)p.push(nm+' may have '+THN[dn.threat]+'.');else if(dn.pair)p.push(nm+' may have a pair of '+RW[dn.pair]+'.')}
  var sz=ui.adv.size,AI=!!ui.adv.allIn,FA=!!ui.adv.facingAllIn;
  if(!cxBoard().length&&ui.adv.seat)p.splice(1,0,cap(ui.adv.seat.toLowerCase())+'.');/* p[0] is the start line before the flop (handSay never empty there) */
  if(ui.nuts&&ui.nuts.isNuts)p.push('The nuts. Nothing beats you.');
@@ -3439,7 +3443,7 @@ function rebuyRowHTML(){var o=[[0,'OFF','no rebuys'],[1,'1','1 rebuy'],[3,'3','3
 ui.tmode=true;/* v15.3 (Guy, 26 Nov 2026 11:02): tournament poker only, no cash game and no choice: teenagers play this and cash play is closer to gambling */(function(){var s=lsGet(SK('tspeed2'));ui.tspeed=s==='normal'||s==='turbo'?s:'blitz'})();
 function tourOpt(){return ui.tmode?ui.tspeed:null}
 /*TEST-HOOKS-BEGIN*/
-window.__v154={nums:function(x){var o=ui.adv;ui.adv=x;var h=numsHTML();ui.adv=o;return h},madeSay:function(h,b){return madeSay(h,b)},handSayOf:function(h,b){return handSayOf(h,b)}};
+window.__v154={flushWarn:function(h,b){return flushWarn(h,b)},nums:function(x){var o=ui.adv;ui.adv=x;var h=numsHTML();ui.adv=o;return h},madeSay:function(h,b){return madeSay(h,b)},handSayOf:function(h,b){return handSayOf(h,b)}};
 window.__v153={pairKind:function(p,h,b){return pairKind(p,h,b)},handLine:function(h,o,b){return handLine(h,o,b)},map:function(l){return PHR.map(l)},ids:function(){return PHR.ids()},phase:function(){return musicPhase()},pv:function(v){return mPhaseView(v)},phu:function(m){return mPhaseHU(m)},theme:function(){return musicTheme()},sets:function(){return MSETS},url:function(){return MUSIC_URL},info:function(){return SFX.info()},ui:function(){return {mstyle:ui.mstyle,tmode:ui.tmode,tspeed:ui.tspeed}},coachLine:function(){return coachLine()}};
 /*TEST-HOOKS-END*/
 /* v15.3: a New! tag on what changed, shown to the end of 3 Dec 2026 (the release approach: New! for at least a week) */
