@@ -2071,7 +2071,7 @@ safe-buffer/index.js:
 'use strict';
 var PK=window.PK;
 /* == PART: version and edition storage prefix (v14) == */
-var VERSION='15.5';
+var VERSION='15.6';
 /* the build sets window.PK_EDITION ('main' or 'test'); main keeps the old prefix so existing players keep their records; anything else gets the test prefix (no copying from main) */
 var PFX=window.PK_EDITION==='main'?'pk_':'pk'+'t_';
 function SK(name){return PFX+name}
@@ -3081,7 +3081,11 @@ function makeHostCtl(){
   humans=[{id:'host',seen:Date.now(),av:ui.me.av}],pend=[],asks=[],nbots=2,t=null,seq=0,subs=[],lsubs=[],timer=0,tick=0,dead=false,started=false,dirty=false,clash=false,claimed=false,
   ctl={kind:'host',mySeat:0,room:code,ready:false,view:null,link:link};
  function maxBots(){return Math.max(0,Math.min(4,6-humans.length-pend.length))}
- function clamp(){nbots=Math.max(0,Math.min(nbots,maxBots()))}
+ /* v15.6 (Guy, 27 Nov 2026: a computer player who had won "dropped out the table"): reproduced: during play the host could tap fewer computer players
+    and the next deal rebuilt the table without them, chips and all. Now a computer player still holding chips is never removed: the count cannot go
+    below the last such seat, and the buttons below it are shown disabled. Adding computer players during play still works. */
+ function minBots(){if(!t||!started)return 0;var m=0;t.seats.forEach(function(s){var k=/^bot(\d+)$/.exec(s.id||'');if(k&&!s.out&&s.stack>0)m=Math.max(m,+k[1])});return m}
+ function clamp(){nbots=Math.max(minBots(),Math.min(nbots,maxBots()))}
  function hOf(id){for(var i=0;i<humans.length;i++)if(humans[i].id===id)return humans[i];for(i=0;i<pend.length;i++)if(pend[i].id===id)return pend[i];return null}
  function askOf(id){for(var i=0;i<asks.length;i++)if(asks[i].id===id)return asks[i];return null}
  function idxOf(id){if(!t)return -1;for(var i=0;i<t.seats.length;i++)if(t.seats[i].id===id)return i;return -1}
@@ -3121,7 +3125,7 @@ function makeHostCtl(){
  ctl.next=function(){if(dead||!t||!t.over||t.tableOver||t.humansOut)return;if(pend.length||dirty)build(t);TB.startHand(t);changed()};
  ctl.act=function(a){if(dead||!t||t.over||!t.h||t.h.toAct!==0)return;TB.act(t,0,a);changed()};
  ctl.setBots=function(k){nbots=k;clamp();if(started)dirty=true;pubLobby()};
- ctl.bots=function(){return nbots};ctl.maxBots=maxBots;ctl.pendN=function(){return pend.length};ctl.started=function(){return started};
+ ctl.bots=function(){return nbots};ctl.maxBots=maxBots;ctl.minBots=minBots;ctl.pendN=function(){return pend.length};ctl.started=function(){return started};
  ctl.seatsN=function(){return humans.length+nbots};
  ctl.onChange=function(f){subs.push(f)};ctl.onLobby=function(f){lsubs.push(f)};
  ctl.stop=function(){dead=true;clearTimeout(timer);clearInterval(ctl._iv);subs=[];lsubs=[];link.close()};
@@ -3236,7 +3240,7 @@ function portrait(s,i,red){var sk=SKINS[ui.skin].images,im=s.kind==='human'?(sk.
 function lobbySeatsHTML(list,redFrom){var h='<div class="seatsrow">',i;
  for(i=0;i<6;i++){var s=list[i];h+=s?'<div class="sp1" data-seat="'+i+'">'+portrait(s,i,i>=redFrom&&s.kind==='human')+'<span>'+(s.wait?I('hourglass'):esc(s.name))+'</span></div>':'<div class="sp1 empty"><div class="avatar"></div><span>&nbsp;</span></div>'}
  return h+'</div>'}
-function botsRowHTML(c){var h='<div class="botsel">',k;for(k=0;k<=c.maxBots();k++)h+='<button class="'+(c.bots()===k?'sel':'')+'" data-on="bots:'+k+'" aria-label="'+k+' computer players">'+I('robot')+k+'</button>';return h+'</div>'}
+function botsRowHTML(c){var h='<div class="botsel">',k,mn=c.minBots?c.minBots():0;for(k=0;k<=Math.max(c.maxBots(),mn);k++)h+='<button class="'+(c.bots()===k?'sel':'')+'" data-on="bots:'+k+'" aria-label="'+k+' computer players"'+(k<mn?' disabled':'')+'>'+I('robot')+k+'</button>';return h+'</div>'}
 function onlHTML(){var o=ui.onl,c=ui.octl,back='<button class="btn gold obk" data-on="cancel" aria-label="back">'+I('home')+'</button>',i;
  if(o.step==='host'&&c&&c.link.state==='failed')o={step:'noconn'};
  if(o.step==='noconn')return '<div class="onl"><div class="bigpic nc" data-pic="noconn">'+I('nocon')+'<span>NO CONNECTION</span></div>'+back+'</div>';
